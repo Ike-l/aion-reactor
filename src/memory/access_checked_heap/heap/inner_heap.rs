@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::memory::{access_checked_resource_map::heap::HeapObject, ResourceId};
+use crate::memory::{access_checked_heap::heap::HeapObject, ResourceId};
 
 #[derive(Debug, Default)]
 pub struct InnerHeap {

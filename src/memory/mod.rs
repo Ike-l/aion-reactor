@@ -1,31 +1,18 @@
 use std::{any::{Any, TypeId}, collections::HashMap, sync::Arc};
 
-use crate::{id::Id, injection::injection_trait::{Injection, MemoryTarget}, memory::access_checked_resource_map::{heap::{raw_heap_object::RawHeapObject, HeapObject, }, AccessCheckedHeap, ResolveError}};
+use crate::{id::Id, injection::injection_trait::{Injection, MemoryTarget}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapObject, }, errors::ResolveError, memory_domain::MemoryDomain, resource_id::Resource}};
 
-pub mod access_checked_resource_map;
+pub mod access_checked_heap;
+pub mod resource_id;
+pub mod memory_domain;
+pub mod errors;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub enum ResourceId {
-    Label(Id),
-    Heap(TypeId),
-}
-
-impl From<TypeId> for ResourceId {
-    fn from(value: TypeId) -> Self {
-        Self::Heap(value)
-    }
-}
-
-impl From<Id> for ResourceId {
-    fn from(value: Id) -> Self {
-        Self::Label(value)
-    }
-}
+pub use resource_id::ResourceId;
 
 #[derive(Debug)]
 pub struct Memory {
-    global_memory: Arc<AccessCheckedHeap>,
-    program_memory: HashMap<Id, Arc<AccessCheckedHeap>>
+    global_memory: Arc<MemoryDomain>,
+    program_memory: HashMap<Id, Arc<MemoryDomain>>
 }
 
 impl Memory {
@@ -33,7 +20,7 @@ impl Memory {
     #[cfg(test)]
     pub(crate) fn new() -> Self {
         Self {
-            global_memory: Arc::new(AccessCheckedHeap::new()),
+            global_memory: Arc::new(MemoryDomain::new()),
             program_memory: HashMap::new()
         }
     }
@@ -47,12 +34,12 @@ impl Memory {
         Some(map.resolve::<T>(resource_id))
     }
 
-    pub fn insert<T: 'static>(&mut self, program_id: Option<Id>, resource_id: Option<ResourceId>, resource: T) -> Option<Option<HeapObject>> {
+    pub fn insert<T: 'static>(&mut self, program_id: Option<Id>, resource_id: Option<ResourceId>, resource: T) -> Option<Option<Resource>> {
         let resource: Box<dyn Any> = Box::new(resource);
         Some(if let Some(id) = program_id {
-            self.program_memory.get(&id)?.insert(resource_id.unwrap_or(ResourceId::Heap(TypeId::of::<T>())), HeapObject(RawHeapObject::new(resource)))
+            self.program_memory.get(&id)?.insert(resource_id.unwrap_or(ResourceId::Heap(TypeId::of::<T>())), Resource::Heap(HeapObject(RawHeapObject::new(resource))))
         } else {
-            self.global_memory.insert(resource_id.unwrap_or(ResourceId::Heap(TypeId::of::<T>())), HeapObject(RawHeapObject::new(resource)))
+            self.global_memory.insert(resource_id.unwrap_or(ResourceId::Heap(TypeId::of::<T>())), Resource::Heap(HeapObject(RawHeapObject::new(resource))))
         })
     }
 }

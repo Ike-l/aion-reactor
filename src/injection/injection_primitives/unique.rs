@@ -1,6 +1,6 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{id::Id, injection::{injection_trait::Injection, resolve, retrieve, AccessDeResolver, AccessDropper}, memory::{access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedHeap, ResolveError}, Memory, ResourceId}};
+use crate::{id::Id, injection::{injection_trait::Injection, resolve, retrieve, AccessDeResolver, AccessDropper}, memory::{access_checked_heap::access::access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}};
 
 pub struct Unique<'a, T> {
     pub value: &'a mut T,
@@ -37,9 +37,9 @@ impl<T: 'static> Injection for Unique<'_, T> {
         resolve!(memory, program_id, resource_id)
     }
 
-    fn retrieve<'a>(resource_map: &'a Arc<AccessCheckedHeap>, resource_id: Option<ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
-        let r = resource_map.get_unique::<T>(resource_id.unwrap_or(ResourceId::Heap(TypeId::of::<T>())))?;
-        let dropper = retrieve!(resource_map);
+    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
+        let r = memory_domain.get_unique::<T>(resource_id.unwrap_or(ResourceId::Heap(TypeId::of::<T>())))?;
+        let dropper = retrieve!(memory_domain);
         let shared = Unique::new(r, dropper);
 
         Ok(shared)

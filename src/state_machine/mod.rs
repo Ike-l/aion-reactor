@@ -1,4 +1,4 @@
-use crate::{id::Id, injection::injection_trait::Injection, memory::{access_checked_resource_map::{heap::HeapObject, ResolveError}, Memory, ResourceId}, processor::Processor, system::stored_system::StoredSystem};
+use crate::{id::Id, injection::injection_trait::Injection, memory::{errors::ResolveError, resource_id::Resource, Memory, ResourceId}, processor::Processor, system::stored_system::StoredSystem};
 
 pub mod event;
 
@@ -14,7 +14,7 @@ impl StateMachine {
         self.memory.resolve::<T>(program_id, resource_id)
     }
 
-    pub fn insert<T: 'static>(&mut self, program_id: Option<Id>, resource_id: Option<ResourceId>, resource: T) -> Option<Option<HeapObject>> {
+    pub fn insert<T: 'static>(&mut self, program_id: Option<Id>, resource_id: Option<ResourceId>, resource: T) -> Option<Option<Resource>> {
         self.memory.insert(program_id, resource_id, resource)
     }
 

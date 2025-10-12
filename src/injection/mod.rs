@@ -3,19 +3,19 @@ pub mod injection_primitives;
 
 use std::sync::Arc;
 
-use crate::{injection::injection_trait::Injection, memory::access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedHeap}};
+use crate::{injection::injection_trait::Injection, memory::{access_checked_heap::access::access_map::AccessMap, memory_domain::MemoryDomain}};
 
 pub trait AccessDropper {
     fn access_dropper(&self) -> &AccessDeResolver; 
 }
 
 pub struct AccessDeResolver {
-    resource_map: Arc<AccessCheckedHeap>,
+    memory_domain: Arc<MemoryDomain>,
     access_map: AccessMap
 }
 
 macro_rules! retrieve {
-    ($resource_map:ident) => { { AccessDeResolver::new::<Self>(Arc::clone($resource_map)) } };
+    ($memory_domain:ident) => { { AccessDeResolver::new::<Self>(Arc::clone($memory_domain)) } };
 }
 
 pub(crate) use retrieve;
@@ -27,17 +27,17 @@ macro_rules! resolve {
 pub(crate) use resolve;
 
 impl AccessDeResolver {
-    fn new<T: Injection>(resource_map: Arc<AccessCheckedHeap>) -> Self {
+    fn new<T: Injection>(memory_domain: Arc<MemoryDomain>) -> Self {
         let mut access_map = AccessMap::default();
         T::resolve_accesses(&mut access_map);
-        Self { resource_map, access_map }
+        Self { memory_domain: memory_domain, access_map }
     }
 }
 
 impl Drop for AccessDeResolver {
     fn drop(&mut self) {
         for (resource, access) in self.access_map.drain() {
-            self.resource_map.deresolve(access, &resource).unwrap();
+            self.memory_domain.deresolve(access, &resource).unwrap();
         }
     }
 }

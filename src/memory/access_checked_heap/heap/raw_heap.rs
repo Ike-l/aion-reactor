@@ -1,6 +1,6 @@
 use std::cell::UnsafeCell;
 
-use crate::memory::{access_checked_resource_map::heap::{inner_heap::InnerHeap, HeapObject, }, ResourceId};
+use crate::memory::{access_checked_heap::heap::{inner_heap::InnerHeap, HeapObject, }, ResourceId};
 
 #[derive(Debug, Default)]
 pub struct RawHeap {

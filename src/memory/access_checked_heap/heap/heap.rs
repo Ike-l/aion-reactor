@@ -1,4 +1,4 @@
-use crate::memory::{access_checked_resource_map::heap::{raw_heap::RawHeap, HeapObject}, ResourceId};
+use crate::memory::{access_checked_heap::heap::{raw_heap::RawHeap, HeapObject}, ResourceId};
 
 #[derive(Debug, Default)]
 pub struct Heap {

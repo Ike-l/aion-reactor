@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use crate::memory::access_checked_resource_map::heap::raw_heap_object::RawHeapObject;
+use crate::memory::access_checked_heap::heap::raw_heap_object::RawHeapObject;
 
 pub mod heap;
 pub mod raw_heap_object;

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{id::Id, injection::AccessDropper, memory::{access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedHeap, ResolveError}, Memory, ResourceId} };
+use crate::{id::Id, injection::AccessDropper, memory::{access_checked_heap::access::access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId} };
 
 pub enum MemoryTarget {
     Program,
@@ -16,7 +16,7 @@ pub trait Injection {
     
     fn resolve<'a>(memory: &'a Memory, program_id: Option<Id>, resource_id: Option<ResourceId>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>>;
     
-    fn retrieve<'a>(resource_map: &'a Arc<AccessCheckedHeap>, resource_id: Option<ResourceId>) -> Result<Self::Item<'a>, ResolveError>;
+    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<ResourceId>) -> Result<Self::Item<'a>, ResolveError>;
 
     fn select_memory_target() -> MemoryTarget {
         MemoryTarget::Global
