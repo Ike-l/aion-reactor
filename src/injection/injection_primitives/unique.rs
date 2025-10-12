@@ -1,0 +1,47 @@
+use std::{any::{type_name, TypeId}, sync::Arc};
+
+use crate::{id::Id, injection::{injection_trait::Injection, AccessDeResolver, AccessDropper}, memory::{access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedResourceMap, ResolveError}, Memory}};
+
+pub struct Unique<'a, T> {
+    pub value: &'a mut T,
+    dropper: AccessDeResolver
+}
+
+impl<'a, T: 'static> Unique<'a, T> {
+    pub fn new(value: &'a mut T, dropper: AccessDeResolver) -> Self {
+        Self {
+            value,
+            dropper
+        }
+    }
+}
+
+impl<T> AccessDropper for Unique<'_, T> {
+    fn access_dropper(&self) -> &AccessDeResolver {
+        &self.dropper
+    }
+}
+
+impl<T: 'static> Injection for Unique<'_, T> {
+    type Item<'new> = Unique<'new, T>;
+
+    fn failed_message() -> String {
+        format!("Expected Resource: `{}`", type_name::<T>())
+    }
+
+    fn resolve_accesses(access_map: &mut AccessMap) {
+        let _ = access_map.access_unique(TypeId::of::<T>()).unwrap();
+    }
+    
+    fn resolve<'a>(memory: &'a Memory, program_id: Id) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
+        Ok(memory.resolve::<Self>(Some(program_id)).unwrap_or_else(|| Err(ResolveError::InvalidProgramId)))
+    }
+
+    fn retrieve<'a>(resource_map: &'a Arc<AccessCheckedResourceMap>) -> Result<Self::Item<'a>, ResolveError> {
+        let r = resource_map.get_unique::<T>()?;
+        let dropper = AccessDeResolver::new::<Self>(Arc::clone(resource_map));
+        let shared = Unique::new(r, dropper);
+
+        Ok(shared)
+    }
+}
