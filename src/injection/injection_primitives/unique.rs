@@ -1,6 +1,6 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{id::Id, injection::{injection_trait::Injection, AccessDeResolver, AccessDropper}, memory::{access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedResourceMap, ResolveError}, Memory}};
+use crate::{id::Id, injection::{injection_trait::Injection, retrieve, AccessDeResolver, AccessDropper}, memory::{access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedResourceMap, ResolveError}, Memory}};
 
 pub struct Unique<'a, T> {
     pub value: &'a mut T,
@@ -39,7 +39,7 @@ impl<T: 'static> Injection for Unique<'_, T> {
 
     fn retrieve<'a>(resource_map: &'a Arc<AccessCheckedResourceMap>) -> Result<Self::Item<'a>, ResolveError> {
         let r = resource_map.get_unique::<T>()?;
-        let dropper = AccessDeResolver::new::<Self>(Arc::clone(resource_map));
+        let dropper = retrieve!(resource_map);
         let shared = Unique::new(r, dropper);
 
         Ok(shared)

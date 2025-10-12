@@ -14,8 +14,14 @@ pub struct AccessDeResolver {
     access_map: AccessMap
 }
 
+macro_rules! retrieve {
+    ($resource_map:ident) => { { AccessDeResolver::new::<Self>(Arc::clone($resource_map)) } };
+}
+
+pub(crate) use retrieve;
+
 impl AccessDeResolver {
-    pub fn new<T: Injection>(resource_map: Arc<AccessCheckedResourceMap>) -> Self {
+    fn new<T: Injection>(resource_map: Arc<AccessCheckedResourceMap>) -> Self {
         let mut access_map = AccessMap::default();
         T::resolve_accesses(&mut access_map);
         Self { resource_map, access_map }

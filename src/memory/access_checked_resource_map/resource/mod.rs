@@ -1,16 +1,26 @@
 use std::any::{Any, TypeId};
 
-use crate::memory::access_checked_resource_map::resource::raw_resource::RawResource;
+use crate::{id::Id, memory::access_checked_resource_map::resource::raw_resource::RawResource};
 
 pub mod resource_map;
 pub mod raw_resource;
 
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct ResourceId(TypeId);
+pub enum ResourceId {
+    RawTypeId(TypeId),
+    Id(Id)
+}
 
 impl From<TypeId> for ResourceId {
     fn from(value: TypeId) -> Self {
-        Self(value)
+        Self::RawTypeId(value)
+    }
+}
+
+impl From<Id> for ResourceId {
+    fn from(value: Id) -> Self {
+        Self::Id(value)
     }
 }
 

@@ -1,12 +1,12 @@
-use std::{any::TypeId, collections::HashMap};
+use crate::{id::Id, injection::injection_trait::Injection, memory::{access_checked_resource_map::{resource::{Resource, ResourceId}, ResolveError}, Memory}, system::stored_system::StoredSystem};
 
-use crate::{id::Id, injection::injection_trait::Injection, memory::{access_checked_resource_map::{resource::Resource, ResolveError}, Memory}, system::stored_system::StoredSystem};
-
+pub mod event;
+pub mod scheduler;
 
 #[derive(Debug)]
 pub struct StateMachine {
     memory: Memory,
-    program_pointers: HashMap<Id, StoredSystem>,
+    system_metadata: Vec<StoredSystem>,
 }
 
 impl StateMachine {
