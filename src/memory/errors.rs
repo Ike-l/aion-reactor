@@ -9,5 +9,6 @@ pub enum ResolveError {
 
 #[derive(Debug)]
 pub enum DeResolveError {
-
+    AccessDoesNotExist,
+    AccessMismatch
 }

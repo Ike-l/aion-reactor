@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::memory::{access_checked_heap::{access::Access, heap::HeapId}, errors::ResolveError, ResourceId};
+use crate::memory::{access_checked_heap::heap::HeapId, access_map::Access, errors::{DeResolveError, ResolveError}, ResourceId};
 
 
 #[derive(Debug, Default)]
@@ -22,6 +22,24 @@ impl HeapAccessMap {
                 false
             }
         })
+    }
+
+    pub fn deaccess(&mut self, access: Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
+        match self.0.get_mut(heap_id) {
+            Some(Access::Shared(n)) => {
+                match access {
+                    Access::Unique => Err(DeResolveError::AccessMismatch),
+                    Access::Shared(m) => { *n -= m; Ok(()) }
+                }
+            },
+            Some(Access::Unique) => {
+                match access {
+                    Access::Shared(_) => Err(DeResolveError::AccessMismatch),
+                    Access::Unique => { self.0.remove(heap_id); Ok(()) }
+                }
+            },
+            None => Err(DeResolveError::AccessDoesNotExist)
+        }
     }
 
     pub fn access(&self, resource_id: &HeapId) -> Option<&Access> {

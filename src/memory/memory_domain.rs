@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{injection::{injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::{access::Access, AccessCheckedHeap,}, errors::{DeResolveError, ResolveError}, resource_id::Resource, ResourceId}};
+use crate::{injection::{injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::AccessCheckedHeap, access_map::{Access, AccessMap}, errors::{DeResolveError, ResolveError}, resource_id::Resource, ResourceId}};
 
 // Should be no public way of creating one of these to enforce dropping behaviour by injection types
 #[derive(Debug)]
@@ -40,15 +40,21 @@ impl MemoryDomain {
         }
     }
 
-    pub fn get_shared<T: 'static>(&self, resource_id: ResourceId) -> Result<&T, ResolveError> {
+    pub fn get_shared<T: 'static>(&self, resource_id: ResourceId) -> Result<(&T, AccessMap), ResolveError> {
         match resource_id {
-            ResourceId::Heap(id) => self.heap.get_shared(&id)
+            ResourceId::Heap(id) => {
+                let (t, access_map) = self.heap.get_shared(&id)?;
+                Ok((t, AccessMap::Heap(access_map)))
+            }
         }
     }
 
-    pub fn get_unique<T: 'static>(&self, resource_id: ResourceId) -> Result<&mut T, ResolveError> {
+    pub fn get_unique<T: 'static>(&self, resource_id: ResourceId) -> Result<(&mut T, AccessMap), ResolveError> {
         match resource_id {
-            ResourceId::Heap(id) => self.heap.get_unique(&id)
+            ResourceId::Heap(id) => {
+                let (t, access_map) = self.heap.get_unique(&id)?;
+                Ok((t, AccessMap::Heap(access_map)))
+            }
         }
     }
 }

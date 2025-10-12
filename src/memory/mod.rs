@@ -6,6 +6,7 @@ pub mod access_checked_heap;
 pub mod resource_id;
 pub mod memory_domain;
 pub mod errors;
+pub mod access_map;
 
 pub use resource_id::ResourceId;
 

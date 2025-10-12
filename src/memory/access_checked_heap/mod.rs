@@ -1,9 +1,9 @@
 use std::sync::Mutex;
 
-use crate::memory::{access_checked_heap::{access::{access_map::HeapAccessMap, Access}, heap::{heap::Heap, HeapId, HeapObject}}, errors::{DeResolveError, ResolveError},ResourceId};
+use crate::memory::{access_checked_heap::{heap::{heap::Heap, HeapId, HeapObject}, heap_access_map::HeapAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, ResourceId};
 
 pub mod heap;
-pub mod access;
+pub mod heap_access_map;
 
 
 
@@ -27,21 +27,28 @@ impl AccessCheckedHeap {
 
     // pub crate for now since i only want the dropper to use this
     pub(crate) fn deresolve(&self, access: Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
-        todo!()
-        // Ok(())
+        self.access_map.lock().unwrap().deaccess(access, heap_id)
     }
 
-    pub fn get_shared<T: 'static>(&self, heap_id: &HeapId) -> Result<&T, ResolveError> {
+    pub fn get_shared<T: 'static>(&self, heap_id: &HeapId) -> Result<(&T, HeapAccessMap), ResolveError> {
         self.access_map.lock().unwrap().access_shared(heap_id.clone())?;
+        let mut access_map = HeapAccessMap::default();
+        access_map.access_shared(heap_id.clone())?;
         // Safety:
         // Accesses are tracked
-        unsafe { self.heap.get(&heap_id).ok_or(ResolveError::NoResource(ResourceId::from(heap_id.clone()))) }
+        unsafe {
+            Ok((self.heap.get(&heap_id).ok_or(ResolveError::NoResource(ResourceId::from(heap_id.clone())))?, access_map))
+        }
     }
 
-    pub fn get_unique<T: 'static>(&self, heap_id: &HeapId) -> Result<&mut T, ResolveError> {
+    pub fn get_unique<T: 'static>(&self, heap_id: &HeapId) -> Result<(&mut T, HeapAccessMap), ResolveError> {
         self.access_map.lock().unwrap().access_unique(heap_id.clone())?;
+        let mut access_map = HeapAccessMap::default();
+        access_map.access_unique(heap_id.clone())?;
         // Safety:
         // Accesses are tracked
-        unsafe { self.heap.get_mut(&heap_id).ok_or(ResolveError::NoResource(ResourceId::from(heap_id.clone()))) }
+        unsafe {
+            Ok((self.heap.get_mut(&heap_id).ok_or(ResolveError::NoResource(ResourceId::from(heap_id.clone())))?, access_map))
+        }
     }
 }

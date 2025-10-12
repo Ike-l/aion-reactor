@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{id::Id, injection::AccessDropper, memory::{access_checked_heap::access::access_map::HeapAccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId} };
+use crate::{id::Id, injection::AccessDropper, memory::{access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId} };
 
 pub enum MemoryTarget {
     Program,
@@ -10,7 +10,7 @@ pub enum MemoryTarget {
 pub trait Injection {
     type Item<'new>: AccessDropper;
     
-    fn resolve_accesses(access_map: &mut HeapAccessMap);
+    fn resolve_accesses(access_map: &mut AccessMap);
     
     fn failed_message() -> String;
     

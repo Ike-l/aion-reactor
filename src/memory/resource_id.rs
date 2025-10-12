@@ -2,14 +2,14 @@ use crate::memory::access_checked_heap::heap::{HeapId, HeapObject};
 
 pub enum Resource {
     Heap(HeapObject),
-    // Stack
+    // Stack,
     // ECS
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ResourceId {
-    Heap(HeapId)
-    // Stack
+    Heap(HeapId),
+    // Stack,
     // ECS
 }
 
