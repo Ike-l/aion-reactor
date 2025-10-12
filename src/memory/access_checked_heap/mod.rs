@@ -28,6 +28,7 @@ impl AccessCheckedHeap {
     // pub crate for now since i only want the dropper to use this
     pub(crate) fn deresolve(&self, access: Access, resource: &ResourceId) -> Result<(), DeResolveError> {
         todo!()
+        // Ok(())
     }
 
     pub fn get_shared<T: 'static>(&self, resource_id: ResourceId) -> Result<&T, ResolveError> {

@@ -35,14 +35,17 @@ impl MemoryDomain {
 
     // pub crate for now since i only want the dropper to use this
     pub(crate) fn deresolve(&self, access: Access, resource: &ResourceId) -> Result<(), DeResolveError> {
+        // will need to switch on the memory domain
         self.heap.deresolve(access, resource)
     }
 
     pub fn get_shared<T: 'static>(&self, resource_id: ResourceId) -> Result<&T, ResolveError> {
+        // will need to switch on the memory domain
         self.heap.get_shared(resource_id)
     }
 
     pub fn get_unique<T: 'static>(&self, resource_id: ResourceId) -> Result<&mut T, ResolveError> {
+        // will need to switch on the memory domain
         self.heap.get_unique(resource_id)
     }
 }
