@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
-use crate::memory::{access_checked_heap::heap::HeapObject, ResourceId};
+use crate::memory::access_checked_heap::heap::{HeapId, HeapObject};
 
 #[derive(Debug, Default)]
 pub struct InnerHeap {
-    resources: HashMap<ResourceId, HeapObject>
+    resources: HashMap<HeapId, HeapObject>
 }
 
 impl InnerHeap {
     /// Safety:
     /// Ensure no concurrent accesses
-    pub unsafe fn get<T: 'static>(&self, resource_id: &ResourceId) -> Option<&T> {
+    pub unsafe fn get<T: 'static>(&self, resource_id: &HeapId) -> Option<&T> {
         unsafe {
             self.resources
                 .get(resource_id)
@@ -21,7 +21,7 @@ impl InnerHeap {
 
     /// Safety:
     /// Ensure no concurrent accesses
-    pub unsafe fn get_mut<T: 'static>(&self, resource_id: &ResourceId) -> Option<&mut T> {
+    pub unsafe fn get_mut<T: 'static>(&self, resource_id: &HeapId) -> Option<&mut T> {
         unsafe {
             self.resources
                 .get(resource_id)
@@ -30,7 +30,7 @@ impl InnerHeap {
         }
     }
 
-    pub unsafe fn insert(&mut self, resource_id: ResourceId, resource: HeapObject) -> Option<HeapObject> {
+    pub unsafe fn insert(&mut self, resource_id: HeapId, resource: HeapObject) -> Option<HeapObject> {
         self.resources.insert(resource_id, resource)
     }
 }

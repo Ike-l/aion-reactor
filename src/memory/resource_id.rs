@@ -1,6 +1,4 @@
-use std::any::TypeId;
-
-use crate::{id::Id, memory::access_checked_heap::heap::HeapObject};
+use crate::memory::access_checked_heap::heap::{HeapId, HeapObject};
 
 pub enum Resource {
     Heap(HeapObject),
@@ -10,20 +8,13 @@ pub enum Resource {
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ResourceId {
-    Label(Id),
-    Heap(TypeId),
+    Heap(HeapId)
     // Stack
     // ECS
 }
 
-impl From<TypeId> for ResourceId {
-    fn from(value: TypeId) -> Self {
+impl From<HeapId> for ResourceId {
+    fn from(value: HeapId) -> Self {
         Self::Heap(value)
-    }
-}
-
-impl From<Id> for ResourceId {
-    fn from(value: Id) -> Self {
-        Self::Label(value)
     }
 }

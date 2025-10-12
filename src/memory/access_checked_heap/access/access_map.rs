@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use crate::memory::{access_checked_heap::access::Access, errors::ResolveError, ResourceId};
+use crate::memory::{access_checked_heap::{access::Access, heap::HeapId}, errors::ResolveError, ResourceId};
 
 
 #[derive(Debug, Default)]
-pub struct AccessMap(HashMap<ResourceId, Access>);
+pub struct HeapAccessMap(HashMap<HeapId, Access>);
 
-impl AccessMap {
-    pub fn drain(&mut self) -> impl Iterator<Item = (ResourceId, Access)> {
+impl HeapAccessMap {
+    pub fn drain(&mut self) -> impl Iterator<Item = (HeapId, Access)> {
         self.0.drain()
     }
 
@@ -24,25 +24,25 @@ impl AccessMap {
         })
     }
 
-    pub fn access(&self, resource_id: &ResourceId) -> Option<&Access> {
+    pub fn access(&self, resource_id: &HeapId) -> Option<&Access> {
         self.0.get(resource_id)
     }
 
-    pub fn access_shared<T: Into<ResourceId>>(&mut self, resource_id: T) -> Result<(), ResolveError> {
-        let resource_id = resource_id.into();
-        match self.0.entry(resource_id.clone()).or_insert(Access::Shared(0)) {
+    pub fn access_shared<T: Into<HeapId>>(&mut self, heap_id: T) -> Result<(), ResolveError> {
+        let heap_id = heap_id.into();
+        match self.0.entry(heap_id.clone()).or_insert(Access::Shared(0)) {
             Access::Shared(n) => Ok(*n += 1),
-            Access::Unique => Err(ResolveError::ConflictingAccess(resource_id))
+            Access::Unique => Err(ResolveError::ConflictingAccess(ResourceId::from(heap_id)))
         }
     }
 
-    pub fn access_unique<T: Into<ResourceId>>(&mut self, resource_id: T) -> Result<(), ResolveError> {
-        let resource_id = resource_id.into();
-        if self.0.contains_key(&resource_id) {
-            return Err(ResolveError::ConflictingAccess(resource_id));
+    pub fn access_unique<T: Into<HeapId>>(&mut self, heap_id: T) -> Result<(), ResolveError> {
+        let heap_id = heap_id.into();
+        if self.0.contains_key(&heap_id) {
+            return Err(ResolveError::ConflictingAccess(ResourceId::from(heap_id)));
         }
 
-        self.0.insert(resource_id, Access::Unique);
+        self.0.insert(heap_id, Access::Unique);
         Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use crate::memory::{access_checked_heap::heap::{raw_heap::RawHeap, HeapObject}, ResourceId};
+use crate::memory::access_checked_heap::heap::{raw_heap::RawHeap, HeapId, HeapObject};
 
 #[derive(Debug, Default)]
 pub struct Heap {
@@ -9,22 +9,22 @@ pub struct Heap {
 impl Heap {
     /// Safety:
     /// Ensure no concurrent mutable accesses
-    pub unsafe fn get<T: 'static>(&self, resource_id: &ResourceId) -> Option<&T> {
+    pub unsafe fn get<T: 'static>(&self, heap_id: &HeapId) -> Option<&T> {
         let guard = self.lock.read();
-        unsafe { self.raw_heap.get(resource_id, guard) }
+        unsafe { self.raw_heap.get(heap_id, guard) }
     }
 
     /// Safety:
     /// Ensure no concurrent accesses
-    pub unsafe fn get_mut<T: 'static>(&self, resource_id: &ResourceId) -> Option<&mut T> {
+    pub unsafe fn get_mut<T: 'static>(&self, heap_id: &HeapId) -> Option<&mut T> {
         let guard = self.lock.read();
-        unsafe { self.raw_heap.get_mut(resource_id, guard) }
+        unsafe { self.raw_heap.get_mut(heap_id, guard) }
     }
 
     /// Safety:
     /// Ensure no concurrent accesses
-    pub unsafe fn insert(&self, resource_id: ResourceId, resource: HeapObject) -> Option<HeapObject> {
+    pub unsafe fn insert(&self, heap_id: HeapId, resource: HeapObject) -> Option<HeapObject> {
         let guard = self.lock.write();
-        unsafe { self.raw_heap.insert(resource_id, resource, guard) }
+        unsafe { self.raw_heap.insert(heap_id, resource, guard) }
     }
 }

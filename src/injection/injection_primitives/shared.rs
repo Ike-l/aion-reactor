@@ -1,6 +1,6 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{id::Id, injection::{injection_trait::Injection, resolve, retrieve, AccessDeResolver, AccessDropper}, memory::{access_checked_heap::access::access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}};
+use crate::{id::Id, injection::{injection_trait::Injection, resolve, retrieve, AccessDeResolver, AccessDropper}, memory::{access_checked_heap::{access::access_map::HeapAccessMap, heap::HeapId}, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}};
 
 pub struct Shared<'a, T> {
     pub value: &'a T,
@@ -29,7 +29,7 @@ impl<T: 'static> Injection for Shared<'_, T> {
         format!("Expected Resource: `{}`", type_name::<T>())
     }
 
-    fn resolve_accesses(access_map: &mut AccessMap) {
+    fn resolve_accesses(access_map: &mut HeapAccessMap) {
         let _ = access_map.access_shared(TypeId::of::<T>()).unwrap();
     }
     
@@ -37,9 +37,9 @@ impl<T: 'static> Injection for Shared<'_, T> {
         resolve!(memory, program_id, resource_id)
     }
 
-    fn retrieve<'a>(resource_map: &'a Arc<MemoryDomain>, resource_id: Option<ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
-        let r = resource_map.get_shared::<T>(resource_id.unwrap_or(ResourceId::Heap(TypeId::of::<T>())))?;
-        let dropper = retrieve!(resource_map);
+    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
+        let r = memory_domain.get_shared::<T>(resource_id.unwrap_or(ResourceId::from(HeapId::from(TypeId::of::<T>()))))?;
+        let dropper = retrieve!(memory_domain);
         let shared = Shared::new(r, dropper);
 
         Ok(shared)
