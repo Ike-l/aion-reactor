@@ -1,6 +1,6 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{id::Id, injection::{injection_trait::Injection, resolve, retrieve, AccessDeResolver, AccessDropper}, memory::{access_checked_resource_map::{access::access_map::AccessMap, resource::ResourceId, AccessCheckedResourceMap, ResolveError}, Memory}};
+use crate::{id::Id, injection::{injection_trait::Injection, resolve, retrieve, AccessDeResolver, AccessDropper}, memory::{access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedHeap, ResolveError}, Memory, ResourceId}};
 
 pub struct Shared<'a, T> {
     pub value: &'a T,
@@ -37,8 +37,8 @@ impl<T: 'static> Injection for Shared<'_, T> {
         resolve!(memory, program_id, resource_id)
     }
 
-    fn retrieve<'a>(resource_map: &'a Arc<AccessCheckedResourceMap>, resource_id: Option<ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
-        let r = resource_map.get_shared::<T>(resource_id.unwrap_or(ResourceId::RawTypeId(TypeId::of::<T>())))?;
+    fn retrieve<'a>(resource_map: &'a Arc<AccessCheckedHeap>, resource_id: Option<ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
+        let r = resource_map.get_shared::<T>(resource_id.unwrap_or(ResourceId::Heap(TypeId::of::<T>())))?;
         let dropper = retrieve!(resource_map);
         let shared = Shared::new(r, dropper);
 

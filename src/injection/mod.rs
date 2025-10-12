@@ -3,14 +3,14 @@ pub mod injection_primitives;
 
 use std::sync::Arc;
 
-use crate::{injection::injection_trait::Injection, memory::access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedResourceMap}};
+use crate::{injection::injection_trait::Injection, memory::access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedHeap}};
 
 pub trait AccessDropper {
     fn access_dropper(&self) -> &AccessDeResolver; 
 }
 
 pub struct AccessDeResolver {
-    resource_map: Arc<AccessCheckedResourceMap>,
+    resource_map: Arc<AccessCheckedHeap>,
     access_map: AccessMap
 }
 
@@ -27,7 +27,7 @@ macro_rules! resolve {
 pub(crate) use resolve;
 
 impl AccessDeResolver {
-    fn new<T: Injection>(resource_map: Arc<AccessCheckedResourceMap>) -> Self {
+    fn new<T: Injection>(resource_map: Arc<AccessCheckedHeap>) -> Self {
         let mut access_map = AccessMap::default();
         T::resolve_accesses(&mut access_map);
         Self { resource_map, access_map }

@@ -1,11 +1,11 @@
-use crate::{id::Id, injection::injection_trait::Injection, memory::{access_checked_resource_map::{resource::{Resource, ResourceId}, ResolveError}, Memory}, system::stored_system::StoredSystem};
+use crate::{id::Id, injection::injection_trait::Injection, memory::{access_checked_resource_map::{heap::HeapObject, ResolveError}, Memory, ResourceId}, processor::Processor, system::stored_system::StoredSystem};
 
 pub mod event;
-pub mod scheduler;
 
 #[derive(Debug)]
 pub struct StateMachine {
     memory: Memory,
+    processor: Processor,
     system_metadata: Vec<StoredSystem>,
 }
 
@@ -14,12 +14,12 @@ impl StateMachine {
         self.memory.resolve::<T>(program_id, resource_id)
     }
 
-    pub fn insert<T: 'static>(&mut self, program_id: Option<Id>, resource_id: Option<ResourceId>, resource: T) -> Option<Option<Resource>> {
+    pub fn insert<T: 'static>(&mut self, program_id: Option<Id>, resource_id: Option<ResourceId>, resource: T) -> Option<Option<HeapObject>> {
         self.memory.insert(program_id, resource_id, resource)
     }
 
     pub async fn tick(&mut self) {
-
+        self.processor.tick().await;
     }
 
 }

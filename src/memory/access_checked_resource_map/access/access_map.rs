@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::memory::access_checked_resource_map::{access::Access, resource::ResourceId, ResolveError};
+use crate::memory::{access_checked_resource_map::{access::Access, ResolveError}, ResourceId};
 
 
 #[derive(Debug, Default)]

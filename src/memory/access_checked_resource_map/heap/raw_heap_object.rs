@@ -1,12 +1,12 @@
 use std::cell::UnsafeCell;
 
 #[derive(Debug, Default)]
-pub struct RawResource<T>(UnsafeCell<T>);
+pub struct RawHeapObject<T>(UnsafeCell<T>);
 
-unsafe impl<T> Send for RawResource<T> {}
-unsafe impl<T> Sync for RawResource<T> {}
+unsafe impl<T> Send for RawHeapObject<T> {}
+unsafe impl<T> Sync for RawHeapObject<T> {}
 
-impl<T> RawResource<T> {
+impl<T> RawHeapObject<T> {
     pub fn new(v: T) -> Self {
         Self(UnsafeCell::new(v))
     }

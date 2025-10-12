@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use crate::memory::access_checked_resource_map::resource::{Resource, ResourceId};
+use crate::memory::{access_checked_resource_map::heap::HeapObject, ResourceId};
 
 #[derive(Debug, Default)]
-pub struct InnerResourceMap {
-    resources: HashMap<ResourceId, Resource>
+pub struct InnerHeap {
+    resources: HashMap<ResourceId, HeapObject>
 }
 
-impl InnerResourceMap {
+impl InnerHeap {
     /// Safety:
     /// Ensure no concurrent accesses
     pub unsafe fn get<T: 'static>(&self, resource_id: &ResourceId) -> Option<&T> {
@@ -30,7 +30,7 @@ impl InnerResourceMap {
         }
     }
 
-    pub unsafe fn insert(&mut self, resource_id: ResourceId, resource: Resource) -> Option<Resource> {
+    pub unsafe fn insert(&mut self, resource_id: ResourceId, resource: HeapObject) -> Option<HeapObject> {
         self.resources.insert(resource_id, resource)
     }
 }

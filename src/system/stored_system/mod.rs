@@ -1,4 +1,4 @@
-use crate::{id::Id, memory::access_checked_resource_map::resource::ResourceId, state_machine::scheduler::ordering::ScheduleOrdering, system::stored_system::{criteria::Criteria, system_kind::SystemKind}};
+use crate::{id::Id, memory::ResourceId, processor::scheduler::ordering::ScheduleOrdering, system::stored_system::{criteria::Criteria, system_kind::SystemKind}};
 
 
 pub mod system_kind;
