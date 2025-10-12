@@ -1,6 +1,6 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{id::Id, injection::{injection_trait::Injection, retrieve, AccessDeResolver, AccessDropper}, memory::{access_checked_resource_map::{access::access_map::AccessMap, AccessCheckedResourceMap, ResolveError}, Memory}};
+use crate::{id::Id, injection::{injection_trait::Injection, resolve, retrieve, AccessDeResolver, AccessDropper}, memory::{access_checked_resource_map::{access::access_map::AccessMap, resource::ResourceId, AccessCheckedResourceMap, ResolveError}, Memory}};
 
 pub struct Shared<'a, T> {
     pub value: &'a T,
@@ -33,12 +33,12 @@ impl<T: 'static> Injection for Shared<'_, T> {
         let _ = access_map.access_shared(TypeId::of::<T>()).unwrap();
     }
     
-    fn resolve<'a>(memory: &'a Memory, program_id: Id) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
-        Ok(memory.resolve::<Self>(Some(program_id)).unwrap_or_else(|| Err(ResolveError::InvalidProgramId)))
+    fn resolve<'a>(memory: &'a Memory, program_id: Option<Id>, resource_id: Option<ResourceId>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
+        resolve!(memory, program_id, resource_id)
     }
 
-    fn retrieve<'a>(resource_map: &'a Arc<AccessCheckedResourceMap>) -> Result<Self::Item<'a>, ResolveError> {
-        let r = resource_map.get_shared::<T>()?;
+    fn retrieve<'a>(resource_map: &'a Arc<AccessCheckedResourceMap>, resource_id: Option<ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
+        let r = resource_map.get_shared::<T>(resource_id.unwrap_or(ResourceId::RawTypeId(TypeId::of::<T>())))?;
         let dropper = retrieve!(resource_map);
         let shared = Shared::new(r, dropper);
 

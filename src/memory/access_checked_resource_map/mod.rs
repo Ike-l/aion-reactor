@@ -1,4 +1,4 @@
-use std::{any::TypeId, sync::{Arc, Mutex}};
+use std::sync::{Arc, Mutex};
 
 use crate::{injection::{injection_trait::Injection, AccessDropper}, memory::access_checked_resource_map::{access::{access_map::AccessMap, Access}, resource::{resource_map::ResourceMap, Resource, ResourceId}}};
 
@@ -12,6 +12,11 @@ pub enum ResolveError {
     NoResource(ResourceId),
 }
 
+#[derive(Debug)]
+pub enum DeResolveError {
+
+}
+
 // Should be no public way of creating one of these to enforce dropping behaviour by injection types
 #[derive(Debug)]
 pub struct AccessCheckedResourceMap {
@@ -20,12 +25,27 @@ pub struct AccessCheckedResourceMap {
 }
 
 impl AccessCheckedResourceMap {
-    pub fn insert<T: 'static>(&mut self, type_id: TypeId, resource: T) -> Option<Resource> {
-        todo!()
+    #[cfg(test)]
+    pub(crate) fn new() -> Self {
+        Self {
+            access_map: Mutex::new(AccessMap::default()),
+            resource_map: ResourceMap::default()
+        }
     }
 
-    pub fn resolve<T: Injection>(self: &Arc<Self>) -> Result<T::Item<'_>, ResolveError> {
-        let r = T::retrieve(&self);
+    pub fn insert(&self, resource_id: ResourceId, resource: Resource) -> Option<Resource> {
+        let access_map = self.access_map.lock().unwrap();
+        if let Some(_) = access_map.access(&resource_id) {
+            return None
+        }
+
+        // Safety:
+        // Accesses are tracked
+        unsafe { self.resource_map.insert(resource_id, resource) }
+    }
+
+    pub fn resolve<T: Injection>(self: &Arc<Self>, resource_id: Option<ResourceId>) -> Result<T::Item<'_>, ResolveError> {
+        let r = T::retrieve(&self, resource_id);
         if let Ok(r) = &r {
             // make sure no panics so there MUST be a dropper
             std::hint::black_box(r.access_dropper());
@@ -35,21 +55,21 @@ impl AccessCheckedResourceMap {
     }
 
     // pub crate for now since i only want the dropper to use this
-    pub(crate) fn deresolve(&self, access: Access, resource: &ResourceId) -> Option<()> {
+    pub(crate) fn deresolve(&self, access: Access, resource: &ResourceId) -> Result<(), DeResolveError> {
         todo!()
     }
 
-    pub fn get_shared<T: 'static>(&self) -> Result<&T, ResolveError> {
-        self.access_map.lock().unwrap().access_shared(TypeId::of::<T>())?;
+    pub fn get_shared<T: 'static>(&self, resource_id: ResourceId) -> Result<&T, ResolveError> {
+        self.access_map.lock().unwrap().access_shared(resource_id.clone())?;
         // Safety:
         // Accesses are tracked
-        unsafe { self.resource_map.get().ok_or(ResolveError::NoResource(ResourceId::from(TypeId::of::<T>()))) }
+        unsafe { self.resource_map.get(&resource_id).ok_or(ResolveError::NoResource(resource_id)) }
     }
 
-    pub fn get_unique<T: 'static>(&self) -> Result<&mut T, ResolveError> {
-        self.access_map.lock().unwrap().access_unique(TypeId::of::<T>())?;
+    pub fn get_unique<T: 'static>(&self, resource_id: ResourceId) -> Result<&mut T, ResolveError> {
+        self.access_map.lock().unwrap().access_unique(resource_id.clone())?;
         // Safety:
         // Accesses are tracked
-        unsafe { self.resource_map.get_mut().ok_or(ResolveError::NoResource(ResourceId::from(TypeId::of::<T>()))) }
+        unsafe { self.resource_map.get_mut(&resource_id).ok_or(ResolveError::NoResource(resource_id)) }
     }
 }

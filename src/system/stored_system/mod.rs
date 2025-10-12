@@ -8,7 +8,7 @@ pub mod criteria;
 pub struct StoredSystem {
     system_kind: SystemKind,
     resource_id: ResourceId,
-    program_id: Id,
+    program_id: Option<Id>,
     criteria: Criteria,
     ordering: ScheduleOrdering,
 }

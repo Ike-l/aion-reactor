@@ -24,6 +24,10 @@ impl AccessMap {
         })
     }
 
+    pub fn access(&self, resource_id: &ResourceId) -> Option<&Access> {
+        self.0.get(resource_id)
+    }
+
     pub fn access_shared<T: Into<ResourceId>>(&mut self, resource_id: T) -> Result<(), ResolveError> {
         let resource_id = resource_id.into();
         match self.0.entry(resource_id.clone()).or_insert(Access::Shared(0)) {

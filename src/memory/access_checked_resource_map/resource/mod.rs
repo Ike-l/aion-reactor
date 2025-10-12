@@ -4,7 +4,8 @@ use crate::{id::Id, memory::access_checked_resource_map::resource::raw_resource:
 
 pub mod resource_map;
 pub mod raw_resource;
-
+pub mod raw_resource_map;
+pub mod inner_resource_map;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ResourceId {

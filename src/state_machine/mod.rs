@@ -10,12 +10,12 @@ pub struct StateMachine {
 }
 
 impl StateMachine {
-    pub fn resolve<T: Injection>(&mut self, program_id: Option<Id>) -> Option<Result<T::Item<'_>, ResolveError>> {
-        self.memory.resolve::<T>(program_id)
+    pub fn resolve<T: Injection>(&mut self, program_id: Option<Id>, resource_id: Option<ResourceId>) -> Option<Result<T::Item<'_>, ResolveError>> {
+        self.memory.resolve::<T>(program_id, resource_id)
     }
 
-    pub fn insert<T: 'static>(&mut self, program_id: Option<Id>, resource: T) -> Option<Option<Resource>> {
-        self.memory.insert(program_id, resource)
+    pub fn insert<T: 'static>(&mut self, program_id: Option<Id>, resource_id: Option<ResourceId>, resource: T) -> Option<Option<Resource>> {
+        self.memory.insert(program_id, resource_id, resource)
     }
 
     pub async fn tick(&mut self) {

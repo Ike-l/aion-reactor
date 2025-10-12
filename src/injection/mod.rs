@@ -20,6 +20,12 @@ macro_rules! retrieve {
 
 pub(crate) use retrieve;
 
+macro_rules! resolve {
+    ($memory:ident, $program_id:ident, $resource_id:ident) => { { Ok($memory.resolve::<Self>($program_id, $resource_id).unwrap_or_else(|| Err(ResolveError::InvalidProgramId))) } };
+}
+
+pub(crate) use resolve;
+
 impl AccessDeResolver {
     fn new<T: Injection>(resource_map: Arc<AccessCheckedResourceMap>) -> Self {
         let mut access_map = AccessMap::default();
@@ -31,7 +37,7 @@ impl AccessDeResolver {
 impl Drop for AccessDeResolver {
     fn drop(&mut self) {
         for (resource, access) in self.access_map.drain() {
-            self.resource_map.deresolve(access, &resource);
+            self.resource_map.deresolve(access, &resource).unwrap();
         }
     }
 }
