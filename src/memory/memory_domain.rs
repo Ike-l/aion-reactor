@@ -17,13 +17,25 @@ impl MemoryDomain {
         }
     }
 
+    pub fn test_resource(&self, resource_id: &ResourceId) -> bool {
+        match resource_id {
+            ResourceId::Heap(heap_id) => self.heap.test_resource(&heap_id)
+        }
+    }
+
+    pub fn test_access(&self, resource_id: &ResourceId, access: &Access) -> bool {
+        match resource_id {
+            ResourceId::Heap(heap_id) => self.heap.test_access(&heap_id, access)
+        }
+    }
+
     pub fn insert(&self, resource_id: ResourceId, resource: Resource) -> Option<Resource> {
         match (resource, resource_id) {
             (Resource::Heap(obj), ResourceId::Heap(id)) => Some(Resource::Heap(self.heap.insert(id, obj)?))
         }
     }
 
-    pub fn resolve<T: Injection>(self: &Arc<Self>, resource_id: Option<ResourceId>) -> Result<T::Item<'_>, ResolveError> {
+    pub fn resolve<T: Injection>(self: &Arc<Self>, resource_id: Option<&ResourceId>) -> Result<T::Item<'_>, ResolveError> {
         let r = T::retrieve(&self, resource_id);
         if let Ok(r) = &r {
             // make sure no panics so there MUST be a dropper
@@ -40,19 +52,19 @@ impl MemoryDomain {
         }
     }
 
-    pub fn get_shared<T: 'static>(&self, resource_id: ResourceId) -> Result<(&T, AccessMap), ResolveError> {
+    pub fn get_shared<T: 'static>(&self, resource_id: &ResourceId) -> Result<(&T, AccessMap), ResolveError> {
         match resource_id {
             ResourceId::Heap(id) => {
-                let (t, access_map) = self.heap.get_shared(&id)?;
+                let (t, access_map) = self.heap.get_shared(id)?;
                 Ok((t, AccessMap::Heap(access_map)))
             }
         }
     }
 
-    pub fn get_unique<T: 'static>(&self, resource_id: ResourceId) -> Result<(&mut T, AccessMap), ResolveError> {
+    pub fn get_unique<T: 'static>(&self, resource_id: &ResourceId) -> Result<(&mut T, AccessMap), ResolveError> {
         match resource_id {
             ResourceId::Heap(id) => {
-                let (t, access_map) = self.heap.get_unique(&id)?;
+                let (t, access_map) = self.heap.get_unique(id)?;
                 Ok((t, AccessMap::Heap(access_map)))
             }
         }

@@ -9,6 +9,7 @@ pub trait AccessDropper {
     fn access_dropper(&self) -> &AccessDeResolver; 
 }
 
+#[derive(Debug)]
 pub struct AccessDeResolver {
     memory_domain: Arc<MemoryDomain>,
     access_map: AccessMap

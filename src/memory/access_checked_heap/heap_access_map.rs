@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-use crate::memory::{access_checked_heap::heap::HeapId, access_map::Access, errors::{DeResolveError, ResolveError}, ResourceId};
+use crate::memory::{access_checked_heap::heap::HeapId, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain, Memory, ResourceId};
 
 
 #[derive(Debug, Default)]
@@ -11,16 +11,28 @@ impl HeapAccessMap {
         self.0.drain()
     }
 
+    pub fn test_resources(&self, memory_domain: &MemoryDomain) -> bool {
+        self.0.keys().all(|heap_id| memory_domain.test_resource(&ResourceId::Heap(heap_id.clone())))
+    }
+
+    pub fn test_accesses(&self, memory_domain: &MemoryDomain) -> bool {
+        self.0.iter().all(|(heap_id, access)| memory_domain.test_access(&ResourceId::Heap(heap_id.clone()), access))
+    }
+
+    pub fn test_access(&self, testing_heap_id: &HeapId, testing_access: &Access) -> bool {
+        if let Some(access) = self.0.get(testing_heap_id) {
+            return match (testing_access, access) {
+                (Access::Shared(_), Access::Shared(_)) => true,
+                    _ => false
+            };
+        }
+
+        true
+    }
+
     pub fn conflicts(&self, other: &Self) -> bool {
-        other.0.iter().any(|(ty, acc)| {
-            if let Some(access) = self.0.get(ty) {
-                match (acc, access) {
-                    (Access::Shared(_), Access::Shared(_)) => false,
-                    _ => true
-                }
-            } else {
-                false
-            }
+        other.0.iter().any(|(testing_heap_id, testing_access)| {
+            !self.test_access(testing_heap_id, testing_access)
         })
     }
 

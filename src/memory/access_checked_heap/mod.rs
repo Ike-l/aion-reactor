@@ -14,6 +14,16 @@ pub struct AccessCheckedHeap {
 }
 
 impl AccessCheckedHeap {
+    pub fn test_resource(&self, heap_id: &HeapId) -> bool {
+        self.heap.contains(heap_id)
+    }
+
+    pub fn test_access(&self, heap_id: &HeapId, access: &Access) -> bool {
+        // self.heap.test_access(heap_id, access)
+        let access_map = self.access_map.lock().unwrap();
+        access_map.test_access(heap_id, access)
+    }
+
     pub fn insert(&self, heap_id: HeapId, resource: HeapObject) -> Option<HeapObject> {
         let access_map = self.access_map.lock().unwrap();
         if let Some(_) = access_map.access(&heap_id) {
@@ -32,8 +42,10 @@ impl AccessCheckedHeap {
 
     pub fn get_shared<T: 'static>(&self, heap_id: &HeapId) -> Result<(&T, HeapAccessMap), ResolveError> {
         self.access_map.lock().unwrap().access_shared(heap_id.clone())?;
+        
         let mut access_map = HeapAccessMap::default();
         access_map.access_shared(heap_id.clone())?;
+        todo!("If it fails needs to de access");
         // Safety:
         // Accesses are tracked
         unsafe {
@@ -43,8 +55,10 @@ impl AccessCheckedHeap {
 
     pub fn get_unique<T: 'static>(&self, heap_id: &HeapId) -> Result<(&mut T, HeapAccessMap), ResolveError> {
         self.access_map.lock().unwrap().access_unique(heap_id.clone())?;
+        
         let mut access_map = HeapAccessMap::default();
         access_map.access_unique(heap_id.clone())?;
+        todo!("If it fails needs to de access");
         // Safety:
         // Accesses are tracked
         unsafe {

@@ -7,6 +7,9 @@ pub struct RawHeap {
     resources: UnsafeCell<InnerHeap>
 }
 
+unsafe impl Send for RawHeap {}
+unsafe impl Sync for RawHeap {}
+
 impl RawHeap {
     /// Safety:
     /// Ensure no concurrent accesses
@@ -20,19 +23,25 @@ impl RawHeap {
         unsafe { &mut *self.resources.get() }
     }
 
-    /// Safety:
+    /// Safety: 
     /// Ensure no concurrent accesses
-    pub unsafe fn get<T: 'static>(&self, resource_id: &HeapId, _guard: parking_lot::RwLockReadGuard<()>) -> Option<&T> {
-        unsafe { self.get_inner_heap().get(resource_id) }        
+    pub unsafe fn contains(&self, heap_id: &HeapId, _guard: parking_lot::RwLockReadGuard<()>) -> bool {
+        unsafe { self.get_inner_heap().contains(heap_id) }
     }
 
     /// Safety:
     /// Ensure no concurrent accesses
-    pub unsafe fn get_mut<T: 'static>(&self, resource_id: &HeapId, _guard: parking_lot::RwLockReadGuard<()>) -> Option<&mut T> {
-        unsafe { self.get_inner_heap().get_mut(resource_id) }
+    pub unsafe fn get<T: 'static>(&self, heap_id: &HeapId, _guard: parking_lot::RwLockReadGuard<()>) -> Option<&T> {
+        unsafe { self.get_inner_heap().get(heap_id) }        
     }
 
-    pub unsafe fn insert(&self, resource_id: HeapId, resource: HeapObject, _guard: parking_lot::RwLockWriteGuard<()>) -> Option<HeapObject> {
-        unsafe { self.get_mut_inner_heap().insert(resource_id, resource) }
+    /// Safety:
+    /// Ensure no concurrent accesses
+    pub unsafe fn get_mut<T: 'static>(&self, heap_id: &HeapId, _guard: parking_lot::RwLockReadGuard<()>) -> Option<&mut T> {
+        unsafe { self.get_inner_heap().get_mut(heap_id) }
+    }
+
+    pub unsafe fn insert(&self, heap_id: HeapId, heap_object: HeapObject, _guard: parking_lot::RwLockWriteGuard<()>) -> Option<HeapObject> {
+        unsafe { self.get_mut_inner_heap().insert(heap_id, heap_object) }
     }
 }
