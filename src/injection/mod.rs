@@ -16,7 +16,7 @@ pub struct AccessDeResolver {
 }
 
 macro_rules! resolve {
-    ($memory:ident, $program_id:ident, $resource_id:ident) => { { Ok($memory.resolve::<Self>($program_id, $resource_id).unwrap_or_else(|| Err(ResolveError::InvalidProgramId))) } };
+    ($memory:ident, $program_id:ident, $resource_id:ident, $source:ident) => { { Ok($memory.resolve::<Self>($program_id, $resource_id, $source).unwrap_or_else(|| Err(ResolveError::InvalidProgramId))) } };
 }
 
 pub(crate) use resolve;
@@ -30,7 +30,8 @@ impl AccessDeResolver {
 impl Drop for AccessDeResolver {
     fn drop(&mut self) {
         for (resource, access) in self.access_map.drain() {
-            self.memory_domain.deresolve(access, &resource).unwrap();
+            println!("Resource: {resource:?}. Access: {access:?}");
+            self.memory_domain.deresolve(&access, &resource).unwrap();
         }
     }
 }

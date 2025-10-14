@@ -1,6 +1,6 @@
 use std::sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc};
 
-use crate::processor::scheduler::execution_graph::ExecutionGraph;
+use crate::state_machine::kernel_systems::processor::scheduler::execution_graph::ExecutionGraph;
 
 pub struct PanicCatchingExecutionGraphs<T> {
     pub drop_signals: Arc<AtomicUsize>,

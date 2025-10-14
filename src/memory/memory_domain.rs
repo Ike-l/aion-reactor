@@ -17,15 +17,21 @@ impl MemoryDomain {
         }
     }
 
-    pub fn test_resource(&self, resource_id: &ResourceId) -> bool {
+    pub fn ok_resource(&self, resource_id: &ResourceId) -> bool {
         match resource_id {
-            ResourceId::Heap(heap_id) => self.heap.test_resource(&heap_id)
+            ResourceId::Heap(heap_id) => self.heap.ok_resource(&heap_id)
         }
     }
 
-    pub fn test_access(&self, resource_id: &ResourceId, access: &Access) -> bool {
+    pub fn ok_access(&self, resource_id: &ResourceId, access: &Access) -> bool {
         match resource_id {
-            ResourceId::Heap(heap_id) => self.heap.test_access(&heap_id, access)
+            ResourceId::Heap(heap_id) => self.heap.ok_access(&heap_id, access)
+        }
+    }
+
+    pub fn reserve_accesses(&self, source: ResourceId, access_map: AccessMap) -> bool {
+        match access_map {
+            AccessMap::Heap(access_map) => self.heap.reserve_accesses(&self, source, access_map)
         }
     }
 
@@ -35,8 +41,8 @@ impl MemoryDomain {
         }
     }
 
-    pub fn resolve<T: Injection>(self: &Arc<Self>, resource_id: Option<&ResourceId>) -> Result<T::Item<'_>, ResolveError> {
-        let r = T::retrieve(&self, resource_id);
+    pub fn resolve<T: Injection>(self: &Arc<Self>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> Result<T::Item<'_>, ResolveError> {
+        let r = T::retrieve(&self, resource_id, source);
         if let Ok(r) = &r {
             // make sure no panics so there MUST be a dropper
             std::hint::black_box(r.access_dropper());
@@ -46,27 +52,21 @@ impl MemoryDomain {
     }
 
     // pub crate for now since i only want the dropper to use this
-    pub(crate) fn deresolve(&self, access: Access, resource_id: &ResourceId) -> Result<(), DeResolveError> {
+    pub(crate) fn deresolve(&self, access: &Access, resource_id: &ResourceId) -> Result<(), DeResolveError> {
         match resource_id {
             ResourceId::Heap(id) => self.heap.deresolve(access, id)
         }
     }
 
-    pub fn get_shared<T: 'static>(&self, resource_id: &ResourceId) -> Result<(&T, AccessMap), ResolveError> {
+    pub fn get_shared<T: 'static>(&self, resource_id: &ResourceId, source: Option<&ResourceId>) -> Result<&T, ResolveError> {
         match resource_id {
-            ResourceId::Heap(id) => {
-                let (t, access_map) = self.heap.get_shared(id)?;
-                Ok((t, AccessMap::Heap(access_map)))
-            }
+            ResourceId::Heap(id) => self.heap.get_shared(id, source)
         }
     }
 
-    pub fn get_unique<T: 'static>(&self, resource_id: &ResourceId) -> Result<(&mut T, AccessMap), ResolveError> {
+    pub fn get_unique<T: 'static>(&self, resource_id: &ResourceId, source: Option<&ResourceId>) -> Result<&mut T, ResolveError> {
         match resource_id {
-            ResourceId::Heap(id) => {
-                let (t, access_map) = self.heap.get_unique(id)?;
-                Ok((t, AccessMap::Heap(access_map)))
-            }
+            ResourceId::Heap(id) => self.heap.get_unique(id, source)
         }
     }
 }

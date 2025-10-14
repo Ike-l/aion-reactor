@@ -2,7 +2,7 @@ use std::{sync::atomic::Ordering, task::Poll};
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, processor::scheduler::panic_catching_execution_graph::PanicCatchingExecutionGraphs};
+use crate::{id::Id, state_machine::kernel_systems::processor::scheduler::panic_catching_execution_graph::PanicCatchingExecutionGraphs};
 
 pub struct PanicCatchingExecutionGraphsFuture<'a> {
     threadpool: &'a ThreadPool,

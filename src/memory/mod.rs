@@ -1,6 +1,6 @@
 use std::{any::{Any, TypeId}, collections::HashMap, sync::Arc};
 
-use crate::{id::Id, injection::injection_trait::{Injection, MemoryTarget}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject }, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, resource_id::Resource}, system::stored_system::System};
+use crate::{id::Id, injection::injection_trait::{Injection, MemoryTarget}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject }, errors::ResolveError, memory_domain::MemoryDomain, resource_id::Resource}};
 
 pub mod access_checked_heap;
 pub mod resource_id;
@@ -26,31 +26,44 @@ impl Memory {
         }
     }
 
-    pub fn test_accesses<T: Injection>(&self, program_id: Option<&Id>) -> Option<bool> {
+    // True if success, False if fail, None if program_id is Invalid
+    // pub fn test_accesses<T: Injection>(&self, program_id: Option<&Id>, source: Option<&ResourceId>) -> Option<bool> {
+    //     let mut access_map = T::create_access_map();
+    //     T::resolve_accesses(&mut access_map, source);
+    //     Some(match T::select_memory_target() {
+    //         MemoryTarget::Global => access_map.test_accesses(&self.global_memory),
+    //         MemoryTarget::Program => access_map.test_accesses(self.program_memory.get(program_id.as_ref()?)?) 
+    //     })
+    // }
+
+    // True if success, False if fail, None if program_id is Invalid
+    pub fn ok_resources<T: Injection>(&self, program_id: Option<&Id>, source: &ResourceId, resource_id: Option<ResourceId>) -> Option<bool> {
         let mut access_map = T::create_access_map();
-        T::resolve_accesses(&mut access_map);
+        T::resolve_accesses(&mut access_map, Some(source), resource_id);
         Some(match T::select_memory_target() {
-            MemoryTarget::Global => access_map.test_accesses(&self.global_memory),
-            MemoryTarget::Program => access_map.test_accesses(self.program_memory.get(program_id.as_ref()?)?) 
+            MemoryTarget::Global => access_map.ok_resources(&self.global_memory),
+            MemoryTarget::Program => access_map.ok_resources(self.program_memory.get(program_id.as_ref()?)?) 
         })
     }
 
-    pub fn test_resources<T: Injection>(&self, program_id: Option<&Id>) -> Option<bool> {
+    // True if success, False if fail, None if program_id is Invalid
+    pub fn reserve_accesses<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, source: ResourceId) -> Option<bool> {
         let mut access_map = T::create_access_map();
-        T::resolve_accesses(&mut access_map);
+        T::resolve_accesses(&mut access_map, Some(&source), resource_id);
+
         Some(match T::select_memory_target() {
-            MemoryTarget::Global => access_map.test_resources(&self.global_memory),
-            MemoryTarget::Program => access_map.test_resources(self.program_memory.get(program_id.as_ref()?)?) 
+            MemoryTarget::Global => self.global_memory.reserve_accesses(source, access_map),
+            MemoryTarget::Program => self.program_memory.get(program_id.as_ref()?)?.reserve_accesses(source, access_map) 
         })
     }
 
-    pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>) -> Option<Result<T::Item<'_>, ResolveError>> {
+    pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> Option<Result<T::Item<'_>, ResolveError>> {
         let map = match T::select_memory_target() {
             MemoryTarget::Global => &self.global_memory,
             MemoryTarget::Program => self.program_memory.get(program_id.as_ref()?)?
         };
 
-        Some(map.resolve::<T>(resource_id))
+        Some(map.resolve::<T>(resource_id, source))
     }
 
     pub fn insert<T: 'static>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, resource: T) -> Option<Option<Resource>> {

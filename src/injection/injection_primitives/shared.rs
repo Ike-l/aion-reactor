@@ -36,20 +36,22 @@ impl<T: 'static> Injection for Shared<'_, T> {
         AccessMap::Heap(HeapAccessMap::default())
     }
 
-    fn resolve_accesses(access_map: &mut AccessMap) {
-        match access_map {
-            AccessMap::Heap(access_map) => access_map.access_shared(TypeId::of::<T>()).unwrap()
+    fn resolve_accesses(access_map: &mut AccessMap, source: Option<&ResourceId>, resource_id: Option<ResourceId>) {
+        match (access_map, resource_id.unwrap_or(ResourceId::Heap(HeapId::RawType(TypeId::of::<T>())))) {
+            (AccessMap::Heap(access_map), ResourceId::Heap(resource_id)) => access_map.access_shared(resource_id, source).unwrap()
         }
     }
     
-    fn resolve<'a>(memory: &'a Memory, program_id: Option<&Id>, resource_id: Option<&ResourceId>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
-        resolve!(memory, program_id, resource_id)
+    fn resolve<'a>(memory: &'a Memory, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
+        resolve!(memory, program_id, resource_id, source)
     }
 
-    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
+    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
         let default_resource_id = ResourceId::from(HeapId::from(TypeId::of::<T>()));
-        let access = resource_id.unwrap_or(&default_resource_id);
-        let (result, access_map) = memory_domain.get_shared::<T>(access)?;
+        let accessing = resource_id.unwrap_or(&default_resource_id);
+        let result = memory_domain.get_shared::<T>(accessing, source)?;
+
+        let access_map = Self::create_and_resolve_access_map(source, Some(accessing.clone()));
 
         let dropper = AccessDeResolver::new(Arc::clone(memory_domain), access_map);
         let shared = Shared::new(result, dropper);

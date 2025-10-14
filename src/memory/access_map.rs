@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use crate::memory::{access_checked_heap::heap_access_map::HeapAccessMap, memory_domain::MemoryDomain, Memory, ResourceId};
+use crate::memory::{access_checked_heap::heap_access_map::HeapAccessMap, memory_domain::MemoryDomain, ResourceId};
 
 #[derive(Debug)]
 pub enum Access {
@@ -20,15 +18,15 @@ impl AccessMap {
         }
     }
 
-    pub fn test_resources(&self, memory_domain: &MemoryDomain) -> bool {
+    pub fn ok_resources(&self, memory_domain: &MemoryDomain) -> bool {
         match self {
-            Self::Heap(access_map) => access_map.test_resources(memory_domain)
+            Self::Heap(access_map) => access_map.ok_resources(memory_domain)
         }
     }
 
-    pub fn test_accesses(&self, memory_domain: &MemoryDomain) -> bool {
+    pub fn ok_accesses(&self, memory_domain: &MemoryDomain) -> bool {
         match self {
-            Self::Heap(access_map) => access_map.test_accesses(memory_domain)
+            Self::Heap(access_map) => access_map.ok_accesses(memory_domain)
         }
     }
 }

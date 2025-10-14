@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, HashSet}, hash::Hash, rc::Rc, sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering}};
 
-use crate::processor::scheduler::{node::Node, ordering::ExecutionOrdering};
+use crate::state_machine::kernel_systems::processor::scheduler::{node::Node, ordering::ExecutionOrdering};
 
 pub struct ExecutionGraph<T> {
     finished: AtomicBool,
@@ -244,7 +244,7 @@ mod execution_graph {
 
     use proptest::prelude::*;
 
-    use crate::processor::scheduler::{execution_graph::ExecutionGraph, ordering::ExecutionOrdering};
+    use crate::state_machine::kernel_systems::processor::scheduler::{execution_graph::ExecutionGraph, ordering::ExecutionOrdering};
 
     type T = u8;
 

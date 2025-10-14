@@ -1,4 +1,4 @@
-use std::{cell::UnsafeCell, collections::HashMap, pin::Pin, sync::Mutex};
+use std::{cell::UnsafeCell, pin::Pin, sync::Mutex};
 
 use crate::{id::Id, memory::{Memory, ResourceId}, system::system_status::SystemStatus};
 
@@ -7,7 +7,7 @@ pub trait SyncSystem: Send + Sync {
         &mut self,
         memory: &Memory,
         program_id: Option<&Id>, 
-        resource_id: Option<&ResourceId>
+        source: Option<&ResourceId>
     ) -> Option<SystemResult>;
 }
 
@@ -21,7 +21,7 @@ pub trait AsyncSystem: Send + Sync {
         &'a mut self,
         memory: &'a Memory,
         program_id: Option<&Id>, 
-        resource_id: Option<&ResourceId>
+        source: Option<&ResourceId>
     ) -> Pin<Box<dyn Future<Output = Option<SystemResult>> + 'a>>;
 }
 
@@ -33,14 +33,24 @@ pub enum System {
 }
 
 impl System {
-    pub fn test_resources(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
+    // True if success, False if fail, None if program_id is Invalid
+    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
         match self {
             Self::Async(system) => todo!(),
             Self::Sync(system) => todo!()
         }
     }
 
-    pub fn test_accesses(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
+    // True if success, False if fail, None if program_id is Invalid
+    pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
+        match self {
+            System::Sync(sync_system) => todo!(),
+            System::Async(async_system) => todo!(),
+        }
+    }
+
+    // True if success, False if fail, None if program_id is Invalid
+    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: &ResourceId) -> Option<bool> {
         match self {
             System::Sync(sync_system) => todo!(),
             System::Async(async_system) => todo!(),
@@ -53,8 +63,8 @@ pub struct StoredSystem {
 }
 
 impl StoredSystem {
-    pub fn test_resources(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
-        self.system.as_ref().expect("System").test_resources(memory, program_id)
+    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
+        self.system.as_ref().expect("System").ok_resources(memory, program_id)
     }
 
     pub fn status(&self) -> &Mutex<SystemStatus> {
