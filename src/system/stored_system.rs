@@ -14,7 +14,15 @@ pub trait SyncSystem: Send + Sync {
 type StoredSyncSystem = Box<dyn SyncSystem>;
 
 #[derive(Debug)]
-pub struct SystemResult {}
+pub enum SystemEvent {
+    NoEvent,
+}
+
+#[derive(Debug)]
+pub enum SystemResult {
+    Event(SystemEvent),
+    Error(anyhow::Error)
+}
 
 pub trait AsyncSystem: Send + Sync {
     fn run<'a>(

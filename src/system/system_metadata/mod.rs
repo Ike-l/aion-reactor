@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{id::Id, memory::ResourceId, state_machine::kernel_systems::processor::scheduler::ordering::SchedulerOrdering, state_machine::event::Event, system::system_metadata::{criteria::Criteria, system_kind::SystemKind}};
+use crate::{id::Id, memory::ResourceId, state_machine::kernel_systems::{event_manager::event::Event, processor::scheduler::ordering::SchedulerOrdering}, system::system_metadata::{criteria::Criteria, system_kind::SystemKind}};
 
 
 pub mod system_kind;

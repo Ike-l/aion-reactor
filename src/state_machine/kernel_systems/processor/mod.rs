@@ -1,18 +1,27 @@
-use std::{collections::{HashMap, HashSet}, sync::{atomic::{AtomicUsize, Ordering}, Arc}, task::{Context, Poll, Waker}};
+use std::{collections::{HashMap, HashSet}, pin::Pin, sync::{atomic::{AtomicUsize, Ordering}, Arc}, task::{Context, Poll, Waker}};
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{blacklist::Blacklist, blocker::CurrentBlockers, event::{CurrentEvents, NextEvents}, kernel_systems::processor::{scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}}, system::{stored_system::{StoredSystem, System, SystemCell, SystemResult}, system_metadata::{SystemMetadata, SystemRegistry}, system_status::SystemStatus}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::kernel_systems::{blocker_manager::blocker::CurrentBlockers, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{blacklist::Blacklist, scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}, system::{stored_system::{StoredSystem, System, SystemCell, SystemEvent, SystemResult}, system_metadata::{SystemMetadata, SystemRegistry}, system_status::SystemStatus}};
 
 pub mod scheduler;
 pub mod tasks;
+pub mod blacklist;
 
 #[derive(Debug)]
 pub struct Processor {
-    threadpool: ThreadPool
+    threadpool: ThreadPool,
+    runtime: Arc<tokio::runtime::Runtime>
 }
 
 impl Processor {
+    pub fn new(threads: usize) -> Self {
+        Self {
+            threadpool: ThreadPool::new(threads),
+            runtime: Arc::new(tokio::runtime::Runtime::new().unwrap())
+        }
+    }
+
     fn get_systems<'a>(&self, memory: &Memory, system_registry: &'a SystemRegistry) -> HashMap<&'a Id, &'a SystemMetadata> {
         let current_blockers = memory.resolve::<Shared<CurrentBlockers>>(None, None, None).unwrap().unwrap();
         let current_events = memory.resolve::<Shared<CurrentEvents>>(None, None, None).unwrap().unwrap();
@@ -93,12 +102,11 @@ impl Processor {
            }).collect() 
         );
 
-        let runtime = Arc::new(tokio::runtime::Runtime::new().unwrap());
         let results = Arc::new(tokio::sync::Mutex::new(Vec::new()));
         for i in 0..self.threadpool.max_count() {
             let start_graph = (i * graph_count) / self.threadpool.max_count();
 
-            let runtime = Arc::clone(&runtime);
+            let runtime = Arc::clone(&self.runtime);
             let execution_graphs = execution_graphs.arc_clone();
             let memory = Arc::clone(&memory);
             let system_map = Arc::clone(&system_map);
@@ -281,50 +289,47 @@ impl Processor {
 
         Arc::try_unwrap(results).unwrap().into_inner()
     }
+}
 
-    pub async fn tick(&self, memory: &Arc<Memory>) {
-        let system_registry = memory.resolve::<Shared<SystemRegistry>>(None, None, None).unwrap().unwrap();
-        let systems = self.get_systems(memory, &system_registry);
-        
-        let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
-        for &id in systems.keys() {
-            next_events.insert(id.clone());
-        }
+impl KernelSystem for Processor {
+    fn tick(&mut self, memory: &Arc<Memory>) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+        let memory = Arc::clone(&memory);
+        Box::pin(async move {
+            let system_registry = memory.resolve::<Shared<SystemRegistry>>(None, None, None).unwrap().unwrap();
+            let systems = self.get_systems(&memory, &system_registry);
+            
+            let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
+            for &id in systems.keys() {
+                next_events.insert(id.clone());
+            }
+    
+            let independent_systems = self.divide_independent(systems);
+    
+            let execution_graphs = independent_systems
+                .map(|systems| {
+                    systems.into_iter().map(|(id, system_metadata)| {
+                        (id, system_metadata.ordering())
+                    }).collect::<Vec<_>>()
+                })
+                .map(|systems| {
+                    tokio::sync::RwLock::new(ExecutionGraph::new(&systems))
+                })
+                .collect::<Vec<_>>();
+    
+            let results = self.execute(
+                PanicCatchingExecutionGraphs::new(Arc::new(execution_graphs)),
+                &memory
+            ).await;
 
-        let independent_systems = self.divide_independent(systems);
-
-        let execution_graphs = independent_systems
-            .map(|systems| {
-                systems.into_iter().map(|(id, system_metadata)| {
-                    (id, system_metadata.ordering())
-                }).collect::<Vec<_>>()
-            })
-            .map(|systems| {
-                tokio::sync::RwLock::new(ExecutionGraph::new(&systems))
-            })
-            .collect::<Vec<_>>();
-
-        self.execute(
-            PanicCatchingExecutionGraphs::new(Arc::new(execution_graphs)),
-            memory
-        ).await;
-
-        // create Vec<ExecutionGraph>
-        // execute over ExecutionGraphs
-        // react to result of execution (each system produces a SystemResult)
-
-        // let events = events.read().collect::<HashSet<_>>();
-        // let systems = system_metadata
-        //     .iter()
-        //     .filter_map(
-        //         |system_metadata| 
-        //             if system_metadata.test(&events) { 
-        //                 Some(system_metadata.ids())
-        //             } else { 
-        //                 None 
-        //             }
-        //     ).collect::<Vec<_>>();
-
-        
+            let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
+            for (id, result) in results {
+                match result {
+                    SystemResult::Event(system_event) => match system_event {
+                        SystemEvent::NoEvent => { next_events.remove(&Event::from(id)); },
+                    },
+                    SystemResult::Error(error) => println!("{id:?}: {error}"),
+                }
+            }
+        })        
     }
 }

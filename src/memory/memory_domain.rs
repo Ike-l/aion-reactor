@@ -2,16 +2,14 @@ use std::sync::Arc;
 
 use crate::{injection::{injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::AccessCheckedHeap, access_map::{Access, AccessMap}, errors::{DeResolveError, ResolveError}, resource_id::Resource, ResourceId}};
 
-// Should be no public way of creating one of these to enforce dropping behaviour by injection types
+// Should be no public way of creating one of these to enforce dropping behaviour by injection types // doesnt matter because the UB would just panic
 #[derive(Debug)]
 pub struct MemoryDomain {
     heap: AccessCheckedHeap
 }
 
 impl MemoryDomain {
-    #[allow(dead_code)]
-    #[cfg(test)]
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             heap: AccessCheckedHeap::default()
         }

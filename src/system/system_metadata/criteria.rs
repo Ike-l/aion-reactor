@@ -1,6 +1,7 @@
 use std::{collections::HashSet, fmt::Debug};
 
-use crate::state_machine::event::Event;
+use crate::state_machine::kernel_systems::event_manager::event::Event;
+
 
 pub struct Criteria(Box<dyn Fn(&HashSet<&Event>) -> bool + Send + Sync>);
 

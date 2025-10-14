@@ -1,19 +1,56 @@
 use std::sync::Arc;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::kernel_systems::processor::Processor, state_machine::{blocker::{CurrentBlockers, NextBlockers}, event::{CurrentEvents, NextEvents}}};
+use threadpool::ThreadPool;
 
-pub mod event;
-pub mod blocker;
-pub mod blacklist;
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::BackgroundProcessor, blocker_manager::BlockerManager, event_manager::EventManager, processor::Processor, StoredKernelSystem}}};
+
 pub mod kernel_systems;
+pub mod kernel_registry;
 
 #[derive(Debug)]
 pub struct StateMachine {
     memory: Arc<Memory>,
-    processor: Processor,
+    threadpool: ThreadPool,
+    runtime: Arc<tokio::runtime::Runtime>
 }
 
 impl StateMachine {
+    pub fn new(threads: usize) -> Self {
+        let memory = Arc::new(Memory::new());
+        
+        memory.insert(
+            None, 
+            None, 
+            KernelSystemRegistry::default()
+        );
+
+        Self {
+            memory,
+            threadpool: ThreadPool::new(threads),
+            runtime: Arc::new(tokio::runtime::Runtime::new().unwrap())
+        }
+    }
+
+    pub fn load_default(&self, processor_threads: usize) {
+        let mut kernel_system_registry = self.memory.quick_resolve::<Unique<KernelSystemRegistry>>();
+
+        let event_manager_id = ResourceId::Heap(HeapId::Label(Id("KernelEventManager".to_string())));
+        self.memory.insert(None, Some(event_manager_id.clone()), EventManager::new());
+        kernel_system_registry.insert(0, event_manager_id);
+
+        let blocker_manager_id = ResourceId::Heap(HeapId::Label(Id("KernelBlockerManager".to_string())));
+        self.memory.insert(None, Some(blocker_manager_id.clone()), BlockerManager::new());
+        kernel_system_registry.insert(0, blocker_manager_id);
+
+        let processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelProcessor".to_string())));
+        self.memory.insert(None, Some(processor_resource_id.clone()), Processor::new(processor_threads));
+        kernel_system_registry.insert(1, processor_resource_id);
+
+        let background_processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelBackgroundProcessor".to_string())));
+        self.memory.insert(None, Some(background_processor_resource_id.clone()), BackgroundProcessor::new());
+        kernel_system_registry.insert(1, background_processor_resource_id);
+    }
+
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> Option<Result<T::Item<'_>, ResolveError>> {
         self.memory.resolve::<T>(program_id, resource_id, source)
     }
@@ -23,20 +60,19 @@ impl StateMachine {
     }
 
     pub async fn tick(&self) {
-        {
-            let mut next_events = self.memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
-            let mut current_events = self.memory.resolve::<Unique<CurrentEvents>>(None, None, None).unwrap().unwrap();
+        let mut kernel_systems = self.memory.resolve::<Unique<KernelSystemRegistry>>(None, None, None).unwrap().unwrap();
+        for kernel_systems in kernel_systems.iter() {
+            for kernel_system in kernel_systems.clone() {
+                let memory = Arc::clone(&self.memory);
+                let runtime = Arc::clone(&self.runtime);
+                self.threadpool.execute(move || {
+                    let mut kernel_system = memory.resolve::<Unique<StoredKernelSystem>>(None, Some(&kernel_system), None).unwrap().unwrap();
+                    runtime.block_on(kernel_system.tick(&memory));
+                });
+            }
 
-            current_events.tick(&mut next_events);
-
-            let mut next_blockers = self.memory.resolve::<Unique<NextBlockers>>(None, None, None).unwrap().unwrap();
-            let mut current_blockers = self.memory.resolve::<Unique<CurrentBlockers>>(None, None, None).unwrap().unwrap();
-
-            current_blockers.tick(&mut next_blockers);
+            self.threadpool.join();
         }
-
-
-        self.processor.tick(&self.memory).await;
     }
 }
 

@@ -17,9 +17,7 @@ pub struct Memory {
 }
 
 impl Memory {
-    #[allow(dead_code)]
-    #[cfg(test)]
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             global_memory: Arc::new(MemoryDomain::new()),
             program_memory: HashMap::new()
@@ -55,6 +53,11 @@ impl Memory {
             MemoryTarget::Global => self.global_memory.reserve_accesses(source, access_map),
             MemoryTarget::Program => self.program_memory.get(program_id.as_ref()?)?.reserve_accesses(source, access_map) 
         })
+    }
+
+    // panics 
+    pub fn quick_resolve<T: Injection>(&self) -> T::Item<'_> {
+        self.resolve::<T>(None, None, None).unwrap().unwrap()
     }
 
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> Option<Result<T::Item<'_>, ResolveError>> {

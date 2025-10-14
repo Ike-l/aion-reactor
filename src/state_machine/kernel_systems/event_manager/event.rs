@@ -24,6 +24,10 @@ impl NextEvents {
     pub fn insert<T: Into<Event>>(&mut self, event: T) -> bool {
         self.0.insert(event.into())
     }
+
+    pub fn remove(&mut self, event: &Event) -> bool {
+        self.0.remove(event)
+    }
 }
 
 #[derive(Debug, Default, Clone)]
