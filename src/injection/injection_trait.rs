@@ -22,8 +22,6 @@ pub trait Injection {
 
     fn failed_message() -> String;
     
-    fn resolve<'a>(memory: &'a Memory, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>>;
-    
     fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError>;
 
     fn select_memory_target() -> MemoryTarget {

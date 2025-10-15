@@ -9,7 +9,7 @@ pub struct StoredSystem {
 }
 
 impl StoredSystem {
-    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: &Source) -> Option<bool> {
+    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
         self.system.as_ref().expect("System").ok_resources(memory, program_id, source)
     }
 

@@ -1,6 +1,6 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{id::Id, injection::{injection_trait::Injection, resolve, AccessDeResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, heap_access_map::HeapAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_trait::Injection, AccessDeResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, heap_access_map::HeapAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}, system::system_metadata::Source};
 
 #[derive(Debug, small_derive_deref::Deref, small_derive_deref::DerefMut)]
 pub struct Shared<'a, T> {
@@ -42,9 +42,9 @@ impl<T: 'static> Injection for Shared<'_, T> {
         }
     }
     
-    fn resolve<'a>(memory: &'a Memory, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
-        resolve!(memory, program_id, resource_id, source)
-    }
+    // fn resolve<'a>(memory: &'a Memory, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
+    //     resolve!(memory, program_id, resource_id, source)
+    // }
 
     fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError> {
         let default_resource_id = ResourceId::from(HeapId::from(TypeId::of::<T>()));

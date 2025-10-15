@@ -2,16 +2,16 @@ use std::{any::{type_name, TypeId}, sync::Arc};
 
 use crate::{id::Id, injection::{injection_trait::Injection, AccessDeResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, heap_access_map::HeapAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}, system::system_metadata::Source};
 
-#[derive(small_derive_deref::Deref, small_derive_deref::DerefMut, Debug)]
-pub struct Unique<'a, T> {
+#[derive(Debug, small_derive_deref::Deref, small_derive_deref::DerefMut)]
+pub struct Cloned<T> {
     #[DerefTarget]
     #[DerefMutTarget]
-    value: &'a mut T,
+    value: T,
     dropper: AccessDeResolver
 }
 
-impl<'a, T: 'static> Unique<'a, T> {
-    pub fn new(value: &'a mut T, dropper: AccessDeResolver) -> Self {
+impl<T: 'static> Cloned<T> {
+    pub fn new(value: T, dropper: AccessDeResolver) -> Self {
         Self {
             value,
             dropper
@@ -19,14 +19,14 @@ impl<'a, T: 'static> Unique<'a, T> {
     }
 }
 
-impl<T> AccessDropper for Unique<'_, T> {
+impl<T> AccessDropper for Cloned<T> {
     fn access_dropper(&self) -> &AccessDeResolver {
         &self.dropper
     }
 }
 
-impl<T: 'static> Injection for Unique<'_, T> {
-    type Item<'new> = Unique<'new, T>;
+impl<T: 'static + Clone> Injection for Cloned<T> {
+    type Item<'new> = Cloned<T>;
 
     fn failed_message() -> String {
         format!("Expected Resource: `{}`", type_name::<T>())
@@ -36,26 +36,18 @@ impl<T: 'static> Injection for Unique<'_, T> {
         AccessMap::Heap(HeapAccessMap::default())
     }
 
-    fn resolve_accesses(access_map: &mut AccessMap, source: Option<&Source>, resource_id: Option<ResourceId>) {
-        match (access_map, resource_id.unwrap_or(ResourceId::Heap(HeapId::RawType(TypeId::of::<T>())))) {
-            (AccessMap::Heap(access_map), ResourceId::Heap(resource_id)) => access_map.access_unique(resource_id, source).unwrap()
-        }
-    }
-    
-    // fn resolve<'a>(memory: &'a Memory, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
-    //     resolve!(memory, program_id, resource_id, source)
-    // }
+    fn resolve_accesses(access_map: &mut AccessMap, source: Option<&Source>, resource_id: Option<ResourceId>) {}
 
     fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError> {
         let default_resource_id = ResourceId::from(HeapId::from(TypeId::of::<T>()));
-        let accessing = resource_id.clone().unwrap_or(&default_resource_id);
-        let result = memory_domain.get_unique::<T>(accessing, source)?;
+        let accessing = resource_id.unwrap_or(&default_resource_id);
+        let result =  memory_domain.get_cloned::<T>(accessing, source)?;
 
         let access_map = Self::create_and_resolve_access_map(source, Some(accessing.clone()));
 
         let dropper = AccessDeResolver::new(Arc::clone(memory_domain), access_map);
-        let shared = Unique::new(result, dropper);
+        let cloned = Cloned::new(result, dropper);
 
-        Ok(shared)
+        Ok(cloned)
     }
 }

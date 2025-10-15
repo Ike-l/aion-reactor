@@ -8,6 +8,13 @@ pub mod async_system;
 pub mod system_result;
 pub mod system_cell;
 
+use std::marker::PhantomData;
+
+pub struct FunctionSystem<Input, F> {
+    f: F,
+    marker: PhantomData<fn() -> Input>
+}
+
 pub enum System {
     Sync(StoredSyncSystem),
     Async(StoredAsyncSystem)
@@ -15,7 +22,7 @@ pub enum System {
 
 impl System {
     // True if success, False if fail, None if program_id is Invalid
-    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: &Source) -> Option<bool> {
+    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
         match self {
             Self::Async(system) => system.ok_resources(memory, program_id, source),
             Self::Sync(system) => system.ok_resources(memory, program_id, source)
@@ -23,18 +30,18 @@ impl System {
     }
 
     // True if success, False if fail, None if program_id is Invalid
-    pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
-        match self {
-            System::Sync(sync_system) => todo!(),
-            System::Async(async_system) => todo!(),
-        }
-    }
+    // pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
+    //     match self {
+    //         System::Sync(sync_system) => todo!(),
+    //         System::Async(async_system) => todo!(),
+    //     }
+    // }
 
     // True if success, False if fail, None if program_id is Invalid
-    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: &Source) -> Option<bool> {
+    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source) -> Option<bool> {
         match self {
-            System::Sync(sync_system) => todo!(),
-            System::Async(async_system) => todo!(),
+            System::Sync(sync_system) => sync_system.reserve_accesses(memory, program_id, source),
+            System::Async(async_system) => async_system.reserve_accesses(memory, program_id, source),
         }
     }
 }

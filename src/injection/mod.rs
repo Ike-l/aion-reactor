@@ -15,12 +15,6 @@ pub struct AccessDeResolver {
     access_map: AccessMap
 }
 
-macro_rules! resolve {
-    ($memory:ident, $program_id:ident, $resource_id:ident, $source:ident) => { { Ok($memory.resolve::<Self>($program_id, $resource_id, $source).unwrap_or_else(|| Err(ResolveError::InvalidProgramId))) } };
-}
-
-pub(crate) use resolve;
-
 impl AccessDeResolver {
     fn new(memory_domain: Arc<MemoryDomain>, access_map: AccessMap) -> Self {
         Self { memory_domain: memory_domain, access_map }

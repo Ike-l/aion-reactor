@@ -56,6 +56,12 @@ impl MemoryDomain {
         }
     }
 
+    pub fn get_cloned<T: 'static + Clone>(&self, resource_id: &ResourceId, source: Option<&Source>) -> Result<T, ResolveError> {
+        match resource_id {
+            ResourceId::Heap(id) => self.heap.get_cloned(id, source)
+        }
+    }
+
     pub fn get_shared<T: 'static>(&self, resource_id: &ResourceId, source: Option<&Source>) -> Result<&T, ResolveError> {
         match resource_id {
             ResourceId::Heap(id) => self.heap.get_shared(id, source)

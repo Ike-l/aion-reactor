@@ -37,7 +37,7 @@ impl Processor {
             .filter(|(_, system_metadata)| {
                 let (source, program_id) = system_metadata.ids();
                 let system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), None, Some(source)).unwrap().unwrap();
-                system.ok_resources(&memory, program_id.as_ref(), source).is_some_and(|t| t)
+                system.ok_resources(&memory, program_id.as_ref(), Some(source)).is_some_and(|t| t)
             }).collect()
     }
 
@@ -161,7 +161,7 @@ impl Processor {
                                                             system_mapping.get(&id).unwrap().get()
                                                         };
                                                         
-                                                        if !inner.reserve_accesses(&memory, program_id.as_ref(), source).is_some_and(|t| t) {
+                                                        if !inner.reserve_accesses(&memory, program_id.as_ref(), source.clone()).is_some_and(|t| t) {
                                                             chain += 1;
                                                             continue 'graphs_walk;
                                                         }
@@ -189,9 +189,9 @@ impl Processor {
                                                             System::Async(async_system) => {
                                                                 println!("----> System Running: {:?}", id);
                                                                 let mut task = async_system.run(
-                                                                    &memory,
-                                                                    program_id.as_ref(),
-                                                                    Some(source),
+                                                                    Arc::clone(&memory),
+                                                                    program_id.clone(),
+                                                                    Some(source.clone()),
                                                                 );
 
                                                                 match task.as_mut().poll(&mut context) {
