@@ -34,6 +34,14 @@ impl Memory {
     //     })
     // }
 
+    pub fn end_drop_delay(&self, key: u64, program_id: Option<&Id>) -> Option<()> {
+        Some(if let Some(program_id) = program_id {
+            self.program_memory.get(program_id)?.end_drop_delay(&key);
+        } else {
+            self.global_memory.end_drop_delay(&key);
+        })
+    }
+
     // True if success, False if fail, None if program_id is Invalid
     pub fn ok_resources<T: Injection>(&self, program_id: Option<&Id>, source: Option<&Source>, resource_id: Option<ResourceId>) -> Option<bool> {
         let mut access_map = T::create_access_map();

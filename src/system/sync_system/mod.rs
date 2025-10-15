@@ -22,6 +22,9 @@ macro_rules! impl_sync_system {
     (
         $($params:ident),*
     ) => {
+
+        #[allow(unused_variables)]
+        #[allow(non_snake_case)]
         impl<F, $($params: Injection),*> SyncSystem for FunctionSystem<($($params,)*), F>
             where F: Send + Sync,
             for <'a, 'b> &'a mut F:

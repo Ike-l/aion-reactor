@@ -8,7 +8,7 @@ pub struct BlockerManager;
 
 impl BlockerManager {
     pub fn new() -> Self {
-        BlockerManager
+       Self 
     }
 }
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{id::Id, injection::AccessDropper, memory::{access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}, system::system_metadata::Source };
+use crate::{injection::AccessDropper, memory::{access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source };
 
 pub enum MemoryTarget {
     Program,

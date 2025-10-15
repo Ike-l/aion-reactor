@@ -1,17 +1,20 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 
 use crate::{injection::{injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::AccessCheckedHeap, access_map::{Access, AccessMap}, errors::{DeResolveError, ResolveError}, resource_id::Resource, ResourceId}, system::system_metadata::Source};
 
 // Should be no public way of creating one of these to enforce dropping behaviour by injection types // doesnt matter because the UB would just panic
 #[derive(Debug)]
 pub struct MemoryDomain {
-    heap: AccessCheckedHeap
+    heap: AccessCheckedHeap,
+
+    delays: Mutex<HashMap<u64, HashMap<ResourceId, Access>>>
 }
 
 impl MemoryDomain {
     pub fn new() -> Self {
         Self {
-            heap: AccessCheckedHeap::default()
+            heap: AccessCheckedHeap::default(),
+            delays: Mutex::new(HashMap::new())
         }
     }
 
@@ -49,6 +52,22 @@ impl MemoryDomain {
         r
     }
 
+    pub(crate) fn delay_drop(&self, accesses: HashMap<ResourceId, Access>) -> u64 {
+        let key = rand::random();
+        self.delays.lock().unwrap().insert(key, accesses);
+        key
+    }
+
+    pub fn end_drop_delay(&self, key: &u64) {
+        if let Some(accesses) = self.delays.lock().unwrap().remove(key) {
+            for (resource_id, access) in accesses {
+                self.deresolve(&access, &resource_id).unwrap();
+            }
+        } else {
+            panic!("tried to end the drop delay without permission")
+        }
+    }
+
     // pub crate for now since i only want the dropper to use this
     pub(crate) fn deresolve(&self, access: &Access, resource_id: &ResourceId) -> Result<(), DeResolveError> {
         match resource_id {
@@ -56,9 +75,9 @@ impl MemoryDomain {
         }
     }
 
-    pub fn get_cloned<T: 'static + Clone>(&self, resource_id: &ResourceId, source: Option<&Source>) -> Result<T, ResolveError> {
+    pub fn get_cloned<T: 'static + Clone>(&self, resource_id: &ResourceId) -> Result<T, ResolveError> {
         match resource_id {
-            ResourceId::Heap(id) => self.heap.get_cloned(id, source)
+            ResourceId::Heap(id) => self.heap.get_cloned(id)
         }
     }
 

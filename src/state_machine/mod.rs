@@ -1,17 +1,20 @@
-use std::sync::Arc;
+use std::{collections::HashSet, sync::{Arc, Mutex}};
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::BackgroundProcessor, blocker_manager::BlockerManager, event_manager::EventManager, processor::Processor, StoredKernelSystem}}, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::BackgroundProcessor, blocker_manager::BlockerManager, event_manager::{EventManager, EventMapper}, processor::Processor, StoredKernelSystem}}, system::system_metadata::Source};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
+pub mod blacklist;
 
 #[derive(Debug)]
 pub struct StateMachine {
     memory: Arc<Memory>,
     threadpool: ThreadPool,
-    runtime: Arc<tokio::runtime::Runtime>
+    runtime: Arc<tokio::runtime::Runtime>,
+
+    keys: Arc<Mutex<HashSet<u64>>>
 }
 
 impl StateMachine {
@@ -27,28 +30,65 @@ impl StateMachine {
         Self {
             memory,
             threadpool: ThreadPool::new(threads),
-            runtime: Arc::new(tokio::runtime::Runtime::new().unwrap())
+            runtime: Arc::new(tokio::runtime::Runtime::new().unwrap()),
+            keys: Arc::new(Mutex::new(HashSet::new()))
         }
     }
 
     pub fn load_default(&self, processor_threads: usize) {
+        let blacklist_resource_id = ResourceId::from(HeapId::from(Id("Blacklist".to_string())));
+
         let mut kernel_system_registry = self.memory.quick_resolve::<Unique<KernelSystemRegistry>>();
 
         let event_manager_id = ResourceId::Heap(HeapId::Label(Id("KernelEventManager".to_string())));
-        self.memory.insert(None, Some(event_manager_id.clone()), EventManager::new());
-        kernel_system_registry.insert(0, event_manager_id);
+        self.memory.insert(None, Some(event_manager_id.clone()), EventManager::new(&self.memory));
+        kernel_system_registry.insert(0, event_manager_id.clone());
 
         let blocker_manager_id = ResourceId::Heap(HeapId::Label(Id("KernelBlockerManager".to_string())));
         self.memory.insert(None, Some(blocker_manager_id.clone()), BlockerManager::new());
-        kernel_system_registry.insert(0, blocker_manager_id);
-
-        let processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelProcessor".to_string())));
-        self.memory.insert(None, Some(processor_resource_id.clone()), Processor::new(processor_threads));
-        kernel_system_registry.insert(1, processor_resource_id);
-
+        kernel_system_registry.insert(0, blocker_manager_id.clone());
+        
         let background_processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelBackgroundProcessor".to_string())));
         self.memory.insert(None, Some(background_processor_resource_id.clone()), BackgroundProcessor::new());
-        kernel_system_registry.insert(1, background_processor_resource_id);
+        kernel_system_registry.insert(1, background_processor_resource_id.clone());
+        
+        let processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelProcessor".to_string())));
+        self.memory.insert(None, Some(processor_resource_id.clone()), Processor::new(processor_threads));
+        kernel_system_registry.insert(1, processor_resource_id.clone());
+        
+        
+        let mut blacklist = Blacklist::new();
+        
+        let block_keys = Arc::clone(&self.keys);
+        let unblock_keys = Arc::clone(&self.keys);
+        blacklist.insert_block(
+            move |memory| {
+                let a = memory.resolve::<Unique<EventManager>>(None, Some(&event_manager_id), None).unwrap().unwrap();
+                let e = memory.resolve::<Unique<EventMapper>>(None, None, None).unwrap().unwrap();
+                
+                let b = memory.resolve::<Unique<BlockerManager>>(None, Some(&blocker_manager_id), None).unwrap().unwrap();
+                
+                let c = memory.resolve::<Unique<BackgroundProcessor>>(None, Some(&background_processor_resource_id), None).unwrap().unwrap();
+                let d = memory.resolve::<Unique<Processor>>(None, Some(&processor_resource_id), None).unwrap().unwrap();
+
+                let mut keys = block_keys.lock().unwrap();
+                keys.extend(vec![
+                    a.access_dropper().delay_dropper(),
+                    b.access_dropper().delay_dropper(),
+                    c.access_dropper().delay_dropper(),
+                    d.access_dropper().delay_dropper(),
+                    e.access_dropper().delay_dropper(),
+                ]);
+
+        }, move |memory| {
+            let mut keys = unblock_keys.lock().unwrap();
+            for key in keys.drain() {
+                memory.end_drop_delay(key, None).unwrap();
+            }
+        });
+            
+        self.memory.insert(None, Some(blacklist_resource_id), blacklist);
+            
     }
 
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Option<Result<T::Item<'_>, ResolveError>> {

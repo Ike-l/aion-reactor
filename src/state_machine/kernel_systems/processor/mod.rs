@@ -2,11 +2,10 @@ use std::{collections::{HashMap, HashSet}, pin::Pin, sync::{atomic::{AtomicUsize
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::kernel_systems::{blocker_manager::blocker::CurrentBlockers, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{blacklist::Blacklist, scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{blacklist::Blacklist, kernel_systems::{blocker_manager::blocker::CurrentBlockers, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
 
 pub mod scheduler;
 pub mod tasks;
-pub mod blacklist;
 
 #[derive(Debug)]
 pub struct Processor {
@@ -26,13 +25,10 @@ impl Processor {
         let current_blockers = memory.resolve::<Shared<CurrentBlockers>>(None, None, None).unwrap().unwrap();
         let current_events = memory.resolve::<Shared<CurrentEvents>>(None, None, None).unwrap().unwrap();
     
-        let blacklist = memory.resolve::<Shared<Blacklist>>(None, None, None).unwrap().unwrap();
-    
         let events = current_events.read().collect::<HashSet<_>>();
     
         system_registry.read()
             .filter(|&(id, _)| !current_blockers.blocks(id.clone()))
-            .filter(|(id, _)| !blacklist.blocks(id))
             .filter(|(_, system_metadata)| system_metadata.test(&events))
             .filter(|(_, system_metadata)| {
                 let (source, program_id) = system_metadata.ids();
@@ -316,10 +312,16 @@ impl KernelSystem for Processor {
                 })
                 .collect::<Vec<_>>();
     
+
+            let blacklist = memory.resolve::<Unique<Blacklist>>(None, None, None).unwrap().unwrap();
+            blacklist.block(&memory);
+
             let results = self.execute(
                 PanicCatchingExecutionGraphs::new(Arc::new(execution_graphs)),
                 &memory
             ).await;
+
+            blacklist.unblock(&memory);
 
             let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
             for (id, result) in results {

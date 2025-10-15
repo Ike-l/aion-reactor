@@ -22,6 +22,8 @@ macro_rules! impl_async_system {
     (
         $($params:ident),*
     ) => {
+        #[allow(non_snake_case)]
+        #[allow(unused_variables)]
         impl<F, Fut, $($params: Injection),*> AsyncSystem for FunctionSystem<($($params,)*), F>
             where 
                 Fut: Future<Output = Option<SystemResult>> + Send + 'static,

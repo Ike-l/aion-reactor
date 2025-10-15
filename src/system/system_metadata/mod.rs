@@ -1,9 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{id::Id, memory::ResourceId, state_machine::kernel_systems::{event_manager::event::Event, processor::scheduler::ordering::SchedulerOrdering}, system::system_metadata::{criteria::Criteria, system_kind::SystemKind}};
+use crate::{id::Id, memory::ResourceId, state_machine::kernel_systems::{event_manager::event::Event, processor::scheduler::ordering::SchedulerOrdering}, system::system_metadata::criteria::Criteria};
 
 
-pub mod system_kind;
 pub mod criteria;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
@@ -11,7 +10,6 @@ pub struct Source(pub ResourceId);
 
 #[derive(Debug)]
 pub struct SystemMetadata {
-    system_kind: SystemKind,
     resource_id: Source,
     program_id: Option<Id>,
     criteria: Criteria,

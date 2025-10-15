@@ -6,12 +6,15 @@ pub struct BackgroundProcessor;
 
 impl BackgroundProcessor {
     pub fn new() -> Self {
-        BackgroundProcessor
+        Self
     }
 }
 
 impl KernelSystem for BackgroundProcessor {
-    fn tick(&mut self, memory: &Arc<Memory>) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+    fn tick(&mut self, _memory: &Arc<Memory>) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         todo!()
+
+        // Start threads
+        // Collect threads
     }
 }

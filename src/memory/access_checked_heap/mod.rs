@@ -44,7 +44,7 @@ impl AccessCheckedHeap {
         self.access_map.lock().unwrap().deaccess(access, heap_id)
     }
 
-    pub fn get_cloned<T: 'static + Clone>(&self, heap_id: &HeapId, source: Option<&Source>) -> Result<T, ResolveError> {
+    pub fn get_cloned<T: 'static + Clone>(&self, heap_id: &HeapId) -> Result<T, ResolveError> {
         // Safety:
         // Accesses are tracked
         unsafe {

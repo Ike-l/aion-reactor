@@ -1,18 +1,17 @@
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 
-use crate::{injection::injection_primitives::unique::Unique, memory::Memory, state_machine::kernel_systems::{event_manager::event::{CurrentEvents, Event, NextEvents}, KernelSystem}};
+use crate::{injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::kernel_systems::{event_manager::event::{CurrentEvents, Event, NextEvents}, KernelSystem}};
 
 pub mod event;
 
-pub struct EventManager {
-    new_events: HashMap<Event, Event>
-}
+pub struct EventManager;
+
+pub struct EventMapper(HashMap<Event, Event>);
 
 impl EventManager {
-    pub fn new() -> Self {
-        Self {
-            new_events: HashMap::new()
-        }
+    pub fn new(memory: &Arc<Memory>) -> Self {
+        memory.insert(None, None, EventMapper(HashMap::new()));
+        Self
     }
 }
 
@@ -25,8 +24,10 @@ impl KernelSystem for EventManager {
 
             current_events.tick(&mut next_events);
 
+            let new_events = memory.resolve::<Shared<EventMapper>>(None, None, None).unwrap().unwrap();
+
             for event in current_events.read() {
-                if let Some(new_event) = self.new_events.get(event) {
+                if let Some(new_event) = new_events.0.get(event) {
                     next_events.insert(new_event.clone());
                 }
             }

@@ -1,17 +1,17 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{id::Id, injection::{injection_trait::Injection, AccessDeResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, heap_access_map::HeapAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}, system::system_metadata::Source};
+use crate::{injection::{injection_trait::Injection, DeAccessResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, heap_access_map::HeapAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
 
 #[derive(small_derive_deref::Deref, small_derive_deref::DerefMut, Debug)]
 pub struct Unique<'a, T> {
     #[DerefTarget]
     #[DerefMutTarget]
     value: &'a mut T,
-    dropper: AccessDeResolver
+    dropper: DeAccessResolver
 }
 
 impl<'a, T: 'static> Unique<'a, T> {
-    pub fn new(value: &'a mut T, dropper: AccessDeResolver) -> Self {
+    pub fn new(value: &'a mut T, dropper: DeAccessResolver) -> Self {
         Self {
             value,
             dropper
@@ -20,7 +20,7 @@ impl<'a, T: 'static> Unique<'a, T> {
 }
 
 impl<T> AccessDropper for Unique<'_, T> {
-    fn access_dropper(&self) -> &AccessDeResolver {
+    fn access_dropper(&self) -> &DeAccessResolver {
         &self.dropper
     }
 }
@@ -53,7 +53,7 @@ impl<T: 'static> Injection for Unique<'_, T> {
 
         let access_map = Self::create_and_resolve_access_map(source, Some(accessing.clone()));
 
-        let dropper = AccessDeResolver::new(Arc::clone(memory_domain), access_map);
+        let dropper = DeAccessResolver::new(Arc::clone(memory_domain), access_map);
         let shared = Unique::new(result, dropper);
 
         Ok(shared)
