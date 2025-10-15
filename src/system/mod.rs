@@ -1,3 +1,40 @@
+use crate::{id::Id, memory::Memory, system::{async_system::StoredAsyncSystem, sync_system::StoredSyncSystem, system_metadata::Source}};
+
 pub mod system_metadata;
 pub mod stored_system;
 pub mod system_status;
+pub mod sync_system;
+pub mod async_system;
+pub mod system_result;
+pub mod system_cell;
+
+pub enum System {
+    Sync(StoredSyncSystem),
+    Async(StoredAsyncSystem)
+}
+
+impl System {
+    // True if success, False if fail, None if program_id is Invalid
+    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: &Source) -> Option<bool> {
+        match self {
+            Self::Async(system) => system.ok_resources(memory, program_id, source),
+            Self::Sync(system) => system.ok_resources(memory, program_id, source)
+        }
+    }
+
+    // True if success, False if fail, None if program_id is Invalid
+    pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
+        match self {
+            System::Sync(sync_system) => todo!(),
+            System::Async(async_system) => todo!(),
+        }
+    }
+
+    // True if success, False if fail, None if program_id is Invalid
+    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: &Source) -> Option<bool> {
+        match self {
+            System::Sync(sync_system) => todo!(),
+            System::Async(async_system) => todo!(),
+        }
+    }
+}

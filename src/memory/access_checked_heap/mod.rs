@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::memory::{access_checked_heap::{heap::{heap::Heap, HeapId, HeapObject}, heap_access_map::HeapAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain, ResourceId};
+use crate::{memory::{access_checked_heap::{heap::{heap::Heap, HeapId, HeapObject}, heap_access_map::HeapAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
 
 pub mod heap;
 pub mod heap_access_map;
@@ -23,7 +23,7 @@ impl AccessCheckedHeap {
         self.access_map.lock().unwrap().ok_access(testing_heap_id, testing_access)
     }
 
-    pub fn reserve_accesses(&self, memory_domain: &MemoryDomain, source: ResourceId, access_map: HeapAccessMap) -> bool {
+    pub fn reserve_accesses(&self, memory_domain: &MemoryDomain, source: Source, access_map: HeapAccessMap) -> bool {
         self.access_map.lock().unwrap().reserve_accesses(memory_domain, source, access_map)
     }
 
@@ -44,7 +44,7 @@ impl AccessCheckedHeap {
         self.access_map.lock().unwrap().deaccess(access, heap_id)
     }
 
-    pub fn get_shared<T: 'static>(&self, heap_id: &HeapId, source: Option<&ResourceId>) -> Result<&T, ResolveError> {
+    pub fn get_shared<T: 'static>(&self, heap_id: &HeapId, source: Option<&Source>) -> Result<&T, ResolveError> {
         self.access_map.lock().unwrap().access_shared(heap_id.clone(), source)?;
 
         // Safety:
@@ -54,7 +54,7 @@ impl AccessCheckedHeap {
         }
     }
 
-    pub fn get_unique<T: 'static>(&self, heap_id: &HeapId, source: Option<&ResourceId>) -> Result<&mut T, ResolveError> {
+    pub fn get_unique<T: 'static>(&self, heap_id: &HeapId, source: Option<&Source>) -> Result<&mut T, ResolveError> {
         self.access_map.lock().unwrap().access_unique(heap_id.clone(), source)?;
         println!("U Accessed: {heap_id:?}");
         

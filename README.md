@@ -1,1 +1,3 @@
-Von Neumann Architecture
+Copied Semantics:
+* Von Neumann Architecture
+* Kernel level privilege

@@ -1,6 +1,6 @@
 use std::{any::{Any, TypeId}, collections::HashMap, sync::Arc};
 
-use crate::{id::Id, injection::injection_trait::{Injection, MemoryTarget}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject }, errors::ResolveError, memory_domain::MemoryDomain, resource_id::Resource}};
+use crate::{id::Id, injection::injection_trait::{Injection, MemoryTarget}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject }, errors::ResolveError, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
 
 pub mod access_checked_heap;
 pub mod resource_id;
@@ -35,9 +35,9 @@ impl Memory {
     // }
 
     // True if success, False if fail, None if program_id is Invalid
-    pub fn ok_resources<T: Injection>(&self, program_id: Option<&Id>, source: &ResourceId, resource_id: Option<ResourceId>) -> Option<bool> {
+    pub fn ok_resources<T: Injection>(&self, program_id: Option<&Id>, source: Option<&Source>, resource_id: Option<ResourceId>) -> Option<bool> {
         let mut access_map = T::create_access_map();
-        T::resolve_accesses(&mut access_map, Some(source), resource_id);
+        T::resolve_accesses(&mut access_map, source, resource_id);
         Some(match T::select_memory_target() {
             MemoryTarget::Global => access_map.ok_resources(&self.global_memory),
             MemoryTarget::Program => access_map.ok_resources(self.program_memory.get(program_id.as_ref()?)?) 
@@ -45,7 +45,7 @@ impl Memory {
     }
 
     // True if success, False if fail, None if program_id is Invalid
-    pub fn reserve_accesses<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, source: ResourceId) -> Option<bool> {
+    pub fn reserve_accesses<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, source: Source) -> Option<bool> {
         let mut access_map = T::create_access_map();
         T::resolve_accesses(&mut access_map, Some(&source), resource_id);
 
@@ -60,7 +60,7 @@ impl Memory {
         self.resolve::<T>(None, None, None).unwrap().unwrap()
     }
 
-    pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> Option<Result<T::Item<'_>, ResolveError>> {
+    pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Option<Result<T::Item<'_>, ResolveError>> {
         let map = match T::select_memory_target() {
             MemoryTarget::Global => &self.global_memory,
             MemoryTarget::Program => self.program_memory.get(program_id.as_ref()?)?

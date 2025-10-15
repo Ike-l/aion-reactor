@@ -1,6 +1,6 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{id::Id, injection::{injection_trait::Injection, resolve, AccessDeResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, heap_access_map::HeapAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}};
+use crate::{id::Id, injection::{injection_trait::Injection, resolve, AccessDeResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, heap_access_map::HeapAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, Memory, ResourceId}, system::system_metadata::Source};
 
 #[derive(Debug, small_derive_deref::Deref, small_derive_deref::DerefMut)]
 pub struct Shared<'a, T> {
@@ -36,17 +36,17 @@ impl<T: 'static> Injection for Shared<'_, T> {
         AccessMap::Heap(HeapAccessMap::default())
     }
 
-    fn resolve_accesses(access_map: &mut AccessMap, source: Option<&ResourceId>, resource_id: Option<ResourceId>) {
+    fn resolve_accesses(access_map: &mut AccessMap, source: Option<&Source>, resource_id: Option<ResourceId>) {
         match (access_map, resource_id.unwrap_or(ResourceId::Heap(HeapId::RawType(TypeId::of::<T>())))) {
             (AccessMap::Heap(access_map), ResourceId::Heap(resource_id)) => access_map.access_shared(resource_id, source).unwrap()
         }
     }
     
-    fn resolve<'a>(memory: &'a Memory, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
+    fn resolve<'a>(memory: &'a Memory, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
         resolve!(memory, program_id, resource_id, source)
     }
 
-    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> Result<Self::Item<'a>, ResolveError> {
+    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError> {
         let default_resource_id = ResourceId::from(HeapId::from(TypeId::of::<T>()));
         let accessing = resource_id.unwrap_or(&default_resource_id);
         let result = memory_domain.get_shared::<T>(accessing, source)?;

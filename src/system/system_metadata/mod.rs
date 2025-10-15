@@ -6,10 +6,13 @@ use crate::{id::Id, memory::ResourceId, state_machine::kernel_systems::{event_ma
 pub mod system_kind;
 pub mod criteria;
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct Source(pub ResourceId);
+
 #[derive(Debug)]
 pub struct SystemMetadata {
     system_kind: SystemKind,
-    resource_id: ResourceId,
+    resource_id: Source,
     program_id: Option<Id>,
     criteria: Criteria,
     ordering: SchedulerOrdering,
@@ -20,7 +23,7 @@ impl SystemMetadata {
         self.criteria.test(events)
     }
 
-    pub fn ids(&self) -> (&ResourceId, &Option<Id>) {
+    pub fn ids(&self) -> (&Source, &Option<Id>) {
         (&self.resource_id, &self.program_id)
     }
 
@@ -37,10 +40,10 @@ impl SystemRegistry {
         self.0.iter()
     }
 
-    pub fn into_map(&self) -> impl Iterator<Item = (Id, (ResourceId, Option<Id>))> {
+    pub fn into_map(&self) -> impl Iterator<Item = (Id, (Source, Option<Id>))> {
         self.0.iter().map(|(id, system_metadata)| {
-            let (resource_id, program_id) = system_metadata.ids();
-            (id.clone(), (resource_id.clone(), program_id.clone()))
+            let (source, program_id) = system_metadata.ids();
+            (id.clone(), (source.clone(), program_id.clone()))
         })
     }
 }

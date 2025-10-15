@@ -1,4 +1,4 @@
-use crate::memory::{access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reserve_access_map::ReserveAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain, ResourceId};
+use crate::{memory::{access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reserve_access_map::ReserveAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
 
 
 #[derive(Debug, Default)]
@@ -24,7 +24,7 @@ impl HeapAccessMap {
         self.access_map.ok_access(testing_heap_id, testing_access) || self.reserve_map.ok_access(testing_heap_id, testing_access)
     }
 
-    pub fn reserve_accesses(&mut self, memory_domain: &MemoryDomain, source: ResourceId, access_map: Self) -> bool {
+    pub fn reserve_accesses(&mut self, memory_domain: &MemoryDomain, source: Source, access_map: Self) -> bool {
         if self.ok_accesses(memory_domain) {
             self.reserve_map.reserve(source, access_map.access_map);
             return true;
@@ -45,7 +45,7 @@ impl HeapAccessMap {
         self.access_map.get_access(resource_id)
     }
 
-    pub fn access_shared(&mut self, heap_id: HeapId, source: Option<&ResourceId>) -> Result<(), ResolveError> {
+    pub fn access_shared(&mut self, heap_id: HeapId, source: Option<&Source>) -> Result<(), ResolveError> {
         if self.reserve_map.is_conflicting_reservation(&heap_id, &Access::Shared(1), source) {
             return Err(ResolveError::ConflictingReservation(ResourceId::Heap(heap_id)));
         }   
@@ -60,7 +60,7 @@ impl HeapAccessMap {
         result
     }
 
-    pub fn access_unique(&mut self, heap_id: HeapId, source: Option<&ResourceId>) -> Result<(), ResolveError> {
+    pub fn access_unique(&mut self, heap_id: HeapId, source: Option<&Source>) -> Result<(), ResolveError> {
         
         if self.reserve_map.is_conflicting_reservation(&heap_id, &Access::Unique, source) {
             return Err(ResolveError::ConflictingReservation(ResourceId::Heap(heap_id)));

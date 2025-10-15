@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{injection::{injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::AccessCheckedHeap, access_map::{Access, AccessMap}, errors::{DeResolveError, ResolveError}, resource_id::Resource, ResourceId}};
+use crate::{injection::{injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::AccessCheckedHeap, access_map::{Access, AccessMap}, errors::{DeResolveError, ResolveError}, resource_id::Resource, ResourceId}, system::system_metadata::Source};
 
 // Should be no public way of creating one of these to enforce dropping behaviour by injection types // doesnt matter because the UB would just panic
 #[derive(Debug)]
@@ -27,7 +27,7 @@ impl MemoryDomain {
         }
     }
 
-    pub fn reserve_accesses(&self, source: ResourceId, access_map: AccessMap) -> bool {
+    pub fn reserve_accesses(&self, source: Source, access_map: AccessMap) -> bool {
         match access_map {
             AccessMap::Heap(access_map) => self.heap.reserve_accesses(&self, source, access_map)
         }
@@ -39,7 +39,7 @@ impl MemoryDomain {
         }
     }
 
-    pub fn resolve<T: Injection>(self: &Arc<Self>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> Result<T::Item<'_>, ResolveError> {
+    pub fn resolve<T: Injection>(self: &Arc<Self>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<T::Item<'_>, ResolveError> {
         let r = T::retrieve(&self, resource_id, source);
         if let Ok(r) = &r {
             // make sure no panics so there MUST be a dropper
@@ -56,13 +56,13 @@ impl MemoryDomain {
         }
     }
 
-    pub fn get_shared<T: 'static>(&self, resource_id: &ResourceId, source: Option<&ResourceId>) -> Result<&T, ResolveError> {
+    pub fn get_shared<T: 'static>(&self, resource_id: &ResourceId, source: Option<&Source>) -> Result<&T, ResolveError> {
         match resource_id {
             ResourceId::Heap(id) => self.heap.get_shared(id, source)
         }
     }
 
-    pub fn get_unique<T: 'static>(&self, resource_id: &ResourceId, source: Option<&ResourceId>) -> Result<&mut T, ResolveError> {
+    pub fn get_unique<T: 'static>(&self, resource_id: &ResourceId, source: Option<&Source>) -> Result<&mut T, ResolveError> {
         match resource_id {
             ResourceId::Heap(id) => self.heap.get_unique(id, source)
         }

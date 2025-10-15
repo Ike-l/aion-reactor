@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::BackgroundProcessor, blocker_manager::BlockerManager, event_manager::EventManager, processor::Processor, StoredKernelSystem}}};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::BackgroundProcessor, blocker_manager::BlockerManager, event_manager::EventManager, processor::Processor, StoredKernelSystem}}, system::system_metadata::Source};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
@@ -51,7 +51,7 @@ impl StateMachine {
         kernel_system_registry.insert(1, background_processor_resource_id);
     }
 
-    pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&ResourceId>) -> Option<Result<T::Item<'_>, ResolveError>> {
+    pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Option<Result<T::Item<'_>, ResolveError>> {
         self.memory.resolve::<T>(program_id, resource_id, source)
     }
 
