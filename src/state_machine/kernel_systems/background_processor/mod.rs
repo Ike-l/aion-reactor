@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{memory::Memory, state_machine::kernel_systems::KernelSystem};
+use crate::{memory::Memory, state_machine::{kernel_systems::KernelSystem, transition_phases::TransitionPhase}};
 
 pub struct BackgroundProcessor;
 
@@ -11,7 +11,7 @@ impl BackgroundProcessor {
 }
 
 impl KernelSystem for BackgroundProcessor {
-    fn tick(&mut self, _memory: &Arc<Memory>) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+    fn tick(&mut self, _memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         todo!()
 
         // Start threads

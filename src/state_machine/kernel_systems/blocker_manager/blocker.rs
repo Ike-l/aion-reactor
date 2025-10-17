@@ -21,7 +21,13 @@ impl Blocker {
 pub struct NextBlockers(HashSet<Blocker>);
 
 impl NextBlockers {
+    pub fn insert<T: Into<Blocker>>(&mut self, blocker: T) -> bool {
+        self.0.insert(blocker.into())
+    }
 
+    pub fn remove(&mut self, blocker: &Blocker) -> bool {
+        self.0.remove(blocker)
+    }
 }
 
 #[derive(Debug, Default, Clone)]

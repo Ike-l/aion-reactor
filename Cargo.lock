@@ -26,6 +26,7 @@ dependencies = [
  "proptest",
  "rand 0.10.0-rc.0",
  "small_derive_deref",
+ "small_iter_fields",
  "threadpool",
  "tokio",
 ]
@@ -447,6 +448,16 @@ name = "small_derive_deref"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53f716b3a9bc790c4c60a13de92a209c8f343684cb48186ca1a08abb2ca7fe40"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "small_iter_fields"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd53c8e37dafe44c73fe918af564a33bfa657f1f866d5b50a365e1b3c5dd4b95"
 dependencies = [
  "quote",
  "syn",

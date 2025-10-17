@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{injection::injection_primitives::unique::Unique, memory::Memory, state_machine::kernel_systems::{blocker_manager::blocker::{CurrentBlockers, NextBlockers}, KernelSystem}};
+use crate::{injection::injection_primitives::unique::Unique, memory::Memory, state_machine::{kernel_systems::{blocker_manager::blocker::{CurrentBlockers, NextBlockers}, KernelSystem}, transition_phases::TransitionPhase}};
 
 pub mod blocker;
 
@@ -13,7 +13,7 @@ impl BlockerManager {
 }
 
 impl KernelSystem for BlockerManager {
-    fn tick(&mut self, memory: &Arc<Memory>) -> Pin<Box<dyn Future<Output = ()> + Send>> {
+    fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
             let mut next_events = memory.resolve::<Unique<NextBlockers>>(None, None, None).unwrap().unwrap();

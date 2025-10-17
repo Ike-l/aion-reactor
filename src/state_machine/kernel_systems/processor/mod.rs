@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, pin::Pin, sync::{atomic::{AtomicUsize
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{blacklist::Blacklist, kernel_systems::{blocker_manager::blocker::CurrentBlockers, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{blacklist::Blacklist, kernel_systems::{blocker_manager::blocker::{CurrentBlockers, NextBlockers}, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}, transition_phases::TransitionPhase}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
 
 pub mod scheduler;
 pub mod tasks;
@@ -288,7 +288,7 @@ impl Processor {
 }
 
 impl KernelSystem for Processor {
-    fn tick(&mut self, memory: &Arc<Memory>) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+    fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
             let system_registry = memory.resolve::<Shared<SystemRegistry>>(None, None, None).unwrap().unwrap();
@@ -324,10 +324,18 @@ impl KernelSystem for Processor {
             blacklist.unblock(&memory);
 
             let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
+            let mut next_blockers = memory.resolve::<Unique<NextBlockers>>(None, None, None).unwrap().unwrap();
+
             for (id, result) in results {
                 match result {
-                    SystemResult::Event(system_event) => match system_event {
-                        SystemEvent::NoEvent => { next_events.remove(&Event::from(id)); },
+                    SystemResult::Events(system_events) => {
+                        for system_event in system_events {
+                            match system_event {
+                                SystemEvent::NoEvent => { next_events.remove(&Event::from(id.clone())); },
+                                SystemEvent::WithEvent(event) => { next_events.insert(event); },
+                                SystemEvent::WithBlocker(blocker) => { next_blockers.insert(blocker); },
+                            }
+                        }
                     },
                     SystemResult::Error(error) => println!("{id:?}: {error}"),
                 }

@@ -2,11 +2,12 @@ use std::{collections::HashSet, sync::{Arc, Mutex}};
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::BackgroundProcessor, blocker_manager::BlockerManager, event_manager::{EventManager, EventMapper}, processor::Processor, StoredKernelSystem}}, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::BackgroundProcessor, blocker_manager::BlockerManager, event_manager::{EventManager, EventMapper}, processor::Processor, StoredKernelSystem}, transition_phases::TransitionPhase}, system::system_metadata::Source};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
 pub mod blacklist;
+pub mod transition_phases;
 
 #[derive(Debug)]
 pub struct StateMachine {
@@ -101,17 +102,19 @@ impl StateMachine {
 
     pub async fn tick(&self) {
         let mut kernel_systems = self.memory.resolve::<Unique<KernelSystemRegistry>>(None, None, None).unwrap().unwrap();
-        for kernel_systems in kernel_systems.iter() {
-            for kernel_system in kernel_systems.clone() {
-                let memory = Arc::clone(&self.memory);
-                let runtime = Arc::clone(&self.runtime);
-                self.threadpool.execute(move || {
-                    let mut kernel_system = memory.resolve::<Unique<StoredKernelSystem>>(None, Some(&kernel_system), None).unwrap().unwrap();
-                    runtime.block_on(kernel_system.tick(&memory));
-                });
+        for phase in TransitionPhase::iter_fields() {
+            for kernel_systems in kernel_systems.iter() {
+                for kernel_system in kernel_systems.clone() {
+                    let memory = Arc::clone(&self.memory);
+                    let runtime = Arc::clone(&self.runtime);
+                    self.threadpool.execute(move || {
+                        let mut kernel_system = memory.resolve::<Unique<StoredKernelSystem>>(None, Some(&kernel_system), None).unwrap().unwrap();
+                        runtime.block_on(kernel_system.tick(&memory, phase));
+                    });
+                }
+    
+                self.threadpool.join();
             }
-
-            self.threadpool.join();
         }
     }
 }
