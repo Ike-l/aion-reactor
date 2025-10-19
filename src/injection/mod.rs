@@ -1,5 +1,6 @@
 pub mod injection_trait;
 pub mod injection_primitives;
+pub mod injection_advanced;
 
 use std::sync::{Arc, Mutex};
 
