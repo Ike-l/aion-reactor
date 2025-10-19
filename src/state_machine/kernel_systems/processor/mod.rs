@@ -21,6 +21,14 @@ impl Processor {
         }
     }
 
+    pub fn insert_system(memory: &Memory, id: Id, system_metadata: SystemMetadata, system: StoredSystem) {
+        let mut system_registry = memory.quick_resolve::<Unique<SystemRegistry>>();
+        let source = system_metadata.ids().0;
+        memory.insert(None, Some(source.0.clone()), system);
+
+        system_registry.insert(id, system_metadata);
+    }
+
     fn get_systems<'a>(&self, memory: &Memory, system_registry: &'a SystemRegistry) -> HashMap<&'a Id, &'a SystemMetadata> {
         let current_blockers = memory.resolve::<Shared<CurrentBlockers>>(None, None, None).unwrap().unwrap();
         let current_events = memory.resolve::<Shared<CurrentEvents>>(None, None, None).unwrap().unwrap();

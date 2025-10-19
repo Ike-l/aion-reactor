@@ -44,4 +44,8 @@ impl SystemRegistry {
             (id.clone(), (source.clone(), program_id.clone()))
         })
     }
+
+    pub fn insert(&mut self, id: Id, system_metadata: SystemMetadata) -> Option<SystemMetadata> {
+        self.0.insert(id, system_metadata)
+    }
 }
