@@ -2,7 +2,7 @@ use std::{collections::HashSet, sync::{Arc, Mutex}};
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::BackgroundProcessor, blocker_manager::BlockerManager, event_manager::{EventManager, EventMapper}, processor::Processor, StoredKernelSystem}, transition_phases::TransitionPhase}, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::BackgroundProcessor, blocker_manager::BlockerManager, event_manager::{EventManager, EventMapper}, processor::Processor, StoredKernelSystem}, transition_phases::TransitionPhase}, system::{stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}}};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
@@ -116,6 +116,10 @@ impl StateMachine {
                 self.threadpool.join();
             }
         }
+    }
+
+    pub fn insert_system(&self, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
+        Processor::insert_system(&self.state, id, system_metadata, system)
     }
 }
 
