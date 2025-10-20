@@ -12,9 +12,10 @@ pub trait AsyncSystem: Send + Sync {
         memory: Arc<Memory>,
         program_id: Option<Id>, 
         source: Option<Source>
-    ) -> Pin<Box<dyn Future<Output = Option<SystemResult>> + 'a>>;
+    ) -> Pin<Box<dyn Future<Output = Option<SystemResult>> + 'a + Send>>;
 
     fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool>;
+    fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool>;
 
     fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source) -> Option<bool>;
 }
@@ -37,7 +38,7 @@ macro_rules! impl_async_system {
                 memory: Arc<Memory>,
                 program_id: Option<Id>,
                 source: Option<Source>
-            ) -> Pin<Box<dyn Future<Output = Option<SystemResult>> + 'a>> {
+            ) -> Pin<Box<dyn Future<Output = Option<SystemResult>> + 'a + Send>> {
                 Box::pin(async move {
                     $(
                         let $params = memory.resolve::<$params>(
@@ -58,6 +59,15 @@ macro_rules! impl_async_system {
                 source: Option<&Source>,
             ) -> Option<bool> {
                 Some(true $(&& memory.ok_resources::<$params>(program_id, source, None)?)*)
+            }
+
+            fn ok_accesses(
+                &self,
+                memory: &Memory,
+                program_id: Option<&Id>,
+                source: Option<&Source>,
+            ) -> Option<bool> {
+                Some(true $(&& memory.ok_accesses::<$params>(program_id, source, None)?)*)
             }
 
             fn reserve_accesses(

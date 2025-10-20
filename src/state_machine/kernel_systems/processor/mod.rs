@@ -2,10 +2,11 @@ use std::{collections::{HashMap, HashSet}, pin::Pin, sync::{atomic::{AtomicUsize
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{blacklist::Blacklist, kernel_systems::{blocker_manager::blocker::{CurrentBlockers, NextBlockers}, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}, transition_phases::TransitionPhase}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{blacklist::Blacklist, kernel_systems::{blocker_manager::blocker::{CurrentBlockers, NextBlockers}, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{processor_system_registry::ProcessorSystemRegistry, scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{Source, SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
 
 pub mod scheduler;
 pub mod tasks;
+pub mod processor_system_registry;
 
 #[derive(Debug)]
 pub struct Processor {
@@ -21,15 +22,20 @@ impl Processor {
         }
     }
 
-    pub fn insert_system(memory: &Memory, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
-        let mut system_registry = memory.quick_resolve::<Unique<SystemRegistry>>();
-        let source = system_metadata.ids().0;
-        memory.insert(None, Some(source.0.clone()), system);
+    pub fn insert_system2(state_machine: &StateMachine, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
+        let mut system_registry = state_machine.state.quick_resolve::<Unique<ProcessorSystemRegistry>>();
+        Self::insert_system(state_machine, &mut system_registry.0, id, system_metadata, system)
+    }
+
+
+    pub fn insert_system(state_machine: &StateMachine, system_registry: &mut SystemRegistry, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
+        let resource_id = system_metadata.resource_id();
+        state_machine.state.insert(None, Some(resource_id.clone()), system);
 
         system_registry.insert(id, system_metadata)
     }
 
-    fn get_systems<'a>(&self, memory: &Memory, system_registry: &'a SystemRegistry) -> HashMap<&'a Id, &'a SystemMetadata> {
+    pub fn get_systems<'a>(memory: &Memory, system_registry: &'a SystemRegistry) -> HashMap<&'a Id, &'a SystemMetadata> {
         let current_blockers = memory.resolve::<Shared<CurrentBlockers>>(None, None, None).unwrap().unwrap();
         let current_events = memory.resolve::<Shared<CurrentEvents>>(None, None, None).unwrap().unwrap();
     
@@ -38,11 +44,19 @@ impl Processor {
         system_registry.read()
             .filter(|&(id, _)| !current_blockers.blocks(id.clone()))
             .filter(|(_, system_metadata)| system_metadata.test(&events))
-            .filter(|(_, system_metadata)| {
-                let (source, program_id) = system_metadata.ids();
-                let system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), None, Some(source)).unwrap().unwrap();
-                system.ok_resources(&memory, program_id.as_ref(), Some(source)).is_some_and(|t| t)
-            }).collect()
+            .filter(|(id, system_metadata)| {
+                let resource_id = system_metadata.resource_id();
+                let program_id = system_metadata.program_id();
+                let system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None).unwrap().unwrap();
+                system.ok_resources(&memory, program_id.as_ref(), Some(&Source((*id).clone()))).is_some_and(|t| t)
+            })
+            .filter(|(id, system_metadata)| {
+                let resource_id = system_metadata.resource_id();
+                let program_id = system_metadata.program_id();
+                let system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None).unwrap().unwrap();
+                system.ok_accesses(&memory, program_id.as_ref(), Some(&Source((*id).clone()))).is_some_and(|t| t)
+            })
+            .collect()
     }
 
     fn divide_independent<'a>(&self, mut systems: HashMap<&'a Id, &'a SystemMetadata>) -> impl Iterator<Item = HashMap<Id, &'a SystemMetadata>> {
@@ -94,15 +108,15 @@ impl Processor {
         let finished_graphs = Arc::new(AtomicUsize::new(graph_count));
 
         let system_map = Arc::new(
-            memory.resolve::<Shared<SystemRegistry>>(None, None, None)
-                .unwrap().unwrap()
+            memory.resolve::<Shared<ProcessorSystemRegistry>>(None, None, None)
+                .unwrap().unwrap().0
                 .into_map()
                 .collect::<HashMap<_, _>>()
             );
             
         let system_mapping: Arc<HashMap<Id, SystemCell>> = Arc::new(
-           system_map.iter().map(|(id, (source, program_id))| {
-                (id.clone(), SystemCell::new(memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), None, Some(source)).unwrap().unwrap().take_system().unwrap()))
+           system_map.iter().map(|(id, (resource_id, program_id))| {
+                (id.clone(), SystemCell::new(memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(resource_id), None).unwrap().unwrap().take_system().unwrap()))
            }).collect() 
         );
 
@@ -150,8 +164,8 @@ impl Processor {
                                     drop(current_graph_read);
 
                                     if let Some(id) = nth_leaf {
-                                        let (source, program_id) = system_map.get(&id).unwrap();
-                                        let stored_system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), None, Some(source)).unwrap().unwrap();
+                                        let (resource_id, program_id) = system_map.get(&id).unwrap();
+                                        let stored_system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(resource_id), None).unwrap().unwrap();
                                         
                                         match stored_system.status().try_lock() {
                                             Ok(mut status) => {
@@ -165,6 +179,7 @@ impl Processor {
                                                             system_mapping.get(&id).unwrap().get()
                                                         };
                                                         
+                                                        let source = Source(id.clone());
                                                         if !inner.reserve_accesses(&memory, program_id.as_ref(), source.clone()).is_some_and(|t| t) {
                                                             chain += 1;
                                                             continue 'graphs_walk;
@@ -179,7 +194,7 @@ impl Processor {
                                                                 let result = sync_system.run(
                                                                     &memory,
                                                                     program_id.as_ref(),
-                                                                    Some(source),
+                                                                    Some(&source),
                                                                 );
 
                                                                 if let Some(result) = result {
@@ -260,8 +275,8 @@ impl Processor {
                                                 results.lock().await.push((id.clone(), result));
                                             }
 
-                                            let (source, program_id) = system_map.get(&id).unwrap();
-                                            let stored_system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), None, Some(source)).unwrap().unwrap();
+                                            let (resource_id, program_id) = system_map.get(&id).unwrap();
+                                            let stored_system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(resource_id), None).unwrap().unwrap();
 
                                             *stored_system.status().lock().unwrap() = SystemStatus::Executed;
                                             execution_graphs.graphs.get(graph_number).unwrap().write().await.mark_as_complete(&id);
@@ -284,8 +299,8 @@ impl Processor {
         PanicCatchingExecutionGraphsFuture::new(&self.threadpool, &execution_graphs).await;
 
         let mut system_mapping = Arc::try_unwrap(system_mapping).unwrap();
-        for (id, mut stored_system) in system_map.iter().map(|(id, (source, program_id))| {
-                (id, memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), None, Some(source)).unwrap().unwrap())
+        for (id, mut stored_system) in system_map.iter().map(|(id, (resource_id, program_id))| {
+                (id, memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(resource_id), None).unwrap().unwrap())
         }) {
             *stored_system.status().lock().unwrap() = SystemStatus::Ready;
             stored_system.insert_system(system_mapping.remove(id).unwrap().consume());
@@ -299,8 +314,8 @@ impl KernelSystem for Processor {
     fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
-            let system_registry = memory.resolve::<Shared<SystemRegistry>>(None, None, None).unwrap().unwrap();
-            let systems = self.get_systems(&memory, &system_registry);
+            let system_registry = memory.resolve::<Shared<ProcessorSystemRegistry>>(None, None, None).unwrap().unwrap();
+            let systems = Self::get_systems(&memory, &system_registry.0);
             
             let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
             for &id in systems.keys() {

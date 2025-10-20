@@ -20,6 +20,14 @@ impl StoredSystem {
         self.system.as_ref().expect("System").ok_resources(memory, program_id, source)
     }
 
+    pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
+        self.system.as_ref().expect("System").ok_accesses(memory, program_id, source)
+    }
+
+    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source) -> Option<bool> {
+        self.system.as_ref().expect("System").reserve_accesses(memory, program_id, source)
+    }
+
     pub fn status(&self) -> &Mutex<SystemStatus> {
         &self.status
     }

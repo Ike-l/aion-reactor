@@ -52,6 +52,15 @@ impl Memory {
         })
     }
 
+    pub fn ok_accesses<T: Injection>(&self, program_id: Option<&Id>, source: Option<&Source>, resource_id: Option<ResourceId>) -> Option<bool> {
+        let mut access_map = T::create_access_map();
+        T::resolve_accesses(&mut access_map, source, resource_id);
+        Some(match T::select_memory_target() {
+            MemoryTarget::Global => access_map.ok_accesses(&self.global_memory),
+            MemoryTarget::Program => access_map.ok_accesses(self.program_memory.get(program_id.as_ref()?)?)
+        })
+    }
+
     // True if success, False if fail, None if program_id is Invalid
     pub fn reserve_accesses<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, source: Source) -> Option<bool> {
         let mut access_map = T::create_access_map();

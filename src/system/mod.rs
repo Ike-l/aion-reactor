@@ -38,12 +38,12 @@ impl System {
     }
 
     // True if success, False if fail, None if program_id is Invalid
-    // pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>) -> Option<bool> {
-    //     match self {
-    //         System::Sync(sync_system) => todo!(),
-    //         System::Async(async_system) => todo!(),
-    //     }
-    // }
+    pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
+        match self {
+            System::Sync(sync_system) => sync_system.ok_accesses(memory, program_id, source),
+            System::Async(async_system) => async_system.ok_accesses(memory, program_id, source),
+        }
+    }
 
     // True if success, False if fail, None if program_id is Invalid
     pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source) -> Option<bool> {

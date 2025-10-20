@@ -6,11 +6,11 @@ use crate::{id::Id, memory::ResourceId, state_machine::kernel_systems::{event_ma
 pub mod criteria;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct Source(pub ResourceId);
+pub struct Source(pub Id);
 
 #[derive(Debug)]
 pub struct SystemMetadata {
-    resource_id: Source,
+    resource_id: ResourceId,
     program_id: Option<Id>,
     criteria: Criteria,
     ordering: SchedulerOrdering,
@@ -19,7 +19,7 @@ pub struct SystemMetadata {
 impl SystemMetadata {
     pub fn new(resource_id: ResourceId, program_id: Option<Id>, criteria: Criteria, ordering: SchedulerOrdering) -> Self {
         Self {
-            resource_id: Source(resource_id),
+            resource_id,
             program_id,
             criteria,
             ordering
@@ -30,8 +30,12 @@ impl SystemMetadata {
         self.criteria.test(events)
     }
 
-    pub fn ids(&self) -> (&Source, &Option<Id>) {
-        (&self.resource_id, &self.program_id)
+    pub fn program_id(&self) -> &Option<Id> {
+        &self.program_id
+    }
+
+    pub fn resource_id(&self) -> &ResourceId {
+        &self.resource_id
     }
 
     pub fn ordering(&self) -> &SchedulerOrdering {
@@ -47,10 +51,11 @@ impl SystemRegistry {
         self.0.iter()
     }
 
-    pub fn into_map(&self) -> impl Iterator<Item = (Id, (Source, Option<Id>))> {
+    pub fn into_map(&self) -> impl Iterator<Item = (Id, (ResourceId, Option<Id>))> {
         self.0.iter().map(|(id, system_metadata)| {
-            let (source, program_id) = system_metadata.ids();
-            (id.clone(), (source.clone(), program_id.clone()))
+            let resource_id = system_metadata.resource_id().clone();
+            let program_id = system_metadata.program_id().clone();
+            (id.clone(), (resource_id, program_id))
         })
     }
 
