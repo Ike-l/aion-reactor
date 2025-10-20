@@ -9,6 +9,13 @@ pub struct StoredSystem {
 }
 
 impl StoredSystem {
+    pub fn new(system: System) -> Self {
+        Self {
+            system: Some(system),
+            status: Mutex::new(SystemStatus::Ready)
+        }
+    }
+
     pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
         self.system.as_ref().expect("System").ok_resources(memory, program_id, source)
     }

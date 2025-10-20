@@ -17,6 +17,15 @@ pub struct SystemMetadata {
 }
 
 impl SystemMetadata {
+    pub fn new(resource_id: ResourceId, program_id: Option<Id>, criteria: Criteria, ordering: SchedulerOrdering) -> Self {
+        Self {
+            resource_id: Source(resource_id),
+            program_id,
+            criteria,
+            ordering
+        }
+    }
+
     pub fn test(&self, events: &HashSet<&Event>) -> bool {
         self.criteria.test(events)
     }

@@ -1,4 +1,4 @@
-use crate::{id::Id, memory::Memory, system::{async_system::StoredAsyncSystem, sync_system::StoredSyncSystem, system_metadata::Source}};
+use crate::{id::Id, memory::Memory, system::{async_system::{into_async_system::IntoAsyncSystem, AsyncSystem, StoredAsyncSystem}, sync_system::{into_sync_system::IntoSyncSystem, StoredSyncSystem, SyncSystem}, system_metadata::Source}};
 
 pub mod system_metadata;
 pub mod stored_system;
@@ -21,6 +21,14 @@ pub enum System {
 }
 
 impl System {
+    pub fn new_sync<T, S, I>(system: T) -> Self where T: IntoSyncSystem<I, System = S>, S: SyncSystem + 'static {
+        Self::Sync(Box::new(system.into_system()))
+    }
+
+    pub fn new_async<T, S, I>(system: T) -> Self where T: IntoAsyncSystem<I, System = S>, S: AsyncSystem + 'static {
+        Self::Async(Box::new(system.into_system()))
+    }
+
     // True if success, False if fail, None if program_id is Invalid
     pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
         match self {

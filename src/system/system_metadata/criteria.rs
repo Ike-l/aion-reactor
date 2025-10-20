@@ -12,6 +12,12 @@ impl Debug for Criteria {
 }
 
 impl Criteria {
+    pub fn new(criteria: impl Fn(&HashSet<&Event>) -> bool + Send + Sync + 'static) -> Self {
+        Self(
+            Box::new(criteria)
+        )
+    }
+
     pub fn test(&self, events: &HashSet<&Event>) -> bool {
         self.0(events)
     }
