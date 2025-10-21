@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{kernel_systems::{background_processor::background_processor_system_registry::BackgroundProcessorSystemRegistry, processor::Processor, KernelSystem}, transition_phases::TransitionPhase}, system::{stored_system::StoredSystem, system_metadata::Source, System}};
+use crate::{injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem}, transition_phases::TransitionPhase}, system::{stored_system::StoredSystem, system_metadata::Source, System}};
 
 pub struct StartBackgroundProcessor;
 
@@ -55,7 +55,7 @@ impl KernelSystem for StartBackgroundProcessor {
                                 System::Sync(sync_system)
                             });
 
-                            new_sync_join_handles.push(join_handle);
+                            new_sync_join_handles.push((id.clone(), join_handle));
                         }
                         System::Async(mut async_system) => {
                             let memory_clone = Arc::clone(&memory);
@@ -66,12 +66,23 @@ impl KernelSystem for StartBackgroundProcessor {
                                 System::Async(async_system)
                             });
 
-                            new_async_join_handles.push(join_handle);
+                            new_async_join_handles.push((id.clone(), join_handle));
                         }
                     }
                 } else {
                     panic!("UB");
                 }
+            }
+        
+            let mut async_join_handles = memory.resolve::<Unique<AsyncJoinHandles>>(None, None, None).unwrap().unwrap();
+            let mut sync_join_handles = memory.resolve::<Unique<SyncJoinHandles>>(None, None, None).unwrap().unwrap();
+
+            for (id, new_async_join_handle) in new_async_join_handles {
+                async_join_handles.push(id, new_async_join_handle);
+            }
+            
+            for (id, new_sync_join_handle) in new_sync_join_handles {
+                sync_join_handles.push(id, new_sync_join_handle);
             }
         })
     }

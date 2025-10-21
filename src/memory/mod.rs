@@ -73,9 +73,9 @@ impl Memory {
     }
 
     // panics 
-    pub fn quick_resolve<T: Injection>(&self) -> T::Item<'_> {
-        self.resolve::<T>(None, None, None).unwrap().unwrap()
-    }
+    // pub fn quick_resolve<T: Injection>(&self) -> T::Item<'_> {
+    //     self.resolve::<T>(None, None, None).unwrap().unwrap()
+    // }
 
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Option<Result<T::Item<'_>, ResolveError>> {
         let map = match T::select_memory_target() {

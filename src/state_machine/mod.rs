@@ -2,7 +2,7 @@ use std::{collections::HashSet, sync::{Arc, Mutex}};
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, event_manager::{EventManager, EventMapper}, processor::Processor, StoredKernelSystem}, transition_phases::TransitionPhase}, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::heap::HeapId, errors::ResolveError, resource_id::Resource, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor, sync_join_handles::SyncJoinHandles}, blocker_manager::BlockerManager, event_manager::{EventManager, EventMapper}, processor::Processor, StoredKernelSystem}, transition_phases::TransitionPhase}, system::system_metadata::Source};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
@@ -39,7 +39,7 @@ impl StateMachine {
     pub fn load_default(&self, processor_threads: usize) {
         let blacklist_resource_id = ResourceId::from(HeapId::from(Id("Blacklist".to_string())));
 
-        let mut kernel_system_registry = self.state.quick_resolve::<Unique<KernelSystemRegistry>>();
+        let mut kernel_system_registry = self.state.resolve::<Unique<KernelSystemRegistry>>(None, None, None).unwrap().unwrap();
         
         let finish_background_processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelFinishBackgroundProcessor".to_string())));
         self.state.insert(None, Some(finish_background_processor_resource_id.clone()), FinishBackgroundProcessor::new());
@@ -74,6 +74,9 @@ impl StateMachine {
                 let b1 = memory.resolve::<Unique<BlockerManager>>(None, Some(&blocker_manager_id), None).unwrap().unwrap();
                 
                 let c1 = memory.resolve::<Unique<StartBackgroundProcessor>>(None, Some(&start_background_processor_resource_id), None).unwrap().unwrap();
+                let c3 = memory.resolve::<Unique<SyncJoinHandles>>(None, Some(&start_background_processor_resource_id), None).unwrap().unwrap();
+                let c4 = memory.resolve::<Unique<AsyncJoinHandles>>(None, Some(&start_background_processor_resource_id), None).unwrap().unwrap();
+
                 let c2 = memory.resolve::<Unique<FinishBackgroundProcessor>>(None, Some(&finish_background_processor_resource_id), None).unwrap().unwrap();
                 
                 let d1 = memory.resolve::<Unique<Processor>>(None, Some(&processor_resource_id), None).unwrap().unwrap();
@@ -85,6 +88,8 @@ impl StateMachine {
                     b1.access_dropper().delay_dropper(),
                     c1.access_dropper().delay_dropper(),
                     c2.access_dropper().delay_dropper(),
+                    c3.access_dropper().delay_dropper(),
+                    c4.access_dropper().delay_dropper(),
                     d1.access_dropper().delay_dropper(),
                 ]);
 

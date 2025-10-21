@@ -62,4 +62,8 @@ impl SystemRegistry {
     pub fn insert(&mut self, id: Id, system_metadata: SystemMetadata) -> Option<SystemMetadata> {
         self.0.insert(id, system_metadata)
     }
+
+    pub fn get(&self, id: &Id) -> Option<&SystemMetadata> {
+        self.0.get(id)
+    }
 }

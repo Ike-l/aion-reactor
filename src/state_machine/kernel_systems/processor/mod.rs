@@ -23,7 +23,7 @@ impl Processor {
     }
 
     pub fn insert_system2(state_machine: &StateMachine, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
-        let mut system_registry = state_machine.state.quick_resolve::<Unique<ProcessorSystemRegistry>>();
+        let mut system_registry = state_machine.state.resolve::<Unique<ProcessorSystemRegistry>>(None, None, None).unwrap().unwrap();
         Self::insert_system(state_machine, &mut system_registry.0, id, system_metadata, system)
     }
 
