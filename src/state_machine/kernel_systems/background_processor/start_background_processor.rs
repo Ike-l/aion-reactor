@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem}, transition_phases::TransitionPhase}, system::{stored_system::StoredSystem, system_metadata::Source, System}};
+use crate::{injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{blacklist::Blacklist, kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem}, transition_phases::TransitionPhase}, system::{stored_system::StoredSystem, system_metadata::Source, System}};
 
 pub struct StartBackgroundProcessor;
 
@@ -15,6 +15,10 @@ impl KernelSystem for StartBackgroundProcessor {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
             let system_registry = memory.resolve::<Shared<BackgroundProcessorSystemRegistry>>(None, None, None).unwrap().unwrap();
+            
+            let blacklist = memory.resolve::<Unique<Blacklist>>(None, None, None).unwrap().unwrap();
+            blacklist.block(&memory);
+
             let systems = Processor::get_systems(&memory, &system_registry.0);
 
             if systems.iter().any(|(&id, system_metadata)| {
@@ -33,6 +37,7 @@ impl KernelSystem for StartBackgroundProcessor {
                 }) {
                 panic!("Conflicting accesses")
             }
+
 
             let mut new_async_join_handles = Vec::new();
             let mut new_sync_join_handles = Vec::new();
@@ -73,6 +78,8 @@ impl KernelSystem for StartBackgroundProcessor {
                     panic!("UB");
                 }
             }
+
+            blacklist.unblock(&memory);
         
             let mut async_join_handles = memory.resolve::<Unique<AsyncJoinHandles>>(None, None, None).unwrap().unwrap();
             let mut sync_join_handles = memory.resolve::<Unique<SyncJoinHandles>>(None, None, None).unwrap().unwrap();

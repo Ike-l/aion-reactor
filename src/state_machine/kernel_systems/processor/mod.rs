@@ -315,6 +315,10 @@ impl KernelSystem for Processor {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
             let system_registry = memory.resolve::<Shared<ProcessorSystemRegistry>>(None, None, None).unwrap().unwrap();
+            
+            let blacklist = memory.resolve::<Unique<Blacklist>>(None, None, None).unwrap().unwrap();
+            blacklist.block(&memory);
+
             let systems = Self::get_systems(&memory, &system_registry.0);
             
             let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
@@ -334,10 +338,6 @@ impl KernelSystem for Processor {
                     tokio::sync::RwLock::new(ExecutionGraph::new(&systems))
                 })
                 .collect::<Vec<_>>();
-    
-
-            let blacklist = memory.resolve::<Unique<Blacklist>>(None, None, None).unwrap().unwrap();
-            blacklist.block(&memory);
 
             let results = self.execute(
                 PanicCatchingExecutionGraphs::new(Arc::new(execution_graphs)),
