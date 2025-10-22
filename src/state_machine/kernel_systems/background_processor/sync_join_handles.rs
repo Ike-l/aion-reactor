@@ -2,6 +2,7 @@ use std::{any::Any, thread::JoinHandle};
 
 use crate::{id::Id, system::System};
 
+#[derive(Default)]
 pub struct SyncJoinHandles(Vec<(Id, JoinHandle<System>)>);
 
 impl SyncJoinHandles {

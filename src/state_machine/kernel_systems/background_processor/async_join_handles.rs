@@ -1,5 +1,6 @@
 use crate::{id::Id, system::System};
 
+#[derive(Default)]
 pub struct AsyncJoinHandles(Vec<(Id, tokio::task::JoinHandle<System>)>);
 
 impl AsyncJoinHandles {

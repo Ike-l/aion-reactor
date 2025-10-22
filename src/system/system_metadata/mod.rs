@@ -43,7 +43,7 @@ impl SystemMetadata {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct SystemRegistry(HashMap<Id, SystemMetadata>);
 
 impl SystemRegistry {

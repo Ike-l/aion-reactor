@@ -1,16 +1,25 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{blacklist::Blacklist, kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem}, transition_phases::TransitionPhase}, system::{stored_system::StoredSystem, system_metadata::Source, System}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem, StoredKernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}, System}};
 
 pub struct StartBackgroundProcessor;
 
 impl StartBackgroundProcessor {
-    pub fn new() -> Self {
-        Self
+    pub fn insert_system(state_machine: &StateMachine, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
+        let mut system_registry = state_machine.state.resolve::<Unique<BackgroundProcessorSystemRegistry>>(None, None, None).unwrap().unwrap();
+        Processor::insert_system(state_machine, &mut system_registry.0, id, system_metadata, system)
     }
 }
 
 impl KernelSystem for StartBackgroundProcessor {
+    fn init(&mut self, memory: &Memory) -> ResourceId {
+        memory.insert(None, None, BackgroundProcessorSystemRegistry::default()).unwrap();
+
+        let start_background_processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelStartBackgroundProcessor".to_string())));
+        memory.insert(None, Some(start_background_processor_resource_id.clone()), Box::new(Self) as StoredKernelSystem);
+        start_background_processor_resource_id
+    }
+
     fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
@@ -20,7 +29,7 @@ impl KernelSystem for StartBackgroundProcessor {
             blacklist.block(&memory);
 
             let systems = Processor::get_systems(&memory, &system_registry.0);
-
+            
             if systems.iter().any(|(&id, system_metadata)| {
                 let program_id = system_metadata.program_id();
                 let resource_id = system_metadata.resource_id();
@@ -28,10 +37,10 @@ impl KernelSystem for StartBackgroundProcessor {
                 let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(resource_id), None).unwrap().unwrap();
                 match system.reserve_accesses(&memory, program_id.as_ref(), Source(id.clone())) {
                     Some(true) => {
-                        true
+                        false
                     }
                     None | Some(false) => {
-                        false
+                        true
                     }
                 }
                 }) {

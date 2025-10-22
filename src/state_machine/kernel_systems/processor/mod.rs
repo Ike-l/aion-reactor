@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, pin::Pin, sync::{atomic::{AtomicUsize
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{blacklist::Blacklist, kernel_systems::{blocker_manager::blocker::{CurrentBlockers, NextBlockers}, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{processor_system_registry::ProcessorSystemRegistry, scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{Source, SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_systems::{blocker_manager::blocker::{CurrentBlockers, NextBlockers}, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{processor_system_registry::ProcessorSystemRegistry, scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem, StoredKernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{Source, SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
 
 pub mod scheduler;
 pub mod tasks;
@@ -15,6 +15,7 @@ pub struct Processor {
 }
 
 impl Processor {
+    // remember weirdly used in kernel/state machine
     pub fn new(threads: usize) -> Self {
         Self {
             threadpool: ThreadPool::new(threads),
@@ -311,6 +312,14 @@ impl Processor {
 }
 
 impl KernelSystem for Processor {
+    fn init(&mut self, memory: &Memory) -> ResourceId {
+        memory.insert(None, None, ProcessorSystemRegistry::default()).unwrap();
+
+        let processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelProcessor".to_string())));
+        memory.insert(None, Some(processor_resource_id.clone()), Box::new(Processor::new(self.threadpool.max_count())) as StoredKernelSystem);
+        processor_resource_id
+    }
+
     fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
@@ -321,9 +330,11 @@ impl KernelSystem for Processor {
 
             let systems = Self::get_systems(&memory, &system_registry.0);
             
-            let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
-            for &id in systems.keys() {
-                next_events.insert(id.clone());
+            {
+                let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
+                for &id in systems.keys() {
+                    next_events.insert(id.clone());
+                }
             }
     
             let independent_systems = self.divide_independent(systems);

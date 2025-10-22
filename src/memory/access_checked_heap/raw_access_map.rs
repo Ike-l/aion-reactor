@@ -44,7 +44,15 @@ impl RawAccessMap {
             Some(Access::Shared(n)) => {
                 match access {
                     Access::Unique => Err(DeResolveError::AccessMismatch),
-                    Access::Shared(m) => { *n -= m; Ok(()) }
+                    Access::Shared(m) => { 
+                        *n -= m; 
+                        
+                        if *n == 0 {
+                            self.0.remove(heap_id);
+                        }
+
+                        Ok(()) 
+                    }
                 }
             },
             Some(Access::Unique) => {

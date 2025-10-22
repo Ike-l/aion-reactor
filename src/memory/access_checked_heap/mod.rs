@@ -41,7 +41,6 @@ impl AccessCheckedHeap {
 
     // pub crate for now since i only want the dropper to use this
     pub(crate) fn deresolve(&self, access: &Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
-        println!("Deresolving: {heap_id:?}. Access: {access:?}");
         self.access_map.lock().unwrap().deaccess(access, heap_id)
     }
 
@@ -65,8 +64,6 @@ impl AccessCheckedHeap {
 
     pub fn get_unique<T: 'static>(&self, heap_id: &HeapId, source: Option<&Source>) -> Result<&mut T, ResolveError> {
         self.access_map.lock().unwrap().access_unique(heap_id.clone(), source)?;
-        println!("U Accessed: {heap_id:?}");
-        
         // Safety:
         // Accesses are tracked
         unsafe {

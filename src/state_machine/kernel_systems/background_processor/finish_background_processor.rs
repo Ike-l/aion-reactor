@@ -1,16 +1,19 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, event_manager::event::NextEvents, KernelSystem}, transition_phases::TransitionPhase}, system::stored_system::StoredSystem};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, event_manager::event::NextEvents, KernelSystem, StoredKernelSystem}, transition_phases::TransitionPhase}, system::stored_system::StoredSystem};
 
 pub struct FinishBackgroundProcessor;
 
-impl FinishBackgroundProcessor {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 impl KernelSystem for FinishBackgroundProcessor {
+    fn init(&mut self, memory: &Memory) -> ResourceId {
+        memory.insert(None, None, AsyncJoinHandles::default()).unwrap();
+        memory.insert(None, None, SyncJoinHandles::default()).unwrap();
+
+        let finish_background_processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelFinishBackgroundProcessor".to_string())));
+        memory.insert(None, Some(finish_background_processor_resource_id.clone()), Box::new(Self) as StoredKernelSystem);
+        finish_background_processor_resource_id
+    }
+
     fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {

@@ -23,10 +23,10 @@ impl Blacklist {
     }
 
     pub fn block(&self, memory: &Memory) {
-        self.blocks.iter().for_each(|b| b(memory));
+        // self.blocks.iter().for_each(|b| b(memory));
     }
 
     pub fn unblock(&self, memory: &Memory) {
-        self.unblocks.iter().for_each(|ub| ub(memory));
+        // self.unblocks.iter().for_each(|ub| ub(memory));
     }
 }

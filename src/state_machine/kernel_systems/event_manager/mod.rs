@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, HashSet}, pin::Pin, sync::Arc};
 
-use crate::{injection::injection_primitives::{shared::Shared, unique::Unique}, memory::Memory, state_machine::{kernel_systems::{event_manager::event::{CurrentEvents, Event, NextEvents}, KernelSystem}, transition_phases::TransitionPhase}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{event_manager::event::{CurrentEvents, Event, NextEvents}, KernelSystem, StoredKernelSystem}, transition_phases::TransitionPhase}};
 
 pub mod event;
 
@@ -14,14 +14,18 @@ impl EventMapper {
     }
 }
 
-impl EventManager {
-    pub fn new(memory: &Arc<Memory>) -> Self {
-        memory.insert(None, None, EventMapper(HashMap::new()));
-        Self
-    }
-}
-
 impl KernelSystem for EventManager {
+    fn init(&mut self, memory: &Memory) -> ResourceId {
+        memory.insert(None, None, EventMapper(HashMap::new())).unwrap();
+        memory.insert(None, None, NextEvents::default()).unwrap();
+        memory.insert(None, None, CurrentEvents::default()).unwrap();
+
+        let event_manager_id = ResourceId::Heap(HeapId::Label(Id("KernelEventManager".to_string())));
+        memory.insert(None, Some(event_manager_id.clone()), Box::new(Self) as StoredKernelSystem);
+
+        event_manager_id
+    }
+
     fn tick(&mut self, memory: &Arc<Memory>, phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
