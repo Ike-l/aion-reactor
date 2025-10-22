@@ -13,7 +13,7 @@ impl InnerHeap {
     }
 
     /// Safety:
-    /// Ensure no concurrent accesses
+    /// Ensure no mutable concurrent accesses
     pub unsafe fn get<T: 'static>(&self, heap_id: &HeapId) -> Option<&T> {
         unsafe {
             self.resources
@@ -24,7 +24,7 @@ impl InnerHeap {
     }
 
     /// Safety:
-    /// Ensure no concurrent accesses
+    /// Ensure no mutable concurrent accesses
     pub unsafe fn get_mut<T: 'static>(&self, heap_id: &HeapId) -> Option<&mut T> {
         unsafe {
             self.resources

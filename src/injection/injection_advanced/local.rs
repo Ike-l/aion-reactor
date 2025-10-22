@@ -45,3 +45,52 @@ impl<T: Injection> Injection for Local<'_, T> {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use std::{any::TypeId, sync::Arc};
+
+    use crate::{id::Id, injection::{injection_advanced::local::Local, injection_primitives::shared::Shared}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject}, memory_domain::MemoryDomain, resource_id::Resource, Memory, ResourceId}};
+
+    #[test]
+    fn resolve_local_fails_no_res() {
+        let memory_domain = Arc::new(MemoryDomain::new());
+        assert!(memory_domain.resolve::<Local<Shared<i32>>>(None, None).is_err())
+    }
+
+    #[test]
+    fn resolve_local_shared() {
+        let memory_domain = Arc::new(MemoryDomain::new());
+        
+        assert!(memory_domain.insert(
+            ResourceId::Heap(
+                HeapId::RawType(
+                    TypeId::of::<i32>()
+                )
+            ), 
+            Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1 as i32))))
+        ).is_none());
+
+        assert_eq!(***memory_domain.resolve::<Local<Shared<i32>>>(None, None).unwrap(), 1 as i32);
+    }
+
+    #[test]
+    fn resolve_local_memory() {
+        let program_id = Id("Foo".to_string());
+        let memory_domain = Arc::new(MemoryDomain::new());
+        
+        assert!(memory_domain.insert(
+            ResourceId::Heap(
+                HeapId::RawType(
+                    TypeId::of::<i32>()
+                )
+            ), 
+            Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1 as i32))))
+        ).is_none());
+
+        let memory = Memory::new();
+        assert!(memory.insert_program(program_id.clone(), memory_domain));
+
+        assert_eq!(***memory.resolve::<Local<Shared<i32>>>(Some(&program_id), None, None).unwrap().unwrap(), 1 as i32);
+        assert!(memory.resolve::<Local<Shared<i32>>>(None, None, None).is_none());
+    }
+}

@@ -10,6 +10,7 @@ impl Heap {
     pub fn contains(&self, heap_id: &HeapId) -> bool {
         let guard = self.lock.read();
         // Safety:
+        // Does this need to be unsafe?
         // Doesnt access
         unsafe { self.raw_heap.contains(heap_id, guard) }
     }
@@ -22,7 +23,7 @@ impl Heap {
     }
 
     /// Safety:
-    /// Ensure no concurrent accesses
+    /// Ensure no concurrent mutable accesses
     pub unsafe fn get_mut<T: 'static>(&self, heap_id: &HeapId) -> Option<&mut T> {
         let guard = self.lock.read();
         unsafe { self.raw_heap.get_mut(heap_id, guard) }
@@ -32,6 +33,9 @@ impl Heap {
     /// Ensure no concurrent accesses
     pub unsafe fn insert(&self, heap_id: HeapId, resource: HeapObject) -> Option<HeapObject> {
         let guard = self.lock.write();
+
+        // Safety:
+        // since no concurrent accesses
         unsafe { self.raw_heap.insert(heap_id, resource, guard) }
     }
 }

@@ -35,6 +35,7 @@ impl AccessCheckedHeap {
 
         // Safety:
         // Accesses are tracked
+        // No Access allowed
         unsafe { self.heap.insert(heap_id, resource) }
     }
 

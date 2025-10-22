@@ -52,6 +52,7 @@ impl MemoryDomain {
         r
     }
 
+    /// Only to be accessed by the dropper!
     pub(crate) fn delay_drop(&self, accesses: HashMap<ResourceId, Access>) -> u64 {
         let key = rand::random();
         self.delays.lock().unwrap().insert(key, accesses);
