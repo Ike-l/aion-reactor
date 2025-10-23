@@ -1,6 +1,6 @@
 use std::{cell::UnsafeCell, sync::Arc};
 
-use crate::{id::Id, memory::{memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::InnerProgramMemoryMap}};
+use crate::{id::Id, memory::{memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::{InnerProgramMemoryMap, Key}}};
 
 #[derive(Debug, Default)]
 pub struct RawProgramMemoryMap {
@@ -25,17 +25,17 @@ impl RawProgramMemoryMap {
 
     /// Safety:
     /// Ensure no concurrent mutable accesses
-    pub unsafe fn get(&self, program_id: &Id, _guard: parking_lot::RwLockReadGuard<()>) -> Option<&Arc<MemoryDomain>> {
-        unsafe { self.get_inner_heap().get(program_id) }
+    pub unsafe fn get(&self, program_id: &Id, key: Option<&Key>, _guard: parking_lot::RwLockReadGuard<()>) -> Option<&Arc<MemoryDomain>> {
+        unsafe { self.get_inner_heap().get(program_id, key) }
     }
 
     /// Safety restrain satisfied because it will only insert if it doesn't exist already
     /// Safety:
     /// Ensure no concurrent accesses
-    pub unsafe fn insert(&self, program_id: Id, memory_domain: Arc<MemoryDomain>, _guard: parking_lot::RwLockWriteGuard<()>) -> bool {
+    pub unsafe fn insert(&self, program_id: Id, memory_domain: Arc<MemoryDomain>, key: Option<Key>, _guard: parking_lot::RwLockWriteGuard<()>) -> bool {
         let inner_program_map = unsafe { self.get_mut_inner_heap() };
         if !inner_program_map.contains(&program_id) {
-            inner_program_map.insert(program_id, memory_domain);
+            inner_program_map.insert(program_id, memory_domain, key);
             return true;
         }
         

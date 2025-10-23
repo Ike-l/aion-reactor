@@ -88,9 +88,9 @@ mod tests {
         ).is_none());
 
         let memory = Memory::new();
-        assert!(memory.insert_program(program_id.clone(), memory_domain));
+        assert!(memory.insert_program(program_id.clone(), memory_domain, None));
 
-        assert_eq!(***memory.resolve::<Local<Shared<i32>>>(Some(&program_id), None, None).unwrap().unwrap(), 1 as i32);
-        assert!(memory.resolve::<Local<Shared<i32>>>(None, None, None).is_none());
+        assert_eq!(***memory.resolve::<Local<Shared<i32>>>(Some(&program_id), None, None, None).unwrap().unwrap(), 1 as i32);
+        assert!(memory.resolve::<Local<Shared<i32>>>(None, None, None, None).is_none());
     }
 }

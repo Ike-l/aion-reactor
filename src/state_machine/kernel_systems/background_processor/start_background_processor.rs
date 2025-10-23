@@ -1,41 +1,37 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{blacklist::Blacklist, kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem, StoredKernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}, System}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}, System}};
 
 pub struct StartBackgroundProcessor;
 
 impl StartBackgroundProcessor {
     pub fn insert_system(state_machine: &StateMachine, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
-        let mut system_registry = state_machine.state.resolve::<Unique<BackgroundProcessorSystemRegistry>>(None, None, None).unwrap().unwrap();
+        let mut system_registry = state_machine.state.resolve::<Unique<BackgroundProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();
         Processor::insert_system(state_machine, &mut system_registry.0, id, system_metadata, system)
     }
 }
 
 impl KernelSystem for StartBackgroundProcessor {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        memory.insert(None, None, BackgroundProcessorSystemRegistry::default()).unwrap();
+        memory.insert(None, None, None, BackgroundProcessorSystemRegistry::default()).unwrap();
 
-        let start_background_processor_resource_id = ResourceId::Heap(HeapId::Label(Id("KernelStartBackgroundProcessor".to_string())));
-        memory.insert(None, Some(start_background_processor_resource_id.clone()), Box::new(Self) as StoredKernelSystem);
-        start_background_processor_resource_id
+        ResourceId::Heap(HeapId::Label(Id("KernelStartBackgroundProcessor".to_string())))
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
-            let system_registry = memory.resolve::<Shared<BackgroundProcessorSystemRegistry>>(None, None, None).unwrap().unwrap();
+            let system_registry = memory.resolve::<Shared<BackgroundProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();
             
-            let blacklist = memory.resolve::<Unique<Blacklist>>(None, None, None).unwrap().unwrap();
-            blacklist.block(&memory);
-
             let systems = Processor::get_systems(&memory, &system_registry.0);
             
             if systems.iter().any(|(&id, system_metadata)| {
                 let program_id = system_metadata.program_id();
                 let resource_id = system_metadata.resource_id();
+                let key = system_metadata.key();
     
-                let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(resource_id), None).unwrap().unwrap();
-                match system.reserve_accesses(&memory, program_id.as_ref(), Source(id.clone())) {
+                let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(resource_id), None, None).unwrap().unwrap();
+                match system.reserve_accesses(&memory, program_id.as_ref(), Source(id.clone()), key.as_ref()) {
                     Some(true) => {
                         false
                     }
@@ -54,7 +50,7 @@ impl KernelSystem for StartBackgroundProcessor {
                 let program_id = system_metadata.program_id();
                 let resource_id = system_metadata.resource_id();
     
-                let mut system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(resource_id), None).unwrap().unwrap();
+                let mut system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(resource_id), None, None).unwrap().unwrap();
 
                 let source = Source(id.clone());
 
@@ -64,8 +60,9 @@ impl KernelSystem for StartBackgroundProcessor {
                             let memory_clone = Arc::clone(&memory);
                             let program_id = program_id.clone();
                             let source = source.clone();
+                            let key = system_metadata.key().clone();
                             let join_handle = std::thread::spawn(move || {
-                                sync_system.run(&memory_clone, program_id.as_ref(), Some(&source));
+                                sync_system.run(&memory_clone, program_id.as_ref(), Some(&source), key.as_ref());
                                 System::Sync(sync_system)
                             });
 
@@ -75,8 +72,9 @@ impl KernelSystem for StartBackgroundProcessor {
                             let memory_clone = Arc::clone(&memory);
                             let program_id = program_id.clone();
                             let source = source.clone();
+                            let key = system_metadata.key().clone();
                             let join_handle = tokio::spawn(async move {
-                                async_system.run(memory_clone, program_id, Some(source)).await;
+                                async_system.run(memory_clone, program_id, Some(source), key).await;
                                 System::Async(async_system)
                             });
 
@@ -88,10 +86,8 @@ impl KernelSystem for StartBackgroundProcessor {
                 }
             }
 
-            blacklist.unblock(&memory);
-        
-            let mut async_join_handles = memory.resolve::<Unique<AsyncJoinHandles>>(None, None, None).unwrap().unwrap();
-            let mut sync_join_handles = memory.resolve::<Unique<SyncJoinHandles>>(None, None, None).unwrap().unwrap();
+            let mut async_join_handles = memory.resolve::<Unique<AsyncJoinHandles>>(None, None, None, None).unwrap().unwrap();
+            let mut sync_join_handles = memory.resolve::<Unique<SyncJoinHandles>>(None, None, None, None).unwrap().unwrap();
 
             for (id, new_async_join_handle) in new_async_join_handles {
                 async_join_handles.push(id, new_async_join_handle);

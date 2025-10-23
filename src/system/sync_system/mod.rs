@@ -1,4 +1,4 @@
-use crate::{id::Id, injection::injection_trait::Injection, memory::Memory, system::{system_metadata::Source, system_result::SystemResult, FunctionSystem}};
+use crate::{id::Id, injection::injection_trait::Injection, memory::{program_memory_map::inner_program_memory_map::Key, Memory}, system::{system_metadata::Source, system_result::SystemResult, FunctionSystem}};
 
 
 pub mod into_sync_system;
@@ -10,13 +10,14 @@ pub trait SyncSystem: Send + Sync {
         &mut self,
         memory: &Memory,
         program_id: Option<&Id>, 
-        source: Option<&Source>
+        source: Option<&Source>,
+        key: Option<&Key>
     ) -> Option<SystemResult>;
 
-    fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool>;
-    fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool>;
+    fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool>;
+    fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool>;
 
-    fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source) -> Option<bool>;
+    fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source, key: Option<&Key>) -> Option<bool>;
 }
 
 macro_rules! impl_sync_system {
@@ -36,7 +37,8 @@ macro_rules! impl_sync_system {
                 &mut self,
                 memory: &Memory,
                 program_id: Option<&Id>,
-                source: Option<&Source>
+                source: Option<&Source>,
+                key: Option<&Key>
             ) -> Option<SystemResult> {
                 fn call_inner<$($params),*>(
                     mut f: impl FnMut($($params),*) -> Option<SystemResult>,
@@ -49,7 +51,8 @@ macro_rules! impl_sync_system {
                     let $params = memory.resolve::<$params>(
                         program_id,
                         None,
-                        source
+                        source,
+                        key
                     )?.ok()?;
                 )*
 
@@ -62,8 +65,9 @@ macro_rules! impl_sync_system {
                 memory: &Memory,
                 program_id: Option<&Id>,
                 source: Option<&Source>,
+                key: Option<&Key>
             ) -> Option<bool> {
-                Some(true $(&& memory.ok_resources::<$params>(program_id, source, None)?)*)
+                Some(true $(&& memory.ok_resources::<$params>(program_id, source, None, key)?)*)
             }
 
             fn ok_accesses(
@@ -71,17 +75,19 @@ macro_rules! impl_sync_system {
                 memory: &Memory,
                 program_id: Option<&Id>,
                 source: Option<&Source>,
+                key: Option<&Key>
             ) -> Option<bool> {
-                Some(true $(&& memory.ok_accesses::<$params>(program_id, source, None)?)*)
+                Some(true $(&& memory.ok_accesses::<$params>(program_id, source, None, key)?)*)
             }
 
             fn reserve_accesses(
                 &self,
                 memory: &Memory,
                 program_id: Option<&Id>,
-                source: Source
+                source: Source,
+                key: Option<&Key>
             ) -> Option<bool> {
-                Some(true $(&& memory.reserve_accesses::<$params>(program_id, None, source.clone())?)*)
+                Some(true $(&& memory.reserve_accesses::<$params>(program_id, None, source.clone(), key)?)*)
             }
         }
     };

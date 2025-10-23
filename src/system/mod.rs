@@ -1,4 +1,4 @@
-use crate::{id::Id, memory::Memory, system::{async_system::{into_async_system::IntoAsyncSystem, AsyncSystem, StoredAsyncSystem}, sync_system::{into_sync_system::IntoSyncSystem, StoredSyncSystem, SyncSystem}, system_metadata::Source}};
+use crate::{id::Id, memory::{program_memory_map::inner_program_memory_map::Key, Memory}, system::{async_system::{into_async_system::IntoAsyncSystem, AsyncSystem, StoredAsyncSystem}, sync_system::{into_sync_system::IntoSyncSystem, StoredSyncSystem, SyncSystem}, system_metadata::Source}};
 
 pub mod system_metadata;
 pub mod stored_system;
@@ -30,26 +30,26 @@ impl System {
     }
 
     // True if success, False if fail, None if program_id is Invalid
-    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
+    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool> {
         match self {
-            Self::Async(system) => system.ok_resources(memory, program_id, source),
-            Self::Sync(system) => system.ok_resources(memory, program_id, source)
+            Self::Async(system) => system.ok_resources(memory, program_id, source, key),
+            Self::Sync(system) => system.ok_resources(memory, program_id, source, key)
         }
     }
 
     // True if success, False if fail, None if program_id is Invalid
-    pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
+    pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool> {
         match self {
-            System::Sync(sync_system) => sync_system.ok_accesses(memory, program_id, source),
-            System::Async(async_system) => async_system.ok_accesses(memory, program_id, source),
+            System::Sync(sync_system) => sync_system.ok_accesses(memory, program_id, source, key),
+            System::Async(async_system) => async_system.ok_accesses(memory, program_id, source, key),
         }
     }
 
     // True if success, False if fail, None if program_id is Invalid
-    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source) -> Option<bool> {
+    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source, key: Option<&Key>) -> Option<bool> {
         match self {
-            System::Sync(sync_system) => sync_system.reserve_accesses(memory, program_id, source),
-            System::Async(async_system) => async_system.reserve_accesses(memory, program_id, source),
+            System::Sync(sync_system) => sync_system.reserve_accesses(memory, program_id, source, key),
+            System::Async(async_system) => async_system.reserve_accesses(memory, program_id, source, key),
         }
     }
 }

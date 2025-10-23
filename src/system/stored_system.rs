@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::{id::Id, memory::Memory, system::{system_metadata::Source, system_status::SystemStatus, System}};
+use crate::{id::Id, memory::{program_memory_map::inner_program_memory_map::Key, Memory}, system::{system_metadata::Source, system_status::SystemStatus, System}};
 
 
 pub struct StoredSystem {
@@ -16,16 +16,16 @@ impl StoredSystem {
         }
     }
 
-    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
-        self.system.as_ref().expect("System").ok_resources(memory, program_id, source)
+    pub fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool> {
+        self.system.as_ref().expect("System").ok_resources(memory, program_id, source, key)
     }
 
-    pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>) -> Option<bool> {
-        self.system.as_ref().expect("System").ok_accesses(memory, program_id, source)
+    pub fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool> {
+        self.system.as_ref().expect("System").ok_accesses(memory, program_id, source, key)
     }
 
-    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source) -> Option<bool> {
-        self.system.as_ref().expect("System").reserve_accesses(memory, program_id, source)
+    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source, key: Option<&Key>) -> Option<bool> {
+        self.system.as_ref().expect("System").reserve_accesses(memory, program_id, source, key)
     }
 
     pub fn status(&self) -> &Mutex<SystemStatus> {

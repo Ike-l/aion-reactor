@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, HashSet}, pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{event_manager::event::{CurrentEvents, Event, NextEvents}, KernelSystem, StoredKernelSystem}, transition_phases::TransitionPhase}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{event_manager::event::{CurrentEvents, Event, NextEvents}, KernelSystem}, transition_phases::TransitionPhase}};
 
 pub mod event;
 
@@ -16,27 +16,24 @@ impl EventMapper {
 
 impl KernelSystem for EventManager {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        memory.insert(None, None, EventMapper(HashMap::new())).unwrap();
-        memory.insert(None, None, NextEvents::default()).unwrap();
-        memory.insert(None, None, CurrentEvents::default()).unwrap();
+        memory.insert(None, None, None, EventMapper(HashMap::new())).unwrap();
+        memory.insert(None, None, None, NextEvents::default()).unwrap();
+        memory.insert(None, None, None, CurrentEvents::default()).unwrap();
 
-        let event_manager_id = ResourceId::Heap(HeapId::Label(Id("KernelEventManager".to_string())));
-        memory.insert(None, Some(event_manager_id.clone()), Box::new(Self) as StoredKernelSystem);
-
-        event_manager_id
+        ResourceId::Heap(HeapId::Label(Id("KernelEventManager".to_string())))
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
-            let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None).unwrap().unwrap();
+            let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
             next_events.insert(phase);
 
-            let mut current_events = memory.resolve::<Unique<CurrentEvents>>(None, None, None).unwrap().unwrap();
+            let mut current_events = memory.resolve::<Unique<CurrentEvents>>(None, None, None, None).unwrap().unwrap();
 
             current_events.tick(&mut next_events);
 
-            let new_events = memory.resolve::<Shared<EventMapper>>(None, None, None).unwrap().unwrap();
+            let new_events = memory.resolve::<Shared<EventMapper>>(None, None, None, None).unwrap().unwrap();
 
             for event in current_events.read() {
                 if let Some(new_events) = new_events.0.get(event) {
