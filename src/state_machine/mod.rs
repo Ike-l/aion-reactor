@@ -55,7 +55,7 @@ impl StateMachine {
     }
 
     pub fn load_default(&self, processor_threads: usize) {
-        self.load_kernel_system(FinishBackgroundProcessor, 0);
+        self.load_kernel_system(FinishBackgroundProcessor::default(), 0);
         self.load_kernel_system(EventManager, 1);
         self.load_kernel_system(BlockerManager, 1);
         self.load_kernel_system(StartBackgroundProcessor, 3);

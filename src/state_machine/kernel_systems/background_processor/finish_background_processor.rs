@@ -1,13 +1,25 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, event_manager::event::NextEvents, KernelSystem}, transition_phases::TransitionPhase}, system::stored_system::StoredSystem};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, event_manager::event::NextEvents, KernelSystem}, transition_phases::TransitionPhase}, system::stored_system::StoredSystem};
 
-pub struct FinishBackgroundProcessor;
+#[derive(Default)]
+pub struct FinishBackgroundProcessor {
+    program_id: Option<Id>,
+    key: Option<Key>,
+}
 
 impl KernelSystem for FinishBackgroundProcessor {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        memory.insert(None, None, None, AsyncJoinHandles::default()).unwrap();
-        memory.insert(None, None, None, SyncJoinHandles::default()).unwrap();
+        let program_id = Id("_FinishBackgroundProcessor".to_string());
+        
+        let key = Some(rand::random());
+        memory.insert_program(program_id.clone(), Arc::new(MemoryDomain::new()), key.clone());
+
+        memory.insert(Some(&program_id), None, key.as_ref(), AsyncJoinHandles::default()).unwrap();
+        memory.insert(Some(&program_id), None, key.as_ref(), SyncJoinHandles::default()).unwrap();
+
+        self.key = key;
+        self.program_id.replace(program_id);
 
         ResourceId::Heap(HeapId::Label(Id("KernelFinishBackgroundProcessor".to_string())))
     }
