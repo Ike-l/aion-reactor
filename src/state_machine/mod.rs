@@ -55,10 +55,20 @@ impl StateMachine {
     }
 
     pub fn load_default(&self, processor_threads: usize) {
-        self.load_kernel_system(FinishBackgroundProcessor::default(), 0);
+        let mut finish_background_processor = FinishBackgroundProcessor::default();
+        let resource_id = finish_background_processor.init(&self.state);
+        let start_background_processor = StartBackgroundProcessor::create_from(&finish_background_processor).unwrap();
+
+        {
+            let mut kernel_system_registry = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
+    
+            assert!(self.state.insert(Some(&self.program_id), Some(resource_id.clone()), Some(&self.kernel_key), Box::new(finish_background_processor) as StoredKernelSystem).unwrap().is_none());
+            kernel_system_registry.insert(0, resource_id);
+        }
+
         self.load_kernel_system(EventManager, 1);
         self.load_kernel_system(BlockerManager, 1);
-        self.load_kernel_system(StartBackgroundProcessor, 3);
+        self.load_kernel_system(start_background_processor, 3);
 
         // Refactor: Make a separate unit struct for the `KernelSystem` trait and the rest are on a separate struct the unit instantiates in init
         // So processor can get the processor_threads from memory/state before hand

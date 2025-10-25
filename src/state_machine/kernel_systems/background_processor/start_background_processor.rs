@@ -1,10 +1,24 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}, System}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, program_memory_map::inner_program_memory_map::Key, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, finish_background_processor::FinishBackgroundProcessor, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}, System}};
 
-pub struct StartBackgroundProcessor;
+pub struct StartBackgroundProcessor {
+    program_id: Id,
+    key: Key
+}
 
 impl StartBackgroundProcessor {
+    pub fn create_from(finish_background_processor: &FinishBackgroundProcessor) -> Option<Self> {
+        finish_background_processor.create_starter()
+    }
+
+    pub fn new(program_id: Id, key: Key) -> Self {
+        Self {
+            program_id,
+            key
+        }
+    }
+
     pub fn insert_system(state_machine: &StateMachine, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
         let mut system_registry = state_machine.state.resolve::<Unique<BackgroundProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();
         Processor::insert_system(state_machine, &mut system_registry.0, id, system_metadata, system)
@@ -86,8 +100,8 @@ impl KernelSystem for StartBackgroundProcessor {
                 }
             }
 
-            let mut async_join_handles = memory.resolve::<Unique<AsyncJoinHandles>>(None, None, None, None).unwrap().unwrap();
-            let mut sync_join_handles = memory.resolve::<Unique<SyncJoinHandles>>(None, None, None, None).unwrap().unwrap();
+            let mut async_join_handles = memory.resolve::<Unique<AsyncJoinHandles>>(Some(&self.program_id), None, None, Some(&self.key)).unwrap().unwrap();
+            let mut sync_join_handles = memory.resolve::<Unique<SyncJoinHandles>>(Some(&self.program_id), None, None, Some(&self.key)).unwrap().unwrap();
 
             for (id, new_async_join_handle) in new_async_join_handles {
                 async_join_handles.push(id, new_async_join_handle);

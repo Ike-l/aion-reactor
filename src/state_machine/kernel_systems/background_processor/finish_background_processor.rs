@@ -1,11 +1,17 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, sync_join_handles::SyncJoinHandles}, event_manager::event::NextEvents, KernelSystem}, transition_phases::TransitionPhase}, system::stored_system::StoredSystem};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, start_background_processor::StartBackgroundProcessor, sync_join_handles::SyncJoinHandles}, event_manager::event::NextEvents, KernelSystem}, transition_phases::TransitionPhase}, system::stored_system::StoredSystem};
 
 #[derive(Default)]
 pub struct FinishBackgroundProcessor {
     program_id: Option<Id>,
     key: Option<Key>,
+}
+
+impl FinishBackgroundProcessor {
+    pub fn create_starter(&self) -> Option<StartBackgroundProcessor> {
+        Some(StartBackgroundProcessor::new(self.program_id.as_ref()?.clone(), self.key.as_ref()?.clone()))
+    }
 }
 
 impl KernelSystem for FinishBackgroundProcessor {
@@ -27,8 +33,8 @@ impl KernelSystem for FinishBackgroundProcessor {
     fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
-            let mut async_join_handles = memory.resolve::<Unique<AsyncJoinHandles>>(None, None, None, None).unwrap().unwrap();
-            let mut sync_join_handles = memory.resolve::<Unique<SyncJoinHandles>>(None, None, None, None).unwrap().unwrap();
+            let mut async_join_handles = memory.resolve::<Unique<AsyncJoinHandles>>(self.program_id.as_ref(), None, None, self.key.as_ref()).unwrap().unwrap();
+            let mut sync_join_handles = memory.resolve::<Unique<SyncJoinHandles>>(self.program_id.as_ref(), None, None, self.key.as_ref()).unwrap().unwrap();
 
             let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
 
