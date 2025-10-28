@@ -115,16 +115,20 @@ mod raw_access_map_tests {
         let mut heap_access_map = RawAccessMap::default();
         let memory_domain = MemoryDomain::new();
 
-        assert!(heap_access_map.ok_resources(&memory_domain));
+        let source = None;
+
+        assert!(heap_access_map.ok_accesses(&memory_domain, source));
         
         let heap_id = HeapId::Label(Id("foo".to_string()));
 
         assert!(heap_access_map.access_unique(heap_id.clone()).is_ok());
-        assert!(!heap_access_map.ok_resources(&memory_domain));
+        assert!(!heap_access_map.ok_accesses(&memory_domain, source));
 
         let resource_id = ResourceId::Heap(heap_id);
-        memory_domain.insert(resource_id, Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1)))));
-        assert!(heap_access_map.ok_resources(&memory_domain));
+        memory_domain.insert(resource_id.clone(), Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1)))));
+        assert!(heap_access_map.ok_accesses(&memory_domain, source));
+        let r = memory_domain.get_unique::<i32>(&resource_id, source);
+        assert!(!heap_access_map.ok_accesses(&memory_domain, source));
     }
 
     #[test]
@@ -166,6 +170,34 @@ mod raw_access_map_tests {
         assert!(raw_access_map_2.access_shared(heap_id).is_ok());
         
         assert!(!raw_access_map_1.conflicts(&raw_access_map_2));
+    }
+
+    #[test]
+    fn conflicts_reverse() {
+        let mut raw_access_map_1 = RawAccessMap::default();
+        let mut raw_access_map_2 = RawAccessMap::default();
+
+        assert!(!raw_access_map_2.conflicts(&raw_access_map_1));
+
+        let heap_id = HeapId::Label(Id("foo".to_string()));
+
+        assert!(raw_access_map_2.access_shared(heap_id.clone()).is_ok());
+
+        assert!(!raw_access_map_2.conflicts(&raw_access_map_1));
+
+        assert!(raw_access_map_2.access_shared(heap_id.clone()).is_ok());
+        
+        assert!(!raw_access_map_2.conflicts(&raw_access_map_1));
+
+        assert!(raw_access_map_1.access_unique(heap_id.clone()).is_ok());
+        
+        assert!(raw_access_map_2.conflicts(&raw_access_map_1));
+
+        assert!(raw_access_map_1.deaccess(&Access::Unique, &heap_id).is_ok());
+
+        assert!(raw_access_map_1.access_shared(heap_id).is_ok());
+        
+        assert!(!raw_access_map_2.conflicts(&raw_access_map_1));
     }
 
     #[test]
