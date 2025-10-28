@@ -18,6 +18,4 @@ I personally made this to be the pillar of a game engine i want to make
 TODO:
 
 allow systems to be run directly from `MemoryDomain`
-
-better Blacklist
-current bug: Need the kernel system to run 1. but also need to blacklist it for other kernel systems
+systems take from local memory by default, global memory using `global` Injector 

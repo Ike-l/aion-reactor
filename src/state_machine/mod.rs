@@ -6,7 +6,6 @@ use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_
 
 pub mod kernel_systems;
 pub mod kernel_registry;
-// pub mod blacklist;
 pub mod transition_phases;
 
 #[derive(Debug)]
