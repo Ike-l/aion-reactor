@@ -46,7 +46,7 @@ impl<T: Injection> Injection for Local<'_, T> {
 }
 
 #[cfg(test)]
-mod tests {
+mod local_tests {
     use std::{any::TypeId, sync::Arc};
 
     use crate::{id::Id, injection::{injection_advanced::local::Local, injection_primitives::shared::Shared}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject}, memory_domain::MemoryDomain, resource_id::Resource, Memory, ResourceId}};

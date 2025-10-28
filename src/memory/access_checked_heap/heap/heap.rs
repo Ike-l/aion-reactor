@@ -39,3 +39,37 @@ impl Heap {
         unsafe { self.raw_heap.insert(heap_id, resource, guard) }
     }
 }
+
+#[cfg(test)]
+mod heap_tests {
+    use crate::{id::Id, memory::access_checked_heap::heap::{HeapId, HeapObject, heap::Heap, raw_heap_object::RawHeapObject}};
+
+    #[test]
+    fn insert_and_contains() {
+        let heap = Heap::default();
+        let id = HeapId::Label(Id("foo".to_string()));
+        assert!(!heap.contains(&id));
+        assert!(unsafe { heap.insert(id.clone(), HeapObject(RawHeapObject::new(Box::new(100) as Box<i32>))) }.is_none());
+        assert!(heap.contains(&id));
+    }
+
+    #[test]
+    fn get() {
+        let heap = Heap::default();
+        let id = HeapId::Label(Id("foo".to_string()));
+        assert!(!heap.contains(&id));
+        assert!(unsafe { heap.insert(id.clone(), HeapObject(RawHeapObject::new(Box::new(100) as Box<i32>))) }.is_none());
+        assert!(heap.contains(&id));
+        assert_eq!(unsafe { heap.get::<i32>(&id) }, Some(&100));
+    }
+
+    #[test]
+    fn get_mut() {
+        let heap = Heap::default();
+        let id = HeapId::Label(Id("foo".to_string()));
+        assert!(!heap.contains(&id));
+        assert!(unsafe { heap.insert(id.clone(), HeapObject(RawHeapObject::new(Box::new(100) as Box<i32>))) }.is_none());
+        assert!(heap.contains(&id));
+        assert_eq!(unsafe { heap.get_mut::<i32>(&id) }, Some(&mut 100));
+    }
+}
