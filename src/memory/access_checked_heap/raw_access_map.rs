@@ -91,7 +91,7 @@ impl RawAccessMap {
 
 #[cfg(test)]
 mod raw_access_map_tests {
-    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::{HeapId, HeapObject, raw_heap_object::RawHeapObject}, raw_access_map::RawAccessMap}, memory_domain::MemoryDomain, resource_id::Resource}};
+    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::{HeapId, HeapObject, raw_heap_object::RawHeapObject}, raw_access_map::RawAccessMap}, access_map::Access, memory_domain::MemoryDomain, resource_id::Resource}};
 
     #[test]
     fn ok_resources() {
@@ -127,6 +127,51 @@ mod raw_access_map_tests {
         assert!(heap_access_map.ok_resources(&memory_domain));
     }
 
+    #[test]
+    fn access_shared() {
+
+    }
+    #[test]
+    fn access_unique() {
+
+    }
+    #[test]
+    fn deaccess() {
+
+    }
+
+    #[test]
+    fn conflicts() {
+        let mut raw_access_map_1 = RawAccessMap::default();
+        let mut raw_access_map_2 = RawAccessMap::default();
+
+        assert!(!raw_access_map_1.conflicts(&raw_access_map_2));
+
+        let heap_id = HeapId::Label(Id("foo".to_string()));
+
+        assert!(raw_access_map_1.access_shared(heap_id.clone()).is_ok());
+
+        assert!(!raw_access_map_1.conflicts(&raw_access_map_2));
+
+        assert!(raw_access_map_1.access_shared(heap_id.clone()).is_ok());
+        
+        assert!(!raw_access_map_1.conflicts(&raw_access_map_2));
+
+        assert!(raw_access_map_2.access_unique(heap_id.clone()).is_ok());
+        
+        assert!(raw_access_map_1.conflicts(&raw_access_map_2));
+
+        assert!(raw_access_map_2.deaccess(&Access::Unique, &heap_id).is_ok());
+
+        assert!(raw_access_map_2.access_shared(heap_id).is_ok());
+        
+        assert!(!raw_access_map_1.conflicts(&raw_access_map_2));
+    }
+
+    #[test]
+    fn access() {
+
+    }
     // unique, shared
     // deaccess
     // conflicts
