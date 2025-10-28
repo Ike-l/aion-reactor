@@ -1,6 +1,6 @@
 use crate::memory::ResourceId;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ResolveError {
     ConflictingAccess(ResourceId),
     ConflictingReservation(ResourceId),

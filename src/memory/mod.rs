@@ -51,8 +51,8 @@ impl Memory {
         let mut access_map = T::create_access_map();
         T::resolve_accesses(&mut access_map, source, resource_id);
         Some(match T::select_memory_target() {
-            MemoryTarget::Global => access_map.ok_accesses(&self.global_memory),
-            MemoryTarget::Program => access_map.ok_accesses(self.program_memory_map.get(program_id.as_ref()?, key)?)
+            MemoryTarget::Global => access_map.ok_accesses(&self.global_memory, source),
+            MemoryTarget::Program => access_map.ok_accesses(self.program_memory_map.get(program_id.as_ref()?, key)?, source)
         })
     }
 

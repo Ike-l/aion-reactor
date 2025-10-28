@@ -24,9 +24,9 @@ impl MemoryDomain {
         }
     }
 
-    pub fn ok_access(&self, resource_id: &ResourceId, access: &Access) -> bool {
+    pub fn ok_access(&self, resource_id: &ResourceId, access: &Access, source: Option<&Source>) -> bool {
         match resource_id {
-            ResourceId::Heap(heap_id) => self.heap.ok_access(&heap_id, access)
+            ResourceId::Heap(heap_id) => self.heap.ok_access(&heap_id, access, source)
         }
     }
 
@@ -72,7 +72,7 @@ impl MemoryDomain {
     // pub crate for now since i only want the dropper to use this
     pub(crate) fn deresolve(&self, access: &Access, resource_id: &ResourceId) -> Result<(), DeResolveError> {
         match resource_id {
-            ResourceId::Heap(id) => self.heap.deresolve(access, id)
+            ResourceId::Heap(id) => self.heap.deaccess(access, id)
         }
     }
 

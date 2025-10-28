@@ -48,3 +48,5 @@ impl RawHeap {
         unsafe { self.get_mut_inner_heap().insert(heap_id, heap_object) }
     }
 }
+
+// no need to test since test `heap` and `inner_heap`

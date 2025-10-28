@@ -1,6 +1,6 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{injection::{injection_trait::Injection, DeAccessResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, heap_access_map::HeapAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
+use crate::{injection::{injection_trait::Injection, DeAccessResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
 
 #[derive(small_derive_deref::Deref, small_derive_deref::DerefMut, Debug)]
 pub struct Unique<'a, T> {
@@ -33,7 +33,7 @@ impl<T: 'static> Injection for Unique<'_, T> {
     }
 
     fn create_access_map() -> AccessMap {
-        AccessMap::Heap(HeapAccessMap::default())
+        AccessMap::Heap(ReservationAccessMap::default())
     }
 
     fn resolve_accesses(access_map: &mut AccessMap, source: Option<&Source>, resource_id: Option<ResourceId>) {

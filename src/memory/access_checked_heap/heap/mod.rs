@@ -28,3 +28,10 @@ impl From<Id> for HeapId {
 #[derive(Debug)]
 pub struct HeapObject(pub RawHeapObject<Box<dyn Any>>);
 
+
+impl HeapObject {
+    #[cfg(test)]
+    pub fn dummy(value: i32) -> Self {
+        Self(RawHeapObject::new(Box::new(value)))
+    }
+}

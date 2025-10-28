@@ -20,8 +20,8 @@ impl ReserveAccessMap {
         return false
     }
 
-    pub fn ok_accesses(&self, memory_domain: &MemoryDomain) -> bool {
-        !self.access_maps.iter().any(|(_, access_map)| !access_map.ok_accesses(memory_domain))
+    pub fn ok_accesses(&self, memory_domain: &MemoryDomain, source: Option<&Source>) -> bool {
+        !self.access_maps.iter().any(|(_, access_map)| !access_map.ok_accesses(memory_domain, source))
     }
 
     pub fn ok_access(&self, testing_heap_id: &HeapId, testing_access: &Access) -> bool {

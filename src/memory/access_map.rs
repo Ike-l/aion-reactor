@@ -1,4 +1,4 @@
-use crate::memory::{access_checked_heap::heap_access_map::HeapAccessMap, memory_domain::MemoryDomain, ResourceId};
+use crate::{memory::{ResourceId, access_checked_heap::reservation_access_map::ReservationAccessMap, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
 #[derive(Debug)]
 pub enum Access {
@@ -8,7 +8,7 @@ pub enum Access {
 
 #[derive(Debug)]
 pub enum AccessMap {
-    Heap(HeapAccessMap)
+    Heap(ReservationAccessMap)
 }
 
 impl AccessMap {
@@ -24,9 +24,9 @@ impl AccessMap {
         }
     }
 
-    pub fn ok_accesses(&self, memory_domain: &MemoryDomain) -> bool {
+    pub fn ok_accesses(&self, memory_domain: &MemoryDomain, source: Option<&Source>) -> bool {
         match self {
-            Self::Heap(access_map) => access_map.ok_accesses(memory_domain)
+            Self::Heap(access_map) => access_map.ok_accesses(memory_domain, source)
         }
     }
 }

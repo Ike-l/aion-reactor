@@ -6,6 +6,13 @@ pub enum Resource {
     // ECS
 }
 
+impl Resource {
+    #[cfg(test)]
+    pub fn dummy(value: i32) -> Self {
+        Self::Heap(HeapObject::dummy(value))
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ResourceId {
     Heap(HeapId),

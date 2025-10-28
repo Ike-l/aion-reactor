@@ -40,6 +40,8 @@ impl Heap {
     }
 }
 
+// would want a test to show no race conditions on inserts / _
+
 #[cfg(test)]
 mod heap_tests {
     use crate::{id::Id, memory::access_checked_heap::heap::{HeapId, HeapObject, heap::Heap, raw_heap_object::RawHeapObject}};
@@ -50,6 +52,7 @@ mod heap_tests {
         let id = HeapId::Label(Id("foo".to_string()));
         assert!(!heap.contains(&id));
         assert!(unsafe { heap.insert(id.clone(), HeapObject(RawHeapObject::new(Box::new(100) as Box<i32>))) }.is_none());
+        assert!(unsafe { heap.insert(id.clone(), HeapObject(RawHeapObject::new(Box::new(101) as Box<i32>))) }.is_some());
         assert!(heap.contains(&id));
     }
 

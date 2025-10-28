@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::memory::{access_checked_heap::heap::HeapId, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain, ResourceId};
+use crate::{memory::{ResourceId, access_checked_heap::heap::HeapId, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
 #[derive(Debug, Default)]
 pub struct RawAccessMap(HashMap<HeapId, Access>);
@@ -14,14 +14,17 @@ impl RawAccessMap {
         self.0.extend(other.0);
     }
 
+    /// are all resources in self (accesses) also in memory_domain
     pub fn ok_resources(&self, memory_domain: &MemoryDomain) -> bool {
         self.0.keys().all(|heap_id| memory_domain.ok_resource(&ResourceId::Heap(heap_id.clone())))
     }
 
-    pub fn ok_accesses(&self, memory_domain: &MemoryDomain) -> bool {
-        self.0.iter().all(|(heap_id, access)| memory_domain.ok_access(&ResourceId::Heap(heap_id.clone()), access))
+    /// are all accesses in self ok / do not conflict with the memory domain's accesses
+    pub fn ok_accesses(&self, memory_domain: &MemoryDomain, source: Option<&Source>) -> bool {
+        self.0.iter().all(|(heap_id, access)| memory_domain.ok_access(&ResourceId::Heap(heap_id.clone()), access, source))
     }
 
+    /// checks if the testing access would conflict with any current access
     pub fn ok_access(&self, testing_heap_id: &HeapId, testing_access: &Access) -> bool {
         if let Some(access) = self.0.get(testing_heap_id) {
             return match (testing_access, access) {
@@ -84,4 +87,48 @@ impl RawAccessMap {
         self.0.insert(heap_id, Access::Unique);
         Ok(())
     }
+}
+
+#[cfg(test)]
+mod raw_access_map_tests {
+    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::{HeapId, HeapObject, raw_heap_object::RawHeapObject}, raw_access_map::RawAccessMap}, memory_domain::MemoryDomain, resource_id::Resource}};
+
+    #[test]
+    fn ok_resources() {
+        let mut heap_access_map = RawAccessMap::default();
+        let memory_domain = MemoryDomain::new();
+
+        assert!(heap_access_map.ok_resources(&memory_domain));
+        
+        let heap_id = HeapId::Label(Id("foo".to_string()));
+
+        assert!(heap_access_map.access_unique(heap_id.clone()).is_ok());
+        assert!(!heap_access_map.ok_resources(&memory_domain));
+
+        let resource_id = ResourceId::Heap(heap_id);
+        memory_domain.insert(resource_id, Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1)))));
+        assert!(heap_access_map.ok_resources(&memory_domain));
+    }
+
+    #[test]
+    fn ok_accesses() {
+        let mut heap_access_map = RawAccessMap::default();
+        let memory_domain = MemoryDomain::new();
+
+        assert!(heap_access_map.ok_resources(&memory_domain));
+        
+        let heap_id = HeapId::Label(Id("foo".to_string()));
+
+        assert!(heap_access_map.access_unique(heap_id.clone()).is_ok());
+        assert!(!heap_access_map.ok_resources(&memory_domain));
+
+        let resource_id = ResourceId::Heap(heap_id);
+        memory_domain.insert(resource_id, Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1)))));
+        assert!(heap_access_map.ok_resources(&memory_domain));
+    }
+
+    // unique, shared
+    // deaccess
+    // conflicts
+    // access
 }
