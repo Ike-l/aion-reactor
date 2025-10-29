@@ -4,6 +4,7 @@ use crate::memory::ResourceId;
 pub enum ResolveError {
     ConflictingAccess(ResourceId),
     ConflictingReservation(ResourceId),
+    TooManyAccesses(ResourceId),
     InvalidProgramId,
     NoResource(ResourceId),
 }

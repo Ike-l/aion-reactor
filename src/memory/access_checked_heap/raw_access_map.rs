@@ -76,9 +76,19 @@ impl RawAccessMap {
         self.0.get(resource_id)
     }
 
+    /// combine access shared and access unique by matching on access
+    // pub fn do_access(&mut self, heap_id: HeapId, access: &Access) -> Result<(), ResolveError> { todo!() }
+
     pub fn access_shared(&mut self, heap_id: HeapId) -> Result<(), ResolveError> {
         match self.0.entry(heap_id.clone()).or_insert(Access::Shared(0)) {
-            Access::Shared(n) => Ok(*n += 1),
+            Access::Shared(n) => {
+                match n.checked_add(1) {
+                    Some(new_n) => *n = new_n,
+                    None => return Err(ResolveError::TooManyAccesses(ResourceId::from(heap_id))),
+                }
+
+                Ok(())
+            },
             Access::Unique => Err(ResolveError::ConflictingAccess(ResourceId::from(heap_id)))
         }
     }
@@ -243,6 +253,23 @@ mod raw_access_map_tests {
 
     #[test]
     fn ok_access() {
+        let mut raw_access_map = RawAccessMap::default();
 
+        let heap_id = HeapId::Label(Id("foo".to_string()));
+        let heap_id2 = HeapId::Label(Id("bar".to_string()));
+
+        assert!(raw_access_map.ok_access(&heap_id, &Access::Unique));
+        assert!(raw_access_map.ok_access(&heap_id, &Access::Shared(1)));
+
+        assert!(raw_access_map.access_unique(heap_id.clone()).is_ok());
+        assert!(!raw_access_map.ok_access(&heap_id, &Access::Unique));
+        assert!(!raw_access_map.ok_access(&heap_id, &Access::Shared(1)));
+        assert!(raw_access_map.deaccess(&Access::Unique, &heap_id).is_ok());
+        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
+        assert!(!raw_access_map.ok_access(&heap_id, &Access::Unique));
+        assert!(raw_access_map.ok_access(&heap_id, &Access::Shared(1)));
+
+        assert!(raw_access_map.ok_access(&heap_id2, &Access::Unique));
+        assert!(raw_access_map.ok_access(&heap_id2, &Access::Shared(1)));
     }
 }
