@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 
-use crate::{injection::{injection_trait::Injection, AccessDropper}, memory::{access_checked_heap::AccessCheckedHeap, access_map::{Access, AccessMap}, errors::{DeResolveError, ResolveError}, resource_id::Resource, ResourceId}, system::system_metadata::Source};
+use crate::{injection::{AccessDropper, injection_trait::Injection}, memory::{ResourceId, access_checked_heap::{AccessCheckedHeap, raw_access_map::RawAccessMap}, access_map::{Access, AccessMap}, errors::{DeResolveError, ResolveError}, resource_id::Resource}, system::system_metadata::Source};
 
 // Should be no public way of creating one of these to enforce dropping behaviour by injection types // doesnt matter because the UB would just panic
 #[derive(Debug)]
@@ -32,7 +32,7 @@ impl MemoryDomain {
 
     pub fn reserve_accesses(&self, source: Source, access_map: AccessMap) -> bool {
         match access_map {
-            AccessMap::Heap(access_map) => self.heap.reserve_accesses(&self, source, access_map)
+            AccessMap::Heap(access_map) => self.heap.reserve_accesses(&self, source, &mut RawAccessMap::from(access_map))
         }
     }
 

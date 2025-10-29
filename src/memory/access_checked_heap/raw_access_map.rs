@@ -1,17 +1,23 @@
 use std::collections::HashMap;
 
-use crate::{memory::{ResourceId, access_checked_heap::heap::HeapId, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
+use crate::{memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
 #[derive(Debug, Default)]
 pub struct RawAccessMap(HashMap<HeapId, Access>);
+
+impl From<ReservationAccessMap> for RawAccessMap {
+    fn from(mut value: ReservationAccessMap) -> Self {
+        Self(value.drain().collect())
+    }
+}
 
 impl RawAccessMap {
     pub fn drain(&mut self) -> impl Iterator<Item = (HeapId, Access)> {
         self.0.drain()
     }
 
-    pub fn merge(&mut self, other: Self) {
-        self.0.extend(other.0);
+    pub fn merge(&mut self, other: impl Iterator<Item = (HeapId, Access)>) {
+        self.0.extend(other);
     }
 
     /// are all resources in self (accesses) also in memory_domain

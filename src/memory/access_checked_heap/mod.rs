@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::{memory::{access_checked_heap::{heap::{heap::Heap, HeapId, HeapObject}, reservation_access_map::ReservationAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
+use crate::{memory::{ResourceId, access_checked_heap::{heap::{HeapId, HeapObject, heap::Heap}, raw_access_map::RawAccessMap, reservation_access_map::ReservationAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
 pub mod heap;
 pub mod reservation_access_map;
@@ -24,7 +24,7 @@ impl AccessCheckedHeap {
         self.ok_resource(testing_heap_id) && access_map.ok_access(testing_heap_id, testing_access, source)
     }
 
-    pub fn reserve_accesses(&self, memory_domain: &MemoryDomain, source: Source, access_map: ReservationAccessMap) -> bool {
+    pub fn reserve_accesses(&self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> bool {
         self.access_map.lock().unwrap().reserve_accesses(memory_domain, source, access_map)
     }
 
@@ -84,7 +84,7 @@ impl AccessCheckedHeap {
 
 #[cfg(test)]
 mod access_checked_heap_tests {
-    use crate::{id::Id, memory::{access_checked_heap::{AccessCheckedHeap, heap::{HeapId, HeapObject}}, access_map::Access, resource_id::Resource}};
+    use crate::{id::Id, memory::{access_checked_heap::{AccessCheckedHeap, heap::{HeapId, HeapObject}}, access_map::Access}};
 
     #[test]
     fn insert() {

@@ -18,17 +18,19 @@ impl ReservationAccessMap {
     }
 
     pub fn ok_accesses(&self, memory_domain: &MemoryDomain, source: Option<&Source>) -> bool {
-        self.access_map.ok_accesses(memory_domain, source) || self.reserve_map.ok_accesses(memory_domain, source)
+        // if current accesses dont conflict and no reservation conflict with memory
+        self.access_map.ok_accesses(memory_domain, source) && self.reserve_map.ok_accesses(memory_domain, source)
     }
 
     /// an access is ok if either 1. there is no conflicting access or 2. the access has been reserved
     pub fn ok_access(&self, testing_heap_id: &HeapId, testing_access: &Access, source: Option<&Source>) -> bool {
-        self.access_map.ok_access(testing_heap_id, testing_access) || self.reserve_map.is_conflicting_reservation(testing_heap_id, testing_access, source)
+        self.access_map.ok_access(testing_heap_id, testing_access) || self.reserve_map.is_reserved(testing_heap_id, testing_access, source)
     }
 
-    pub fn reserve_accesses(&mut self, memory_domain: &MemoryDomain, source: Source, access_map: Self) -> bool {
-        if self.ok_accesses(memory_domain, Some(&source)) {
-            self.reserve_map.reserve(source, access_map.access_map);
+    /// will drain the access map
+    pub fn reserve_accesses(&mut self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> bool {
+        if access_map.ok_accesses(memory_domain, Some(&source)) {
+            self.reserve_map.reserve(source, access_map.drain());
             return true;
         }
 
@@ -80,7 +82,7 @@ impl ReservationAccessMap {
 
 #[cfg(test)]
 mod reservation_access_map_tests {
-    use crate::{id::Id, memory::{access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::Access}};
+    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reservation_access_map::ReservationAccessMap}, access_map::Access, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
 
     #[test]
     fn ok_access() {
@@ -95,6 +97,25 @@ mod reservation_access_map_tests {
         assert!(reservation_access_map.access_unique(testing_heap_id.clone(), source).is_ok());
 
         assert!(!reservation_access_map.ok_access(testing_heap_id, testing_access, source));
+    }
+
+    #[test]
+    fn ok_accesses() {
+        let mut reservation_access_map = ReservationAccessMap::default();
+        
+        let memory_domain = MemoryDomain::new();
+        let source = None;
+
+        assert!(reservation_access_map.ok_accesses(&memory_domain, source));
+
+        let heap_id = HeapId::Label(Id("foo".to_string()));
+
+        assert!(reservation_access_map.access_shared(heap_id.clone(), source).is_ok());
+        assert!(!reservation_access_map.ok_accesses(&memory_domain, source));
+        assert!(memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123)).is_none());
+        assert!(reservation_access_map.ok_accesses(&memory_domain, source));
+
+        todo!("Better testing")
     }
 
     #[test]
@@ -135,7 +156,27 @@ mod reservation_access_map_tests {
 
     #[test]
     fn reserve() {
+        let mut reservation_access_map = ReservationAccessMap::default();
+
+        let memory_domain = MemoryDomain::new();
+        let source1 = Source(Id("foo".to_string()));
+        let mut access_map = RawAccessMap::default();
+
+        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map));
+
+        let heap_id = HeapId::Label(Id("baz".to_string()));
+        assert!(access_map.access_shared(heap_id.clone()).is_ok());
+
+        assert!(!reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map));
+
+        memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123));
+
+        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map));
+
         // fails with no res
+        let source2 = Source(Id("bar".to_string()));
+
+        todo!("finish testing");
         // access shared and fails reserve
         // access unique and fails reserve
         // no access succeed reserve(shared) then fails unique then accesses shared
