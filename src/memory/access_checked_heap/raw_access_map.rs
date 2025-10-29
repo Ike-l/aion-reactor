@@ -162,6 +162,7 @@ mod raw_access_map_tests {
         assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
         assert!(raw_access_map.access_unique(heap_id).is_err());
     }
+   
     #[test]
     fn access_unique() {
         let mut raw_access_map = RawAccessMap::default();
@@ -175,6 +176,7 @@ mod raw_access_map_tests {
         let heap_id2 = HeapId::Label(Id("bar".to_string()));
         assert!(raw_access_map.access_unique(heap_id2.clone()).is_ok());
     }
+    
     #[test]
     fn deaccess() {
         let mut raw_access_map = RawAccessMap::default();

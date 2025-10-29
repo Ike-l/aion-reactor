@@ -165,4 +165,29 @@ mod access_checked_heap_tests {
         let second = access_checked_heap.get_unique::<i32>(&heap_id, source);
         assert_eq!(second, Ok(&mut 1));
     }
+
+    #[test]
+    fn get_cloned() {
+        todo!()
+    }
+
+    #[test]
+    fn deaccess() {
+        todo!()
+    }
+
+    #[test]
+    fn reserve_access() {
+        todo!()
+    }
+
+    #[test]
+    fn ok_access() {
+        todo!()
+    }
+
+    #[test]
+    fn ok_resource() {
+        todo!()
+    }
 }

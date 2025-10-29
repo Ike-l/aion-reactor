@@ -94,3 +94,12 @@ impl MemoryDomain {
         }
     }
 }
+
+#[cfg(test)]
+mod memory_domain_tests {
+    #[test]
+    fn delay_end_drop() {
+        // test you can delay a drop, then end the drop
+        todo!()
+    }
+}

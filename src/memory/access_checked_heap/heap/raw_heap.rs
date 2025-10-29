@@ -49,4 +49,4 @@ impl RawHeap {
     }
 }
 
-// no need to test since test `heap` and `inner_heap`
+// no need to test since tested `heap` and `inner_heap` and this is simply a syntax separator layer

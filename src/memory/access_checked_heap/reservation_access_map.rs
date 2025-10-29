@@ -184,4 +184,19 @@ mod reservation_access_map_tests {
         // no access succeed reserve(unique) then fails shared then accesses unique
         // no access succeed reserve(unique) then fails shared then fails accesses shared
     }
+
+    #[test]
+    fn ok_resource() {
+        todo!()
+    }
+
+    #[test]
+    fn conflicts() {
+        todo!()
+    }
+
+    #[test]
+    fn deaccess() {
+        todo!()
+    }
 }
