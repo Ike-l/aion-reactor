@@ -61,6 +61,7 @@ mod heap_tests {
         let heap = Heap::default();
         let id = HeapId::Label(Id("foo".to_string()));
         assert!(!heap.contains(&id));
+        assert!(unsafe { heap.get::<i32>(&id) }.is_none());
         assert!(unsafe { heap.insert(id.clone(), HeapObject(RawHeapObject::new(Box::new(100) as Box<i32>))) }.is_none());
         assert!(heap.contains(&id));
         assert_eq!(unsafe { heap.get::<i32>(&id) }, Some(&100));
@@ -71,6 +72,7 @@ mod heap_tests {
         let heap = Heap::default();
         let id = HeapId::Label(Id("foo".to_string()));
         assert!(!heap.contains(&id));
+        assert!(unsafe { heap.get_mut::<i32>(&id) }.is_none());
         assert!(unsafe { heap.insert(id.clone(), HeapObject(RawHeapObject::new(Box::new(100) as Box<i32>))) }.is_none());
         assert!(heap.contains(&id));
         assert_eq!(unsafe { heap.get_mut::<i32>(&id) }, Some(&mut 100));
