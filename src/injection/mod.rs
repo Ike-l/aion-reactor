@@ -29,7 +29,7 @@ impl DeAccessResolver {
 impl Drop for DeAccessResolver {
     fn drop(&mut self) {
         for (resource, access) in self.access_map.lock().unwrap().drain() {
-            self.memory_domain.deresolve(&access, &resource).unwrap();
+            self.memory_domain.deresolve(access, &resource).unwrap();
         }
     }
 }

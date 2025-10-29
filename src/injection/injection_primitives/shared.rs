@@ -1,6 +1,6 @@
 use std::{any::{type_name, TypeId}, sync::Arc};
 
-use crate::{injection::{injection_trait::Injection, DeAccessResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
+use crate::{injection::{AccessDropper, DeAccessResolver, injection_trait::Injection}, memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, errors::ResolveError, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
 #[derive(Debug, small_derive_deref::Deref, small_derive_deref::DerefMut)]
 pub struct Shared<'a, T> {
@@ -38,13 +38,9 @@ impl<T: 'static> Injection for Shared<'_, T> {
 
     fn resolve_accesses(access_map: &mut AccessMap, source: Option<&Source>, resource_id: Option<ResourceId>) {
         match (access_map, resource_id.unwrap_or(ResourceId::Heap(HeapId::RawType(TypeId::of::<T>())))) {
-            (AccessMap::Heap(access_map), ResourceId::Heap(resource_id)) => access_map.access_shared(resource_id, source).unwrap()
+            (AccessMap::Heap(access_map), ResourceId::Heap(heap_id)) => access_map.do_access(heap_id, source, Access::Shared(1)).unwrap()
         }
     }
-    
-    // fn resolve<'a>(memory: &'a Memory, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> anyhow::Result<Result<Self::Item<'a>, ResolveError>> {
-    //     resolve!(memory, program_id, resource_id, source)
-    // }
 
     fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError> {
         let default_resource_id = ResourceId::from(HeapId::from(TypeId::of::<T>()));

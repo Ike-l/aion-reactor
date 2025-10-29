@@ -62,7 +62,7 @@ impl MemoryDomain {
     pub fn end_drop_delay(&self, key: &u64) {
         if let Some(accesses) = self.delays.lock().unwrap().remove(key) {
             for (resource_id, access) in accesses {
-                self.deresolve(&access, &resource_id).unwrap();
+                self.deresolve(access, &resource_id).unwrap();
             }
         } else {
             panic!("tried to end the drop delay without permission")
@@ -70,7 +70,7 @@ impl MemoryDomain {
     }
 
     // pub crate for now since i only want the dropper to use this
-    pub(crate) fn deresolve(&self, access: &Access, resource_id: &ResourceId) -> Result<(), DeResolveError> {
+    pub(crate) fn deresolve(&self, access: Access, resource_id: &ResourceId) -> Result<(), DeResolveError> {
         match resource_id {
             ResourceId::Heap(id) => self.heap.deaccess(access, id)
         }

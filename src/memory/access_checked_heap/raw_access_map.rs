@@ -48,13 +48,13 @@ impl RawAccessMap {
         })
     }
 
-    pub fn deaccess(&mut self, access: &Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
+    pub fn deaccess(&mut self, access: Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
         match self.0.get_mut(heap_id) {
             Some(Access::Shared(n)) => {
                 match access {
                     Access::Unique => Err(DeResolveError::AccessMismatch),
                     Access::Shared(m) => { 
-                        if m > n {
+                        if m > *n {
                             return Err(DeResolveError::AccessDoesNotExist);
                         }
 
@@ -78,34 +78,42 @@ impl RawAccessMap {
         }
     }
 
-    pub fn get_access(&self, resource_id: &HeapId) -> Option<&Access> {
-        self.0.get(resource_id)
+    pub fn get_access(&self, heap_id: &HeapId) -> Option<&Access> {
+        self.0.get(heap_id)
     }
 
     /// combine access shared and access unique by matching on access
-    // pub fn do_access(&mut self, heap_id: HeapId, access: &Access) -> Result<(), ResolveError> { todo!() }
+    pub fn do_access(&mut self, heap_id: HeapId, access: Access) -> Result<(), ResolveError> {
+        match access {
+            Access::Unique => {
+                if let Some(access) = self.get_access(&heap_id) {
+                    if let Access::Shared(n) = access {
+                        if *n == 0 {
+                            self.0.insert(heap_id, Access::Unique);
+                            return Ok(());
+                        }
+                    }
 
-    pub fn access_shared(&mut self, heap_id: HeapId) -> Result<(), ResolveError> {
-        match self.0.entry(heap_id.clone()).or_insert(Access::Shared(0)) {
-            Access::Shared(n) => {
-                match n.checked_add(1) {
-                    Some(new_n) => *n = new_n,
-                    None => return Err(ResolveError::TooManyAccesses(ResourceId::from(heap_id))),
+                    return Err(ResolveError::ConflictingAccess(ResourceId::Heap(heap_id)));
+                } else {
+                    self.0.insert(heap_id, Access::Unique);
+                    return Ok(());
                 }
-
-                Ok(())
             },
-            Access::Unique => Err(ResolveError::ConflictingAccess(ResourceId::from(heap_id)))
+            Access::Shared(additional_shared) => {
+                match self.0.entry(heap_id.clone()).or_insert(Access::Shared(0)) {
+                    Access::Shared(n) => {
+                        match n.checked_add(additional_shared) {
+                            Some(new_n) => *n = new_n,
+                            None => return Err(ResolveError::TooManyAccesses(ResourceId::from(heap_id))),
+                        }
+        
+                        Ok(())
+                    },
+                    Access::Unique => Err(ResolveError::ConflictingAccess(ResourceId::from(heap_id)))
+                }
+            },
         }
-    }
-    
-    pub fn access_unique(&mut self, heap_id: HeapId) -> Result<(), ResolveError> {
-        if self.0.contains_key(&heap_id) {
-            return Err(ResolveError::ConflictingAccess(ResourceId::from(heap_id)));
-        }
-
-        self.0.insert(heap_id, Access::Unique);
-        Ok(())
     }
 }
 
@@ -122,7 +130,7 @@ mod raw_access_map_tests {
         
         let heap_id = HeapId::Label(Id("foo".to_string()));
 
-        assert!(heap_access_map.access_unique(heap_id.clone()).is_ok());
+        assert!(heap_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
         assert!(!heap_access_map.ok_resources(&memory_domain));
 
         let resource_id = ResourceId::Heap(heap_id);
@@ -141,7 +149,7 @@ mod raw_access_map_tests {
         
         let heap_id = HeapId::Label(Id("foo".to_string()));
 
-        assert!(heap_access_map.access_unique(heap_id.clone()).is_ok());
+        assert!(heap_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
         assert!(!heap_access_map.ok_accesses(&memory_domain, source));
 
         let resource_id = ResourceId::Heap(heap_id);
@@ -157,10 +165,10 @@ mod raw_access_map_tests {
 
         let heap_id = HeapId::Label(Id("foo".to_string()));
         
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
-        assert!(raw_access_map.access_unique(heap_id).is_err());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        assert!(raw_access_map.do_access(heap_id, Access::Unique).is_err());
     }
    
     #[test]
@@ -169,12 +177,12 @@ mod raw_access_map_tests {
 
         let heap_id = HeapId::Label(Id("foo".to_string()));
         
-        assert!(raw_access_map.access_unique(heap_id.clone()).is_ok());
-        assert!(raw_access_map.access_unique(heap_id.clone()).is_err());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_err());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Unique).is_err());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_err());
 
         let heap_id2 = HeapId::Label(Id("bar".to_string()));
-        assert!(raw_access_map.access_unique(heap_id2.clone()).is_ok());
+        assert!(raw_access_map.do_access(heap_id2.clone(), Access::Unique).is_ok());
     }
     
     #[test]
@@ -183,24 +191,24 @@ mod raw_access_map_tests {
 
         let heap_id = HeapId::Label(Id("foo".to_string()));
 
-        assert!(raw_access_map.access_unique(heap_id.clone()).is_ok());
-        assert!(raw_access_map.deaccess(&Access::Unique, &heap_id).is_ok());
-        assert!(raw_access_map.access_unique(heap_id.clone()).is_ok());
-        assert!(raw_access_map.deaccess(&Access::Unique, &heap_id).is_ok());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
-        assert!(raw_access_map.deaccess(&Access::Shared(2), &heap_id).is_ok());
-        assert!(raw_access_map.deaccess(&Access::Shared(1), &heap_id).is_err());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
-        assert!(raw_access_map.deaccess(&Access::Shared(1), &heap_id).is_ok());
-        assert!(raw_access_map.deaccess(&Access::Shared(1), &heap_id).is_ok());
-        assert!(raw_access_map.deaccess(&Access::Shared(1), &heap_id).is_err());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
-        assert!(raw_access_map.deaccess(&Access::Shared(3), &heap_id).is_err());
-        assert!(raw_access_map.deaccess(&Access::Shared(2), &heap_id).is_ok());
-        assert!(raw_access_map.access_unique(heap_id.clone()).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
+        assert!(raw_access_map.deaccess(Access::Unique, &heap_id).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
+        assert!(raw_access_map.deaccess(Access::Unique, &heap_id).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        assert!(raw_access_map.deaccess(Access::Shared(2), &heap_id).is_ok());
+        assert!(raw_access_map.deaccess(Access::Shared(1), &heap_id).is_err());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        assert!(raw_access_map.deaccess(Access::Shared(1), &heap_id).is_ok());
+        assert!(raw_access_map.deaccess(Access::Shared(1), &heap_id).is_ok());
+        assert!(raw_access_map.deaccess(Access::Shared(1), &heap_id).is_err());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        assert!(raw_access_map.deaccess(Access::Shared(3), &heap_id).is_err());
+        assert!(raw_access_map.deaccess(Access::Shared(2), &heap_id).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
     }
 
     #[test]
@@ -212,21 +220,21 @@ mod raw_access_map_tests {
 
         let heap_id = HeapId::Label(Id("foo".to_string()));
 
-        assert!(raw_access_map_1.access_shared(heap_id.clone()).is_ok());
+        assert!(raw_access_map_1.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
 
         assert!(!raw_access_map_1.conflicts(&raw_access_map_2));
 
-        assert!(raw_access_map_1.access_shared(heap_id.clone()).is_ok());
+        assert!(raw_access_map_1.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
         
         assert!(!raw_access_map_1.conflicts(&raw_access_map_2));
 
-        assert!(raw_access_map_2.access_unique(heap_id.clone()).is_ok());
+        assert!(raw_access_map_2.do_access(heap_id.clone(), Access::Unique).is_ok());
         
         assert!(raw_access_map_1.conflicts(&raw_access_map_2));
 
-        assert!(raw_access_map_2.deaccess(&Access::Unique, &heap_id).is_ok());
+        assert!(raw_access_map_2.deaccess(Access::Unique, &heap_id).is_ok());
 
-        assert!(raw_access_map_2.access_shared(heap_id).is_ok());
+        assert!(raw_access_map_2.do_access(heap_id, Access::Shared(1)).is_ok());
         
         assert!(!raw_access_map_1.conflicts(&raw_access_map_2));
     }
@@ -240,21 +248,21 @@ mod raw_access_map_tests {
 
         let heap_id = HeapId::Label(Id("foo".to_string()));
 
-        assert!(raw_access_map_2.access_shared(heap_id.clone()).is_ok());
+        assert!(raw_access_map_2.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
 
         assert!(!raw_access_map_2.conflicts(&raw_access_map_1));
 
-        assert!(raw_access_map_2.access_shared(heap_id.clone()).is_ok());
+        assert!(raw_access_map_2.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
         
         assert!(!raw_access_map_2.conflicts(&raw_access_map_1));
 
-        assert!(raw_access_map_1.access_unique(heap_id.clone()).is_ok());
+        assert!(raw_access_map_1.do_access(heap_id.clone(), Access::Unique).is_ok());
         
         assert!(raw_access_map_2.conflicts(&raw_access_map_1));
 
-        assert!(raw_access_map_1.deaccess(&Access::Unique, &heap_id).is_ok());
+        assert!(raw_access_map_1.deaccess(Access::Unique, &heap_id).is_ok());
 
-        assert!(raw_access_map_1.access_shared(heap_id).is_ok());
+        assert!(raw_access_map_1.do_access(heap_id, Access::Shared(1)).is_ok());
         
         assert!(!raw_access_map_2.conflicts(&raw_access_map_1));
     }
@@ -269,11 +277,11 @@ mod raw_access_map_tests {
         assert!(raw_access_map.ok_access(&heap_id, &Access::Unique));
         assert!(raw_access_map.ok_access(&heap_id, &Access::Shared(1)));
 
-        assert!(raw_access_map.access_unique(heap_id.clone()).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
         assert!(!raw_access_map.ok_access(&heap_id, &Access::Unique));
         assert!(!raw_access_map.ok_access(&heap_id, &Access::Shared(1)));
-        assert!(raw_access_map.deaccess(&Access::Unique, &heap_id).is_ok());
-        assert!(raw_access_map.access_shared(heap_id.clone()).is_ok());
+        assert!(raw_access_map.deaccess(Access::Unique, &heap_id).is_ok());
+        assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
         assert!(!raw_access_map.ok_access(&heap_id, &Access::Unique));
         assert!(raw_access_map.ok_access(&heap_id, &Access::Shared(1)));
 

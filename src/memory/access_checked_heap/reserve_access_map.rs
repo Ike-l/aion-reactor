@@ -37,7 +37,7 @@ impl ReserveAccessMap {
         self.access_maps.entry(source).or_default().merge(access_map);
     }
 
-    pub fn unreserve(&mut self, source: &Source, item: &HeapId, access: &Access) -> Option<Result<(), DeResolveError>> {
+    pub fn unreserve(&mut self, source: &Source, item: &HeapId, access: Access) -> Option<Result<(), DeResolveError>> {
         Some(self.access_maps.get_mut(source)?.deaccess(access, item))
     }
 }

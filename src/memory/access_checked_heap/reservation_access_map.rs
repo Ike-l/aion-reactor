@@ -41,7 +41,7 @@ impl ReservationAccessMap {
         other.access_map.conflicts(&self.access_map)
     }
 
-    pub fn deaccess(&mut self, access: &Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
+    pub fn deaccess(&mut self, access: Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
         self.access_map.deaccess(access, heap_id)
     }
 
@@ -49,30 +49,16 @@ impl ReservationAccessMap {
         self.access_map.get_access(resource_id)
     }
 
-    pub fn access_shared(&mut self, heap_id: HeapId, source: Option<&Source>) -> Result<(), ResolveError> {
-        if self.reserve_map.is_conflicting_reservation(&heap_id, &Access::Shared(1), source) {
+    pub fn do_access(&mut self, heap_id: HeapId, source: Option<&Source>, access: Access) -> Result<(), ResolveError> {
+        if self.reserve_map.is_conflicting_reservation(&heap_id, &access, source) {
             return Err(ResolveError::ConflictingReservation(ResourceId::Heap(heap_id)));
-        }   
-
-        let result = self.access_map.access_shared(heap_id.clone());
-        if let Some(source) = source {
-            if result.is_ok() {
-                self.reserve_map.unreserve(source, &heap_id, &Access::Shared(1));
-            }
         }
 
-        result
-    }
 
-    pub fn access_unique(&mut self, heap_id: HeapId, source: Option<&Source>) -> Result<(), ResolveError> {
-        if self.reserve_map.is_conflicting_reservation(&heap_id, &Access::Unique, source) {
-            return Err(ResolveError::ConflictingReservation(ResourceId::Heap(heap_id)));
-        }   
-
-        let result = self.access_map.access_unique(heap_id.clone());
+        let result = self.access_map.do_access(heap_id.clone(), access.clone());
         if let Some(source) = source {
             if result.is_ok() {
-                self.reserve_map.unreserve(source, &heap_id, &Access::Unique);
+                self.reserve_map.unreserve(source, &heap_id, access);
             }
         }
 
@@ -94,7 +80,7 @@ mod reservation_access_map_tests {
 
         assert!(reservation_access_map.ok_access(testing_heap_id, testing_access, source));
 
-        assert!(reservation_access_map.access_unique(testing_heap_id.clone(), source).is_ok());
+        assert!(reservation_access_map.do_access(testing_heap_id.clone(), source, Access::Unique).is_ok());
 
         assert!(!reservation_access_map.ok_access(testing_heap_id, testing_access, source));
     }
@@ -110,7 +96,7 @@ mod reservation_access_map_tests {
 
         let heap_id = HeapId::Label(Id("foo".to_string()));
 
-        assert!(reservation_access_map.access_shared(heap_id.clone(), source).is_ok());
+        assert!(reservation_access_map.do_access(heap_id.clone(), source, Access::Shared(1)).is_ok());
         assert!(!reservation_access_map.ok_accesses(&memory_domain, source));
         assert!(memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123)).is_none());
         assert!(reservation_access_map.ok_accesses(&memory_domain, source));
@@ -125,8 +111,8 @@ mod reservation_access_map_tests {
         let heap_id = HeapId::Label(Id("foo".to_string()));
         let source = None;
 
-        assert!(reservation_access_map.access_shared(heap_id.clone(), source).is_ok());
-        assert!(reservation_access_map.access_shared(heap_id, source).is_ok());
+        assert!(reservation_access_map.do_access(heap_id.clone(), source, Access::Shared(1)).is_ok());
+        assert!(reservation_access_map.do_access(heap_id, source, Access::Shared(1)).is_ok());
     }
 
     #[test]
@@ -136,8 +122,8 @@ mod reservation_access_map_tests {
         let heap_id = HeapId::Label(Id("foo".to_string()));
         let source = None;
 
-        assert!(reservation_access_map.access_unique(heap_id.clone(), source).is_ok());
-        assert!(reservation_access_map.access_unique(heap_id, source).is_err());
+        assert!(reservation_access_map.do_access(heap_id.clone(), source, Access::Unique).is_ok());
+        assert!(reservation_access_map.do_access(heap_id, source, Access::Unique).is_err());
     }
 
     #[test]
@@ -147,11 +133,11 @@ mod reservation_access_map_tests {
         let heap_id = HeapId::Label(Id("foo".to_string()));
         let source = None;
 
-        assert!(reservation_access_map.access_shared(heap_id.clone(), source).is_ok());
-        assert!(reservation_access_map.access_unique(heap_id.clone(), source).is_err());
-        assert!(reservation_access_map.access_shared(heap_id.clone(), source).is_ok());
-        assert!(reservation_access_map.deaccess(&Access::Shared(2), &heap_id).is_ok());
-        assert!(reservation_access_map.access_unique(heap_id, source).is_ok());
+        assert!(reservation_access_map.do_access(heap_id.clone(), source, Access::Shared(1)).is_ok());
+        assert!(reservation_access_map.do_access(heap_id.clone(), source, Access::Unique).is_err());
+        assert!(reservation_access_map.do_access(heap_id.clone(), source, Access::Shared(1)).is_ok());
+        assert!(reservation_access_map.deaccess(Access::Shared(2), &heap_id).is_ok());
+        assert!(reservation_access_map.do_access(heap_id, source, Access::Unique).is_ok());
     }
 
     #[test]
@@ -165,7 +151,7 @@ mod reservation_access_map_tests {
         assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map));
 
         let heap_id = HeapId::Label(Id("baz".to_string()));
-        assert!(access_map.access_shared(heap_id.clone()).is_ok());
+        assert!(access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
 
         assert!(!reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map));
 

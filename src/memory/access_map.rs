@@ -1,6 +1,6 @@
 use crate::{memory::{ResourceId, access_checked_heap::reservation_access_map::ReservationAccessMap, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Access {
     Unique,
     Shared(usize)

@@ -41,7 +41,7 @@ impl AccessCheckedHeap {
     }
 
     // pub crate for now since i only want the dropper to use this
-    pub(crate) fn deaccess(&self, access: &Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
+    pub(crate) fn deaccess(&self, access: Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
         self.access_map.lock().unwrap().deaccess(access, heap_id)
     }
 
@@ -59,7 +59,7 @@ impl AccessCheckedHeap {
         // Safety:
         // Accesses are tracked
         if let Some(result) = unsafe { self.heap.get::<T>(&heap_id) } {
-            access_map.access_shared(heap_id.clone(), source)?;
+            access_map.do_access(heap_id.clone(), source, Access::Shared(1))?;
 
             Ok(result)
         } else {
@@ -73,7 +73,7 @@ impl AccessCheckedHeap {
         // Safety:
         // Accesses are tracked
         if let Some(result) = unsafe { self.heap.get_mut::<T>(&heap_id) } {
-            access_map.access_unique(heap_id.clone(), source)?;
+            access_map.do_access(heap_id.clone(), source, Access::Unique)?;
 
             Ok(result)
         } else {
@@ -160,7 +160,7 @@ mod access_checked_heap_tests {
         let third = access_checked_heap.get_shared::<i32>(&heap_id, source);
         assert_eq!(third, Ok(&1));
 
-        assert!(access_checked_heap.deaccess(&Access::Shared(2), &heap_id).is_ok());
+        assert!(access_checked_heap.deaccess(Access::Shared(2), &heap_id).is_ok());
 
         let second = access_checked_heap.get_unique::<i32>(&heap_id, source);
         assert_eq!(second, Ok(&mut 1));
