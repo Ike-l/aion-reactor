@@ -1,7 +1,7 @@
 use crate::{memory::{ResourceId, access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reserve_access_map::ReserveAccessMap}, access_map::Access, errors::{DeResolveError, ReservationError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ReservationAccessMap {
     access_map: RawAccessMap,
     reserve_map: ReserveAccessMap
@@ -32,12 +32,18 @@ impl ReservationAccessMap {
         if self.reserve_map.has_conflicting_reservation(&access_map, Some(&source)) {
             return Err(ReservationError::ConflictingReservation);
         }
-        
 
-        if !access_map.ok_accesses(memory_domain, Some(&source)) {
-            return Err(ReservationError::ConcurrentAccess);
+        if !access_map.ok_resources(memory_domain) {
+            return Err(ReservationError::ErrResource);
         }
 
+        // May lead to a bug in the future, basically
+        // i am making the assumption that if we are checking for an access that access is always only in one place (self),
+        // a more abstract version would ask memory domain if there is a conflict however that leads to a deadlock over self (currently).
+        if self.access_map.conflicts(&access_map) {
+            return Err(ReservationError::ConcurrentAccess);
+        }
+        
         self.reserve_map.reserve(source, access_map.drain());
         Ok(())
     }

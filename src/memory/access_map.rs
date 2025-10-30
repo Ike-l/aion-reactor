@@ -6,6 +6,17 @@ pub enum Access {
     Shared(usize)
 }
 
+impl Access {
+    pub fn is_semantically_different(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Access::Unique, Access::Unique) |
+            (Access::Shared(_), Access::Shared(_)) => false,
+            (Access::Unique, Access::Shared(_)) |
+            (Access::Shared(_), Access::Unique) => true
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum AccessMap {
     Heap(ReservationAccessMap)

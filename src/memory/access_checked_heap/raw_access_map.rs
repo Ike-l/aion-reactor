@@ -39,7 +39,7 @@ impl RawAccessMap {
         if let Some(access) = self.0.get(testing_heap_id) {
             return match (testing_access, access) {
                 (Access::Shared(_), Access::Shared(_)) => true,
-                    _ => false
+                _ => false
             };
         }
 

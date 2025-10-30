@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{memory::{access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap}, access_map::Access, errors::DeResolveError, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ReserveAccessMap {
     access_maps: HashMap<Source, RawAccessMap>
 }
@@ -10,13 +10,28 @@ pub struct ReserveAccessMap {
 impl ReserveAccessMap {
     pub fn is_conflicting_reservation(&self, item: &HeapId, access: &Access, source: Option<&Source>) -> bool {
         for (reserver, access_map) in self.access_maps.iter() {
+            // if accesses are not compatible then check source.
+            // if accesses are compatible continue
+            // however if they are not the same access then  
+
+            // if the accesses conflict
             if !access_map.ok_access(item, access) {
+                // and if the reserver is not the same
                 if source.map_or(true, |s| s != reserver) {
+                    // signal conflict
                     return true;
+                } else {
+                    // should never fail by the nature of ok_access but if it does not worth panicking over
+                    if let Some(item) = access_map.get_access(item) {
+                        if item.is_semantically_different(access) {
+                            return true;
+                        }
+                    }
+                    // if access and the incompatible access are not the same also return true
                 }
             }
         }
-
+        
         return false
     }
 

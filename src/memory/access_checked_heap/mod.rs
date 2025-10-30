@@ -87,7 +87,7 @@ impl AccessCheckedHeap {
 
 #[cfg(test)]
 mod access_checked_heap_tests {
-    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{AccessCheckedHeap, heap::{HeapId, HeapObject}, raw_access_map::RawAccessMap}, access_map::Access, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
+    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{AccessCheckedHeap, heap::{HeapId, HeapObject}, raw_access_map::RawAccessMap, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, errors::{ReservationError, ResolveError}, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
 
     #[test]
     fn insert() {
@@ -207,38 +207,7 @@ mod access_checked_heap_tests {
         assert_eq!(access_checked_heap.get_unique::<i32>(&heap_id, source), Ok(&mut 123));
     }
 
-    #[test]
-    fn reserve_access() {
-        let access_checked_heap = AccessCheckedHeap::default();
-
-        let memory_domain = MemoryDomain::new();
-        let source = Source(Id("foo".to_string()));
-        let mut access_map = RawAccessMap::default();
-
-        assert_eq!(access_checked_heap.reserve_accesses(&memory_domain, source.clone(), &mut access_map), Ok(()));
-
-        let heap_id1 = HeapId::Label(Id("baz".to_string()));
-        assert!(access_map.do_access(heap_id1.clone(), Access::Unique).is_ok());
-        assert!(access_checked_heap.reserve_accesses(&memory_domain, source.clone(), &mut access_map.clone()).is_err());
-
-        assert!(memory_domain.insert(ResourceId::Heap(heap_id1.clone()), Resource::dummy(123)).is_ok());
-        assert!(memory_domain.ok_resource(&ResourceId::Heap(heap_id1.clone())));
-
-        // assert!(access_checked_heap.reserve_accesses(&memory_domain, source.clone(), &mut access_map.clone()).is_ok());
-
-        // assert!(access_checked_heap.reserve_accesses(&memory_domain, Source(Id("bar".to_string())), &mut access_map).is_err());
-
-        // assert!(access_checked_heap.get_shared::<i32>(&heap_id1, Some(&source)).is_err());
-
-        assert_eq!(access_checked_heap.get_cloned::<i32>(&heap_id1), Ok(123));
-        // unique from none fails
-
-        // unique from source succeeds
-
-        // deaccess
-        // unique from none succeeds
-
-    }
+    // reserve - see MemoryDomain (unable to test from just here due to visitor pattern)
 
     #[test]
     fn ok_access() {

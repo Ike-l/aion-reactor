@@ -46,12 +46,8 @@ impl KernelSystem for StartBackgroundProcessor {
     
                 let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(resource_id), None, None).unwrap().unwrap();
                 match system.reserve_accesses(&memory, program_id.as_ref(), Source(id.clone()), key.as_ref()) {
-                    Some(Ok(())) => {
-                        false
-                    }
-                    None | Some(Err(ReservationError::ConcurrentAccess)) | Some(Err(ReservationError::ConflictingReservation)) => {
-                        true
-                    }
+                    Some(Ok(())) => false,
+                    _ => true
                 }
                 }) {
                 panic!("Conflicting accesses")

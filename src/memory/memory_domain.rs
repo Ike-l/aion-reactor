@@ -110,9 +110,44 @@ impl MemoryDomain {
 
 #[cfg(test)]
 mod memory_domain_tests {
+    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, errors::ReservationError, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
+
     #[test]
     fn delay_end_drop() {
         // test you can delay a drop, then end the drop
         todo!()
+    }
+
+    #[test]
+    fn reserve_access() {
+        let memory_domain = MemoryDomain::new();
+        let source = Source(Id("foo".to_string()));
+        let mut access_map = ReservationAccessMap::default();
+
+        assert_eq!(memory_domain.reserve_accesses(source.clone(), AccessMap::Heap(access_map.clone())), Ok(()));
+
+        let heap_id1 = HeapId::Label(Id("baz".to_string()));
+        assert!(access_map.do_access(heap_id1.clone(), None, Access::Unique).is_ok());
+        // memory_domain.get_shared(&ResourceId::Heap(heap_id1.clone()), Some(&source)
+        assert_eq!(memory_domain.reserve_accesses(source.clone(), AccessMap::Heap(access_map.clone())), Err(ReservationError::ErrResource));
+
+        assert!(memory_domain.insert(ResourceId::Heap(heap_id1.clone()), Resource::dummy(123)).is_ok());
+        assert!(memory_domain.ok_resource(&ResourceId::Heap(heap_id1.clone())));
+
+        assert!(memory_domain.reserve_accesses(source.clone(), AccessMap::Heap(access_map.clone())).is_ok());
+
+        assert!(memory_domain.reserve_accesses(Source(Id("bar".to_string())), AccessMap::Heap(access_map)).is_err());
+
+        assert!(memory_domain.get_shared::<i32>(&ResourceId::Heap(heap_id1.clone()), Some(&source)).is_err());
+
+        assert_eq!(memory_domain.get_cloned::<i32>(&ResourceId::Heap(heap_id1.clone())), Ok(123));
+
+        assert!(memory_domain.get_unique::<i32>(&ResourceId::Heap(heap_id1.clone()), None).is_err());
+
+        assert_eq!(memory_domain.get_unique::<i32>(&ResourceId::Heap(heap_id1.clone()), Some(&source)), Ok(&mut 123));
+        
+        assert!(unsafe { memory_domain.deresolve(Access::Unique, &ResourceId::Heap(heap_id1.clone())) }.is_ok());
+
+        assert!(memory_domain.get_unique::<i32>(&ResourceId::Heap(heap_id1.clone()), None).is_ok());
     }
 }

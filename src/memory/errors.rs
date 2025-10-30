@@ -23,5 +23,6 @@ pub enum InsertError {
 #[derive(Debug, PartialEq)]
 pub enum ReservationError {
     ConflictingReservation,
-    ConcurrentAccess
+    ConcurrentAccess,
+    ErrResource
 }
