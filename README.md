@@ -18,4 +18,3 @@ I personally made this to be the pillar of a game engine i want to make
 TODO:
 
 allow systems to be run directly from `MemoryDomain`
-systems take from local memory by default, global memory using `global` Injector 

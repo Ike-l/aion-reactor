@@ -24,6 +24,10 @@ impl AccessCheckedHeap {
         self.ok_resource(testing_heap_id) && access_map.ok_access(testing_heap_id, testing_access, source)
     }
 
+    pub fn unreserve(&self, heap_id: &HeapId, access: Access, source: &Source) {
+        self.access_map.lock().unwrap().unreserve(heap_id, access, source)
+    }
+
     /// Will drain the access map
     pub fn reserve_accesses(&self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
         self.access_map.lock().unwrap().reserve_accesses(memory_domain, source, access_map)
@@ -87,7 +91,7 @@ impl AccessCheckedHeap {
 
 #[cfg(test)]
 mod access_checked_heap_tests {
-    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{AccessCheckedHeap, heap::{HeapId, HeapObject}, raw_access_map::RawAccessMap, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, errors::{ReservationError, ResolveError}, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
+    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{AccessCheckedHeap, heap::{HeapId, HeapObject}, raw_access_map::RawAccessMap}, access_map::Access, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
 
     #[test]
     fn insert() {
@@ -229,6 +233,24 @@ mod access_checked_heap_tests {
         assert!(unsafe { access_checked_heap.deaccess(Access::Shared(2), &heap_id) }.is_ok());
         assert!(access_checked_heap.ok_access(&heap_id, &access, source));
         assert!(access_checked_heap.get_unique::<i32>(&heap_id, source).is_ok());
+        assert!(unsafe { access_checked_heap.deaccess(Access::Unique, &heap_id) }.is_ok());
+
+        // warning: not how this function is intended
+        let access_map = &mut RawAccessMap::default();
+        assert!(access_map.do_access(heap_id.clone(), access.clone()).is_ok());
+
+        let memory_domain = MemoryDomain::new();
+        assert!(memory_domain.insert(ResourceId::Heap(heap_id.clone()), Resource::dummy(123)).is_ok());
+
+        let source = Source(Id("foo".to_string()));
+        assert_eq!(access_checked_heap.reserve_accesses(&memory_domain, source.clone(), access_map), Ok(()));
+
+
+        assert!(access_checked_heap.ok_access(&heap_id, &access, Some(&source)));
+        assert!(!access_checked_heap.ok_access(&heap_id, &access, None));
+
+        access_checked_heap.unreserve(&heap_id, access.clone(), &source);
+        assert!(access_checked_heap.ok_access(&heap_id, &access, None));
     }
 
     #[test]

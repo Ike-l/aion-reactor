@@ -72,7 +72,13 @@ impl Memory {
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>, key: Option<&Key>) -> Option<Result<T::Item<'_>, ResolveError>> {
         let map = match T::select_memory_target() {
             MemoryTarget::Global => &self.global_memory,
-            MemoryTarget::Program => self.program_memory_map.get(program_id.as_ref()?, key)?
+            MemoryTarget::Program => {
+                if let Some(program_id) = program_id {
+                    self.program_memory_map.get(program_id, key)?
+                } else {
+                    &self.global_memory
+                }
+            } 
         };
 
         Some(map.resolve::<T>(resource_id, source))

@@ -21,8 +21,8 @@ impl KernelSystem for FinishBackgroundProcessor {
         let key = Some(rand::random());
         memory.insert_program(program_id.clone(), Arc::new(MemoryDomain::new()), key.clone());
 
-        memory.insert(Some(&program_id), None, key.as_ref(), AsyncJoinHandles::default()).unwrap();
-        memory.insert(Some(&program_id), None, key.as_ref(), SyncJoinHandles::default()).unwrap();
+        assert!(memory.insert(Some(&program_id), None, key.as_ref(), AsyncJoinHandles::default()).unwrap().is_ok());
+        assert!(memory.insert(Some(&program_id), None, key.as_ref(), SyncJoinHandles::default()).unwrap().is_ok());
 
         self.key = key;
         self.program_id.replace(program_id);

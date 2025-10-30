@@ -25,6 +25,6 @@ pub trait Injection {
     fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError>;
 
     fn select_memory_target() -> MemoryTarget {
-        MemoryTarget::Global
+        MemoryTarget::Program
     }
 }

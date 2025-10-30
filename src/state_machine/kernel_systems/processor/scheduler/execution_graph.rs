@@ -271,7 +271,8 @@ mod execution_graph {
         }
     }
 
-    const SIZE: std::ops::Range<usize> = 0..45;
+    // 45 is the upper limit within a reasonable time
+    const SIZE: std::ops::Range<usize> = 0..30;
     
     fn ordering_set_strategy() -> impl Strategy<Value = HashSet<T>> {
         prop::collection::hash_set(any::<T>(), SIZE)

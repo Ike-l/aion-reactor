@@ -16,9 +16,9 @@ impl EventMapper {
 
 impl KernelSystem for EventManager {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        memory.insert(None, None, None, EventMapper(HashMap::new())).unwrap();
-        memory.insert(None, None, None, NextEvents::default()).unwrap();
-        memory.insert(None, None, None, CurrentEvents::default()).unwrap();
+        assert!(memory.insert(None, None, None, EventMapper(HashMap::new())).unwrap().is_ok());
+        assert!(memory.insert(None, None, None, NextEvents::default()).unwrap().is_ok());
+        assert!(memory.insert(None, None, None, CurrentEvents::default()).unwrap().is_ok());
 
         ResourceId::Heap(HeapId::Label(Id("KernelEventManager".to_string())))
     }

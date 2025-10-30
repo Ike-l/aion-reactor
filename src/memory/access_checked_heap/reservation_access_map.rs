@@ -24,7 +24,11 @@ impl ReservationAccessMap {
 
     /// an access is ok if either 1. there is no conflicting access or 2. the access has been reserved
     pub fn ok_access(&self, testing_heap_id: &HeapId, testing_access: &Access, source: Option<&Source>) -> bool {
-        self.access_map.ok_access(testing_heap_id, testing_access) || if let Some(source) = source { self.reserve_map.is_reserved_by(testing_heap_id, testing_access, source) } else { false }
+        self.access_map.ok_access(testing_heap_id, testing_access) && !self.reserve_map.is_conflicting_reservation(testing_heap_id, testing_access, source)
+    }
+
+    pub fn unreserve(&mut self, heap_id: &HeapId, access: Access, source: &Source) {
+        self.reserve_map.unreserve(source, heap_id, access);
     }
 
     /// will drain the access map
@@ -94,6 +98,8 @@ mod reservation_access_map_tests {
         assert!(reservation_access_map.do_access(testing_heap_id.clone(), source, Access::Unique).is_ok());
 
         assert!(!reservation_access_map.ok_access(testing_heap_id, testing_access, source));
+
+        todo!("if the access has been reserved then fails")
     }
 
     #[test]
@@ -166,12 +172,12 @@ mod reservation_access_map_tests {
 
         assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_err());
 
-        memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123));
+        assert!(memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123)).is_ok());
 
         assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_ok());
 
         // fails with no res
-        let source2 = Source(Id("bar".to_string()));
+        let _source2 = Source(Id("bar".to_string()));
 
         todo!("finish testing");
         // access shared and fails reserve

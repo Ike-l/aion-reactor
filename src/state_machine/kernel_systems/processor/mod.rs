@@ -323,7 +323,7 @@ impl Processor {
 
 impl KernelSystem for Processor {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        memory.insert(None, None, None, ProcessorSystemRegistry::default()).unwrap();
+        assert!(memory.insert(None, None, None, ProcessorSystemRegistry::default()).unwrap().is_ok());
 
         ResourceId::Heap(HeapId::Label(Id("KernelProcessor".to_string())))
     }
