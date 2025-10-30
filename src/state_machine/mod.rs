@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{errors::ResolveError, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource, Memory, ResourceId}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, event_manager::EventManager, processor::Processor, KernelSystem, StoredKernelSystem}, transition_phases::TransitionPhase}, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, event_manager::EventManager, processor::Processor}, transition_phases::TransitionPhase}, system::system_metadata::Source};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
@@ -49,7 +49,7 @@ impl StateMachine {
         
         let mut kernel_system_registry = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
         
-        assert!(self.state.insert(Some(&self.program_id), Some(resource_id.clone()), Some(&self.kernel_key), Box::new(kernel_system) as StoredKernelSystem).unwrap().is_none());
+        assert!(self.state.insert(Some(&self.program_id), Some(resource_id.clone()), Some(&self.kernel_key), Box::new(kernel_system) as StoredKernelSystem).unwrap().unwrap().is_none());
         kernel_system_registry.insert(index, resource_id);
     }
 
@@ -61,7 +61,7 @@ impl StateMachine {
         {
             let mut kernel_system_registry = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
     
-            assert!(self.state.insert(Some(&self.program_id), Some(resource_id.clone()), Some(&self.kernel_key), Box::new(finish_background_processor) as StoredKernelSystem).unwrap().is_none());
+            assert!(self.state.insert(Some(&self.program_id), Some(resource_id.clone()), Some(&self.kernel_key), Box::new(finish_background_processor) as StoredKernelSystem).unwrap().unwrap().is_none());
             kernel_system_registry.insert(0, resource_id);
         }
 
@@ -79,7 +79,7 @@ impl StateMachine {
         self.state.resolve::<T>(program_id, resource_id, source, key)
     }
 
-    pub fn insert<T: 'static>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, key: Option<&Key>, resource: T) -> Option<Option<Resource>> {
+    pub fn insert<T: 'static>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, key: Option<&Key>, resource: T) -> Option<Result<Option<Resource>, InsertError>> {
         self.state.insert(program_id, resource_id, key, resource)
     }
 

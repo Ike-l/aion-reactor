@@ -68,7 +68,7 @@ mod local_tests {
                 )
             ), 
             Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1 as i32))))
-        ).is_none());
+        ).unwrap().is_none());
 
         assert_eq!(***memory_domain.resolve::<Local<Shared<i32>>>(None, None).unwrap(), 1 as i32);
     }
@@ -85,7 +85,7 @@ mod local_tests {
                 )
             ), 
             Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1 as i32))))
-        ).is_none());
+        ).unwrap().is_none());
 
         let memory = Memory::new();
         assert!(memory.insert_program(program_id.clone(), memory_domain, None));

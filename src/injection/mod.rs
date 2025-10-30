@@ -29,7 +29,9 @@ impl DeAccessResolver {
 impl Drop for DeAccessResolver {
     fn drop(&mut self) {
         for (resource, access) in self.access_map.lock().unwrap().drain() {
-            self.memory_domain.deresolve(access, &resource).unwrap();
+            // Safety:
+            // Is in the "drop"
+            unsafe { self.memory_domain.deresolve(access, &resource).unwrap() };
         }
     }
 }

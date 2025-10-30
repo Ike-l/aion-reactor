@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct RawAccessMap(HashMap<HeapId, Access>);
 
 impl From<ReservationAccessMap> for RawAccessMap {
@@ -14,6 +14,10 @@ impl From<ReservationAccessMap> for RawAccessMap {
 impl RawAccessMap {
     pub fn drain(&mut self) -> impl Iterator<Item = (HeapId, Access)> {
         self.0.drain()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&HeapId, &Access)> {
+        self.0.iter()
     }
 
     pub fn merge(&mut self, other: impl Iterator<Item = (HeapId, Access)>) {
@@ -134,7 +138,7 @@ mod raw_access_map_tests {
         assert!(!heap_access_map.ok_resources(&memory_domain));
 
         let resource_id = ResourceId::Heap(heap_id);
-        memory_domain.insert(resource_id, Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1)))));
+        memory_domain.insert(resource_id, Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1))))).unwrap();
         assert!(heap_access_map.ok_resources(&memory_domain));
     }
 
@@ -153,7 +157,7 @@ mod raw_access_map_tests {
         assert!(!heap_access_map.ok_accesses(&memory_domain, source));
 
         let resource_id = ResourceId::Heap(heap_id);
-        memory_domain.insert(resource_id.clone(), Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1)))));
+        memory_domain.insert(resource_id.clone(), Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1))))).unwrap();
         assert!(heap_access_map.ok_accesses(&memory_domain, source));
         let _r = memory_domain.get_unique::<i32>(&resource_id, source);
         assert!(!heap_access_map.ok_accesses(&memory_domain, source));

@@ -14,3 +14,14 @@ pub enum DeResolveError {
     AccessDoesNotExist,
     AccessMismatch
 }
+
+#[derive(Debug)]
+pub enum InsertError {
+    ConcurrentAccess
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ReservationError {
+    ConflictingReservation,
+    ConcurrentAccess
+}

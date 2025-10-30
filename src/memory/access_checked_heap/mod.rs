@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::{memory::{ResourceId, access_checked_heap::{heap::{HeapId, HeapObject, heap::Heap}, raw_access_map::RawAccessMap, reservation_access_map::ReservationAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
+use crate::{memory::{ResourceId, access_checked_heap::{heap::{HeapId, HeapObject, heap::Heap}, raw_access_map::RawAccessMap, reservation_access_map::ReservationAccessMap}, access_map::Access, errors::{DeResolveError, InsertError, ReservationError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
 pub mod heap;
 pub mod reservation_access_map;
@@ -24,24 +24,27 @@ impl AccessCheckedHeap {
         self.ok_resource(testing_heap_id) && access_map.ok_access(testing_heap_id, testing_access, source)
     }
 
-    pub fn reserve_accesses(&self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> bool {
+    /// Will drain the access map
+    pub fn reserve_accesses(&self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
         self.access_map.lock().unwrap().reserve_accesses(memory_domain, source, access_map)
     }
 
-    pub fn insert(&self, heap_id: HeapId, resource: HeapObject) -> Option<HeapObject> {
+    pub fn insert(&self, heap_id: HeapId, resource: HeapObject) -> Result<Option<HeapObject>, InsertError> {
         let access_map = self.access_map.lock().unwrap();
         if let Some(_) = access_map.get_access(&heap_id) {
-            return None
+            return Err(InsertError::ConcurrentAccess)
         }
 
         // Safety:
         // Accesses are tracked
         // No Access allowed
-        unsafe { self.heap.insert(heap_id, resource) }
+        Ok(unsafe { self.heap.insert(heap_id, resource) })
     }
 
     // pub crate for now since i only want the dropper to use this
-    pub(crate) fn deaccess(&self, access: Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
+    /// Safety:
+    /// Do not deaccess something unless you actually free the access!
+    pub(crate) unsafe fn deaccess(&self, access: Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
         self.access_map.lock().unwrap().deaccess(access, heap_id)
     }
 
@@ -84,7 +87,7 @@ impl AccessCheckedHeap {
 
 #[cfg(test)]
 mod access_checked_heap_tests {
-    use crate::{id::Id, memory::{access_checked_heap::{AccessCheckedHeap, heap::{HeapId, HeapObject}}, access_map::Access}};
+    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{AccessCheckedHeap, heap::{HeapId, HeapObject}, raw_access_map::RawAccessMap}, access_map::Access, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
 
     #[test]
     fn insert() {
@@ -97,11 +100,16 @@ mod access_checked_heap_tests {
         assert!(!access_checked_heap.ok_resource(&heap_id));
         assert!(!access_checked_heap.ok_access(&heap_id, &testing_access, source));
 
-        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(100)).is_none());
-        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(100)).is_some());
+        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(100)).unwrap().is_none());
+        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(101)).unwrap().is_some());
 
         assert!(access_checked_heap.ok_resource(&heap_id));
         assert!(access_checked_heap.ok_access(&heap_id, &testing_access, source));
+
+
+        let r = access_checked_heap.get_shared::<i32>(&heap_id, None);
+        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(102)).is_err());
+        assert_eq!(r, Ok(&101))
     }
 
     #[test]
@@ -113,7 +121,7 @@ mod access_checked_heap_tests {
 
         assert!(access_checked_heap.get_shared::<i32>(&heap_id, source).is_err());
 
-        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(1)).is_none());
+        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(1)).unwrap().is_none());
         
         let first = access_checked_heap.get_shared::<i32>(&heap_id, source);
         assert_eq!(first, Ok(&1));
@@ -131,7 +139,7 @@ mod access_checked_heap_tests {
 
         assert!(access_checked_heap.get_unique::<i32>(&heap_id, source).is_err());
 
-        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(1)).is_none());
+        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(1)).unwrap().is_none());
         
         let first = access_checked_heap.get_unique::<i32>(&heap_id, source);
         assert_eq!(first, Ok(&mut 1));
@@ -147,9 +155,7 @@ mod access_checked_heap_tests {
 
         let source = None;
 
-        assert!(access_checked_heap.get_unique::<i32>(&heap_id, source).is_err());
-
-        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(1)).is_none());
+        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(1)).unwrap().is_none());
         
         let first = access_checked_heap.get_shared::<i32>(&heap_id, source);
         assert_eq!(first, Ok(&1));
@@ -160,25 +166,78 @@ mod access_checked_heap_tests {
         let third = access_checked_heap.get_shared::<i32>(&heap_id, source);
         assert_eq!(third, Ok(&1));
 
-        assert!(access_checked_heap.deaccess(Access::Shared(2), &heap_id).is_ok());
+        assert!(unsafe { access_checked_heap.deaccess(Access::Shared(2), &heap_id).is_ok() } );
 
         let second = access_checked_heap.get_unique::<i32>(&heap_id, source);
         assert_eq!(second, Ok(&mut 1));
+
+        assert!(access_checked_heap.get_shared::<i32>(&heap_id, source).is_err());
+
+        assert_eq!(access_checked_heap.get_cloned(&heap_id), Ok(1));
     }
 
     #[test]
     fn get_cloned() {
-        todo!()
+        let access_checked_heap = AccessCheckedHeap::default();
+        let heap_id = HeapId::Label(Id("foo".to_string()));
+
+        assert!(access_checked_heap.get_cloned::<i32>(&heap_id).is_err());
+
+        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(1)).unwrap().is_none());
+
+        assert_eq!(access_checked_heap.get_cloned::<i32>(&heap_id), Ok(1));
+        assert_eq!(access_checked_heap.get_cloned::<i32>(&heap_id), Ok(1));
+        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(2)).unwrap().is_some());
+        assert_eq!(access_checked_heap.get_cloned::<i32>(&heap_id), Ok(2));
     }
 
     #[test]
     fn deaccess() {
-        todo!()
+        let access_checked_heap = AccessCheckedHeap::default();
+        let heap_id = HeapId::Label(Id("foo".to_string()));
+
+        let source = None;
+
+        access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(123)).unwrap();
+
+        access_checked_heap.get_shared::<i32>(&heap_id, source).unwrap();
+        assert!(access_checked_heap.get_unique::<i32>(&heap_id, source).is_err());
+        unsafe { access_checked_heap.deaccess(Access::Shared(1), &heap_id).unwrap() };
+
+        assert_eq!(access_checked_heap.get_unique::<i32>(&heap_id, source), Ok(&mut 123));
     }
 
     #[test]
     fn reserve_access() {
-        todo!()
+        let access_checked_heap = AccessCheckedHeap::default();
+
+        let memory_domain = MemoryDomain::new();
+        let source = Source(Id("foo".to_string()));
+        let mut access_map = RawAccessMap::default();
+
+        assert_eq!(access_checked_heap.reserve_accesses(&memory_domain, source.clone(), &mut access_map), Ok(()));
+
+        let heap_id1 = HeapId::Label(Id("baz".to_string()));
+        assert!(access_map.do_access(heap_id1.clone(), Access::Unique).is_ok());
+        assert!(access_checked_heap.reserve_accesses(&memory_domain, source.clone(), &mut access_map.clone()).is_err());
+
+        assert!(memory_domain.insert(ResourceId::Heap(heap_id1.clone()), Resource::dummy(123)).is_ok());
+        assert!(memory_domain.ok_resource(&ResourceId::Heap(heap_id1.clone())));
+
+        // assert!(access_checked_heap.reserve_accesses(&memory_domain, source.clone(), &mut access_map.clone()).is_ok());
+
+        // assert!(access_checked_heap.reserve_accesses(&memory_domain, Source(Id("bar".to_string())), &mut access_map).is_err());
+
+        // assert!(access_checked_heap.get_shared::<i32>(&heap_id1, Some(&source)).is_err());
+
+        assert_eq!(access_checked_heap.get_cloned::<i32>(&heap_id1), Ok(123));
+        // unique from none fails
+
+        // unique from source succeeds
+
+        // deaccess
+        // unique from none succeeds
+
     }
 
     #[test]

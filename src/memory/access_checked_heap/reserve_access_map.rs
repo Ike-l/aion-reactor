@@ -20,6 +20,10 @@ impl ReserveAccessMap {
         return false
     }
 
+    pub fn has_conflicting_reservation(&self, raw_access_map: &RawAccessMap, source: Option<&Source>) -> bool {
+        raw_access_map.iter().any(|(item, access)| self.is_conflicting_reservation(item, access, source))
+    }
+
     pub fn is_reserved(&self, item: &HeapId, access: &Access, source: Option<&Source>) -> bool {
         todo!()
     }
@@ -63,6 +67,11 @@ mod reserve_access_map_tests {
 
     #[test]
     fn is_conflicting_reservation() {
+        todo!()
+    }
+
+    #[test]
+    fn has_conflicting_reservation() {
         todo!()
     }
 

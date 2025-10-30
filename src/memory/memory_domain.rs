@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 
-use crate::{injection::{AccessDropper, injection_trait::Injection}, memory::{ResourceId, access_checked_heap::{AccessCheckedHeap, raw_access_map::RawAccessMap}, access_map::{Access, AccessMap}, errors::{DeResolveError, ResolveError}, resource_id::Resource}, system::system_metadata::Source};
+use crate::{injection::{AccessDropper, injection_trait::Injection}, memory::{ResourceId, access_checked_heap::{AccessCheckedHeap, raw_access_map::RawAccessMap}, access_map::{Access, AccessMap}, errors::{DeResolveError, InsertError, ReservationError, ResolveError}, resource_id::Resource}, system::system_metadata::Source};
 
 // Should be no public way of creating one of these to enforce dropping behaviour by injection types // doesnt matter because the UB would just panic
 #[derive(Debug)]
@@ -30,15 +30,24 @@ impl MemoryDomain {
         }
     }
 
-    pub fn reserve_accesses(&self, source: Source, access_map: AccessMap) -> bool {
+    pub fn reserve_accesses(&self, source: Source, access_map: AccessMap) -> Result<(), ReservationError> {
         match access_map {
             AccessMap::Heap(access_map) => self.heap.reserve_accesses(&self, source, &mut RawAccessMap::from(access_map))
         }
     }
 
-    pub fn insert(&self, resource_id: ResourceId, resource: Resource) -> Option<Resource> {
+    pub fn insert(&self, resource_id: ResourceId, resource: Resource) -> Result<Option<Resource>, InsertError> {
         match (resource, resource_id) {
-            (Resource::Heap(obj), ResourceId::Heap(id)) => Some(Resource::Heap(self.heap.insert(id, obj)?))
+            (Resource::Heap(obj), ResourceId::Heap(id)) => {
+                let resource = self.heap.insert(id, obj)?;
+                if resource.is_none() {
+                    return Ok(None);
+                }
+
+                Ok(Some(Resource::Heap(
+                    resource.unwrap()
+                )))
+            }
         }
     }
 
@@ -59,10 +68,12 @@ impl MemoryDomain {
         key
     }
 
-    pub fn end_drop_delay(&self, key: &u64) {
+    /// Safety:
+    /// Do not deaccess something unless you actually free the access!
+    pub unsafe fn end_drop_delay(&self, key: &u64) {
         if let Some(accesses) = self.delays.lock().unwrap().remove(key) {
             for (resource_id, access) in accesses {
-                self.deresolve(access, &resource_id).unwrap();
+                unsafe { self.deresolve(access, &resource_id).unwrap() };
             }
         } else {
             panic!("tried to end the drop delay without permission")
@@ -70,9 +81,11 @@ impl MemoryDomain {
     }
 
     // pub crate for now since i only want the dropper to use this
-    pub(crate) fn deresolve(&self, access: Access, resource_id: &ResourceId) -> Result<(), DeResolveError> {
+    /// Safety:
+    /// Do not deaccess something unless you actually free the access!
+    pub(crate) unsafe fn deresolve(&self, access: Access, resource_id: &ResourceId) -> Result<(), DeResolveError> {
         match resource_id {
-            ResourceId::Heap(id) => self.heap.deaccess(access, id)
+            ResourceId::Heap(id) => unsafe { self.heap.deaccess(access, id) }
         }
     }
 

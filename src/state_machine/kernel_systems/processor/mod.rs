@@ -183,7 +183,13 @@ impl Processor {
                                                         };
                                                         
                                                         let source = Source(id.clone());
-                                                        if !inner.reserve_accesses(&memory, program_id.as_ref(), source.clone(), key.as_ref()).is_some_and(|t| t) {
+                                                        // if !inner.reserve_accesses(&memory, program_id.as_ref(), source.clone(), key.as_ref()).is_some_and(|t| t) {
+                                                        //     chain += 1;
+                                                        //     continue 'graphs_walk;
+                                                        // }
+
+                                                        if let Some(Ok(())) = inner.reserve_accesses(&memory, program_id.as_ref(), source.clone(), key.as_ref()) {} 
+                                                        else {
                                                             chain += 1;
                                                             continue 'graphs_walk;
                                                         }

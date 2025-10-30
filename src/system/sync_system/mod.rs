@@ -1,4 +1,4 @@
-use crate::{id::Id, injection::injection_trait::Injection, memory::{program_memory_map::inner_program_memory_map::Key, Memory}, system::{system_metadata::Source, system_result::SystemResult, FunctionSystem}};
+use crate::{id::Id, injection::injection_trait::Injection, memory::{Memory, errors::ReservationError, program_memory_map::inner_program_memory_map::Key}, system::{FunctionSystem, system_metadata::Source, system_result::SystemResult}};
 
 
 pub mod into_sync_system;
@@ -17,7 +17,7 @@ pub trait SyncSystem: Send + Sync {
     fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool>;
     fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool>;
 
-    fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source, key: Option<&Key>) -> Option<bool>;
+    fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source, key: Option<&Key>) -> Option<Result<(), ReservationError>>;
 }
 
 macro_rules! impl_sync_system {
@@ -86,8 +86,13 @@ macro_rules! impl_sync_system {
                 program_id: Option<&Id>,
                 source: Source,
                 key: Option<&Key>
-            ) -> Option<bool> {
-                Some(true $(&& memory.reserve_accesses::<$params>(program_id, None, source.clone(), key)?)*)
+            ) -> Option<Result<(), ReservationError>> {
+                Some({
+                    $(
+                        memory.reserve_accesses::<$params>(program_id, None, source.clone(), key)?; 
+                    )*
+                    Ok(())
+                })                                          
             }
         }
     };

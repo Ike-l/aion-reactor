@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, program_memory_map::inner_program_memory_map::Key, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, finish_background_processor::FinishBackgroundProcessor, sync_join_handles::SyncJoinHandles}, processor::Processor, KernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}, System}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId, errors::ReservationError, program_memory_map::inner_program_memory_map::Key}, state_machine::{StateMachine, kernel_systems::{KernelSystem, background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, finish_background_processor::FinishBackgroundProcessor, sync_join_handles::SyncJoinHandles}, processor::Processor}, transition_phases::TransitionPhase}, system::{System, stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}}};
 
 pub struct StartBackgroundProcessor {
     program_id: Id,
@@ -46,10 +46,10 @@ impl KernelSystem for StartBackgroundProcessor {
     
                 let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(resource_id), None, None).unwrap().unwrap();
                 match system.reserve_accesses(&memory, program_id.as_ref(), Source(id.clone()), key.as_ref()) {
-                    Some(true) => {
+                    Some(Ok(())) => {
                         false
                     }
-                    None | Some(false) => {
+                    None | Some(Err(ReservationError::ConcurrentAccess)) | Some(Err(ReservationError::ConflictingReservation)) => {
                         true
                     }
                 }

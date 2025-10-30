@@ -1,6 +1,6 @@
 use std::{any::{Any, TypeId}, sync::Arc};
 
-use crate::{id::Id, injection::injection_trait::{Injection, MemoryTarget}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject }, errors::ResolveError, memory_domain::MemoryDomain, program_memory_map::{inner_program_memory_map::Key, ProgramMemoryMap}, resource_id::Resource}, system::system_metadata::Source};
+use crate::{id::Id, injection::injection_trait::{Injection, MemoryTarget}, memory::{access_checked_heap::heap::{HeapId, HeapObject, raw_heap_object::RawHeapObject }, errors::{InsertError, ReservationError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::{ProgramMemoryMap, inner_program_memory_map::Key}, resource_id::Resource}, system::system_metadata::Source};
 
 pub mod access_checked_heap;
 pub mod resource_id;
@@ -29,11 +29,13 @@ impl Memory {
         self.program_memory_map.insert(program_id, memory_domain, key)
     }
 
-    pub fn end_drop_delay(&self, key: u64, program_id: Option<&Id>, program_key: Option<&Key>) -> Option<()> {
+    /// Safety:
+    /// Do not deaccess something unless you actually free the access!
+    pub unsafe fn end_drop_delay(&self, key: u64, program_id: Option<&Id>, program_key: Option<&Key>) -> Option<()> {
         Some(if let Some(program_id) = program_id {
-            self.program_memory_map.get(program_id, program_key)?.end_drop_delay(&key);
+            unsafe { self.program_memory_map.get(program_id, program_key)?.end_drop_delay(&key) };
         } else {
-            self.global_memory.end_drop_delay(&key);
+            unsafe { self.global_memory.end_drop_delay(&key) };
         })
     }
 
@@ -57,7 +59,7 @@ impl Memory {
     }
 
     // True if success, False if fail, None if program_id is Invalid
-    pub fn reserve_accesses<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, source: Source, key: Option<&Key>) -> Option<bool> {
+    pub fn reserve_accesses<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, source: Source, key: Option<&Key>) -> Option<Result<(), ReservationError>> {
         let mut access_map = T::create_access_map();
         T::resolve_accesses(&mut access_map, Some(&source), resource_id);
 
@@ -76,7 +78,7 @@ impl Memory {
         Some(map.resolve::<T>(resource_id, source))
     }
 
-    pub fn insert<T: 'static>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, key: Option<&Key>, resource: T) -> Option<Option<Resource>> {
+    pub fn insert<T: 'static>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, key: Option<&Key>, resource: T) -> Option<Result<Option<Resource>, InsertError>> {
         let resource: Box<dyn Any> = Box::new(resource);
         Some(if let Some(id) = program_id {
             self.program_memory_map.get(id, key)?.insert(resource_id.unwrap_or(ResourceId::from(HeapId::from(TypeId::of::<T>()))), Resource::Heap(HeapObject(RawHeapObject::new(resource))))

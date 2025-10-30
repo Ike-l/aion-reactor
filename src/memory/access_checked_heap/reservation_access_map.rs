@@ -1,4 +1,4 @@
-use crate::{memory::{access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reserve_access_map::ReserveAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
+use crate::{memory::{ResourceId, access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reserve_access_map::ReserveAccessMap}, access_map::Access, errors::{DeResolveError, ReservationError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
 
 #[derive(Debug, Default)]
@@ -28,13 +28,18 @@ impl ReservationAccessMap {
     }
 
     /// will drain the access map
-    pub fn reserve_accesses(&mut self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> bool {
-        if access_map.ok_accesses(memory_domain, Some(&source)) {
-            self.reserve_map.reserve(source, access_map.drain());
-            return true;
+    pub fn reserve_accesses(&mut self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
+        if self.reserve_map.has_conflicting_reservation(&access_map, Some(&source)) {
+            return Err(ReservationError::ConflictingReservation);
+        }
+        
+
+        if !access_map.ok_accesses(memory_domain, Some(&source)) {
+            return Err(ReservationError::ConcurrentAccess);
         }
 
-        false
+        self.reserve_map.reserve(source, access_map.drain());
+        Ok(())
     }
 
     pub fn conflicts(&self, other: &Self) -> bool {
@@ -98,7 +103,7 @@ mod reservation_access_map_tests {
 
         assert!(reservation_access_map.do_access(heap_id.clone(), source, Access::Shared(1)).is_ok());
         assert!(!reservation_access_map.ok_accesses(&memory_domain, source));
-        assert!(memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123)).is_none());
+        assert!(memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123)).unwrap().is_none());
         assert!(reservation_access_map.ok_accesses(&memory_domain, source));
 
         todo!("Better testing")
@@ -148,16 +153,16 @@ mod reservation_access_map_tests {
         let source1 = Source(Id("foo".to_string()));
         let mut access_map = RawAccessMap::default();
 
-        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map));
+        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_ok());
 
         let heap_id = HeapId::Label(Id("baz".to_string()));
         assert!(access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
 
-        assert!(!reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map));
+        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_err());
 
         memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123));
 
-        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map));
+        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_ok());
 
         // fails with no res
         let source2 = Source(Id("bar".to_string()));

@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use crate::{id::Id, memory::{program_memory_map::inner_program_memory_map::Key, Memory}, system::{system_metadata::Source, system_status::SystemStatus, System}};
+use crate::{id::Id, memory::{Memory, errors::ReservationError, program_memory_map::inner_program_memory_map::Key}, system::{System, system_metadata::Source, system_status::SystemStatus}};
 
 
 pub struct StoredSystem {
@@ -24,7 +24,7 @@ impl StoredSystem {
         self.system.as_ref().expect("System").ok_accesses(memory, program_id, source, key)
     }
 
-    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source, key: Option<&Key>) -> Option<bool> {
+    pub fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source, key: Option<&Key>) -> Option<Result<(), ReservationError>> {
         self.system.as_ref().expect("System").reserve_accesses(memory, program_id, source, key)
     }
 
