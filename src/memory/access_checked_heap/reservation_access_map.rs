@@ -24,7 +24,7 @@ impl ReservationAccessMap {
 
     /// an access is ok if either 1. there is no conflicting access or 2. the access has been reserved
     pub fn ok_access(&self, testing_heap_id: &HeapId, testing_access: &Access, source: Option<&Source>) -> bool {
-        self.access_map.ok_access(testing_heap_id, testing_access) || self.reserve_map.is_reserved(testing_heap_id, testing_access, source)
+        self.access_map.ok_access(testing_heap_id, testing_access) || if let Some(source) = source { self.reserve_map.is_reserved_by(testing_heap_id, testing_access, source) } else { false }
     }
 
     /// will drain the access map

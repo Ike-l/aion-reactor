@@ -39,8 +39,12 @@ impl ReserveAccessMap {
         raw_access_map.iter().any(|(item, access)| self.is_conflicting_reservation(item, access, source))
     }
 
-    pub fn is_reserved(&self, item: &HeapId, access: &Access, source: Option<&Source>) -> bool {
-        todo!()
+    pub fn is_reserved_by(&self, item: &HeapId, access: &Access, source: &Source) -> bool {
+        if let Some(source) = self.access_maps.get(source) {
+            return source.get_access(item).is_some_and(|existing_access| !existing_access.is_semantically_different(access))
+        }
+
+        false
     }
 
     /// if any of the reservation maps conflicts with memory

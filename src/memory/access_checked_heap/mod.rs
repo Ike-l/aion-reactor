@@ -211,7 +211,24 @@ mod access_checked_heap_tests {
 
     #[test]
     fn ok_access() {
-        todo!()
+        let access_checked_heap = AccessCheckedHeap::default();
+
+        let heap_id = HeapId::Label(Id("foo".to_string()));
+        let access = Access::Unique;
+        let source = None;
+
+        assert!(!access_checked_heap.ok_access(&heap_id, &access, source));
+
+        assert!(access_checked_heap.insert(heap_id.clone(), HeapObject::dummy(123)).is_ok());
+        assert!(access_checked_heap.ok_access(&heap_id, &access, source));
+        assert!(access_checked_heap.get_shared::<i32>(&heap_id, source).is_ok());
+        assert!(access_checked_heap.get_shared::<i32>(&heap_id, source).is_ok());
+
+        assert!(!access_checked_heap.ok_access(&heap_id, &access, source));
+
+        assert!(unsafe { access_checked_heap.deaccess(Access::Shared(2), &heap_id) }.is_ok());
+        assert!(access_checked_heap.ok_access(&heap_id, &access, source));
+        assert!(access_checked_heap.get_unique::<i32>(&heap_id, source).is_ok());
     }
 
     #[test]
