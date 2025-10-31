@@ -30,6 +30,7 @@ impl MemoryDomain {
         }
     }
 
+    /// will drain the access map
     pub fn reserve_accesses(&self, source: Source, access_map: AccessMap) -> Result<(), ReservationError> {
         match access_map {
             AccessMap::Heap(access_map) => self.heap.reserve_accesses(&self, source, &mut RawAccessMap::from(access_map))

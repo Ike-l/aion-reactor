@@ -83,7 +83,7 @@ impl ReservationAccessMap {
 
 #[cfg(test)]
 mod reservation_access_map_tests {
-    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reservation_access_map::ReservationAccessMap}, access_map::Access, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
+    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
 
     #[test]
     fn ok_access() {
@@ -98,8 +98,7 @@ mod reservation_access_map_tests {
         assert!(reservation_access_map.do_access(testing_heap_id.clone(), source, Access::Unique).is_ok());
 
         assert!(!reservation_access_map.ok_access(testing_heap_id, testing_access, source));
-
-        todo!("if the access has been reserved then fails")
+        // todo!("if the access has been reserved then fails") // done in MemoryDomain::reserve..
     }
 
     #[test]
@@ -113,12 +112,28 @@ mod reservation_access_map_tests {
 
         let heap_id = HeapId::Label(Id("foo".to_string()));
 
+        // no resource
         assert!(reservation_access_map.do_access(heap_id.clone(), source, Access::Shared(1)).is_ok());
         assert!(!reservation_access_map.ok_accesses(&memory_domain, source));
-        assert!(memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123)).unwrap().is_none());
+
+        assert!(memory_domain.insert(ResourceId::Heap(heap_id.clone()), Resource::dummy(123)).unwrap().is_none());
         assert!(reservation_access_map.ok_accesses(&memory_domain, source));
 
-        todo!("Better testing")
+        // conflict
+        assert!(memory_domain.get_unique::<i32>(&ResourceId::Heap(heap_id.clone()), None).is_ok());
+        assert!(!reservation_access_map.ok_accesses(&memory_domain, source));
+        assert!(unsafe { memory_domain.deresolve(Access::Unique, &ResourceId::Heap(heap_id.clone())) }.is_ok());
+        assert!(reservation_access_map.ok_accesses(&memory_domain, source));
+        assert!(memory_domain.get_shared::<i32>(&ResourceId::Heap(heap_id.clone()), None).is_ok());
+        assert!(reservation_access_map.ok_accesses(&memory_domain, source));
+        assert!(unsafe { memory_domain.deresolve(Access::Shared(1), &ResourceId::Heap(heap_id.clone())) }.is_ok());
+        
+        let source = Source(Id("baz".to_string()));
+        let mut reservation_access_map = ReservationAccessMap::default();
+        assert!(reservation_access_map.do_access(heap_id.clone(), None, Access::Unique).is_ok());
+        assert!(memory_domain.reserve_accesses(source.clone(), AccessMap::Heap(reservation_access_map.clone())).is_ok());
+        assert!(reservation_access_map.ok_accesses(&memory_domain, Some(&source)));
+        assert!(!reservation_access_map.ok_accesses(&memory_domain, None));
     }
 
     #[test]
