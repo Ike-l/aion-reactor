@@ -49,7 +49,7 @@ impl<T: Injection> Injection for Global<'_, T> {
 mod global_tests {
     use std::{any::TypeId, sync::Arc};
 
-    use crate::{id::Id, injection::{injection_advanced::local::Global, injection_primitives::shared::Shared}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject}, memory_domain::MemoryDomain, resource_id::Resource, Memory, ResourceId}};
+    use crate::{id::Id, injection::{injection_advanced::global::Global, injection_primitives::shared::Shared}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject}, memory_domain::MemoryDomain, resource_id::Resource, Memory, ResourceId}};
 
     #[test]
     fn resolve_global_fails_no_res() {

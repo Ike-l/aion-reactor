@@ -255,6 +255,21 @@ mod access_checked_heap_tests {
 
     #[test]
     fn ok_resource() {
-        todo!()
+        let access_checked_heap = AccessCheckedHeap::default();
+        let heap_id1 = HeapId::Label(Id("foo".to_string()));
+        let heap_id2 = HeapId::Label(Id("bar".to_string()));
+
+        assert!(!access_checked_heap.ok_resource(&heap_id1));
+        assert!(!access_checked_heap.ok_resource(&heap_id2));
+
+        assert!(access_checked_heap.insert(heap_id1.clone(), HeapObject::dummy(123)).is_ok());
+        
+        assert!(access_checked_heap.ok_resource(&heap_id1));
+        assert!(!access_checked_heap.ok_resource(&heap_id2));
+        
+        assert!(access_checked_heap.insert(heap_id2.clone(), HeapObject::dummy(123)).is_ok());
+        
+        assert!(access_checked_heap.ok_resource(&heap_id1));
+        assert!(access_checked_heap.ok_resource(&heap_id2));
     }
 }
