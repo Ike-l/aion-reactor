@@ -19,6 +19,14 @@ impl ProgramMemoryMap {
         unsafe { self.raw_program_memory_map.get(id, key, guard) }
     }
 
+    pub fn get_or_default(&self, id: Id, key: Option<&Key>) -> &Arc<MemoryDomain> {
+        if self.get(&id, key).is_none() {
+            self.insert(id.clone(), Arc::new(MemoryDomain::new()), key.cloned());
+        }
+
+        self.get(&id, key).as_ref().unwrap()
+    }
+
     pub fn insert(&self, program_id: Id, memory_domain: Arc<MemoryDomain>, key: Option<Key>) -> bool {
         let guard = self.lock.write();
         // Safety:

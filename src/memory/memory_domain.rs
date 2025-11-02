@@ -37,6 +37,12 @@ impl MemoryDomain {
         }
     }
 
+    pub fn reserve_current_accesses(&self, source: Source, access_map: AccessMap) -> Result<(), ReservationError> {
+        match access_map {
+            AccessMap::Heap(access_map) => self.heap.reserve_current_accesses(source, &mut RawAccessMap::from(access_map))
+        }
+    }
+
     pub fn insert(&self, resource_id: ResourceId, resource: Resource) -> Result<Option<Resource>, InsertError> {
         match (resource, resource_id) {
             (Resource::Heap(obj), ResourceId::Heap(id)) => {
@@ -137,7 +143,7 @@ mod memory_domain_tests {
 
         assert!(memory_domain.reserve_accesses(source.clone(), AccessMap::Heap(access_map.clone())).is_ok());
 
-        assert!(memory_domain.reserve_accesses(Source(Id("bar".to_string())), AccessMap::Heap(access_map)).is_err());
+        assert!(memory_domain.reserve_accesses(Source(Id("bar".to_string())), AccessMap::Heap(access_map.clone())).is_err());
 
         assert!(memory_domain.get_shared::<i32>(&ResourceId::Heap(heap_id1.clone()), Some(&source)).is_err());
 
@@ -150,5 +156,7 @@ mod memory_domain_tests {
         assert!(unsafe { memory_domain.deresolve(Access::Unique, &ResourceId::Heap(heap_id1.clone())) }.is_ok());
 
         assert!(memory_domain.get_unique::<i32>(&ResourceId::Heap(heap_id1.clone()), None).is_ok());
+
+        assert!(memory_domain.reserve_accesses(source, AccessMap::Heap(access_map)).is_err())
     }
 }

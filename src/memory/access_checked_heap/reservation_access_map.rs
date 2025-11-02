@@ -52,6 +52,22 @@ impl ReservationAccessMap {
         Ok(())
     }
 
+    pub fn reserve_current_accesses(&mut self, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
+        if self.reserve_map.has_conflicting_reservation(&access_map, Some(&source)) {
+            return Err(ReservationError::ConflictingReservation);
+        }
+
+        // May lead to a bug in the future, basically
+        // i am making the assumption that if we are checking for an access that access is always only in one place (self),
+        // a more abstract version would ask memory domain if there is a conflict however that leads to a deadlock over self (currently).
+        if self.access_map.conflicts(&access_map) {
+            return Err(ReservationError::ConcurrentAccess);
+        }
+        
+        self.reserve_map.reserve(source, access_map.drain());
+        Ok(())
+    }
+
     pub fn conflicts(&self, other: &Self) -> bool {
         other.access_map.conflicts(&self.access_map)
     }

@@ -33,6 +33,10 @@ impl AccessCheckedHeap {
         self.access_map.lock().unwrap().reserve_accesses(memory_domain, source, access_map)
     }
 
+    pub fn reserve_current_accesses(&self, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
+        self.access_map.lock().unwrap().reserve_current_accesses(source, access_map)
+    }
+
     pub fn insert(&self, heap_id: HeapId, resource: HeapObject) -> Result<Option<HeapObject>, InsertError> {
         let access_map = self.access_map.lock().unwrap();
         if let Some(_) = access_map.get_access(&heap_id) {

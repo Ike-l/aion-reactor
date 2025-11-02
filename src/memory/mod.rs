@@ -69,6 +69,28 @@ impl Memory {
         })
     }
 
+    /// doesnt check for resource (so works for empty)
+    pub fn reserve_current_accesses<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, source: Source, key: Option<&Key>) -> Option<Result<(), ReservationError>> {
+        let mut access_map = T::create_access_map();
+        T::resolve_accesses(&mut access_map, Some(&source), resource_id);
+
+        Some(match T::select_memory_target() {
+            MemoryTarget::Global => self.global_memory.reserve_accesses(source, access_map),
+            MemoryTarget::Program => self.program_memory_map.get_or_default(program_id?.clone(), key).reserve_accesses(source, access_map) 
+        })
+    }
+
+    pub fn try_integrate_reservations(&self, other: Self) -> Option<ReservationError> {
+        // grab a lock on memory domain maps first 
+        // check if they are ok
+        // iterate over each in other.
+        // if self has the memory domain
+        // then if all memory domain can integrate reservations
+        // then do integration (reservation)
+        // else if even one fail return the error
+        todo!()
+    }
+
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>, key: Option<&Key>) -> Option<Result<T::Item<'_>, ResolveError>> {
         let map = match T::select_memory_target() {
             MemoryTarget::Global => &self.global_memory,
