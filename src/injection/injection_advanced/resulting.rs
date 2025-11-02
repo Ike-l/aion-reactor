@@ -1,0 +1,57 @@
+use std::sync::Arc;
+
+use crate::{injection::{AccessDropper, DeAccessResolver, injection_trait::{Injection, MemoryTarget}}, memory::{ResourceId, access_checked_heap::reservation_access_map::ReservationAccessMap, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain}, system::system_metadata::Source};
+
+pub struct Resulting<'a, T: Injection> {
+    inner: Result<T::Item<'a>, ResolveError>,
+    access_dropper: Option<DeAccessResolver>
+}
+
+impl<'a, T: Injection> Resulting<'a, T> {
+    pub fn new(inner: Result<T::Item<'a>, ResolveError>) -> Self {
+        let access_dropper = if inner.is_err() {
+            Some(DeAccessResolver::new(Arc::new(MemoryDomain::new()), AccessMap::Heap(ReservationAccessMap::default())))
+        } else {
+            None
+        };
+
+        Self {
+            inner,
+            access_dropper
+        }
+    }
+}
+
+impl<T: Injection> AccessDropper for Resulting<'_, T> {
+    fn access_dropper(&self) -> &DeAccessResolver {
+        if let Ok(ref inner) = self.inner {
+            inner.access_dropper()
+        } else {
+            self.access_dropper.as_ref().unwrap()
+        }
+    }
+}
+
+impl<T: Injection> Injection for Resulting<'_, T> {
+    type Item<'new> = Resulting<'new, T>;
+
+    fn select_memory_target() -> MemoryTarget {
+        T::select_memory_target()
+    }
+
+    fn create_access_map() -> AccessMap {
+        T::create_access_map()
+    }
+
+    fn resolve_accesses(access_map: &mut AccessMap, source: Option<&Source>, resource_id: Option<ResourceId>) {
+        T::resolve_accesses(access_map, source, resource_id);
+    }
+
+    fn failed_message() -> String {
+        unreachable!("Cannot fail because will return Err")
+    }
+
+    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError> {
+        Ok(Resulting::new(T::retrieve(memory_domain, resource_id, source)))
+    }
+}
