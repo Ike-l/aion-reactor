@@ -34,12 +34,6 @@ impl ProgramMemoryMap {
         unsafe { self.raw_program_memory_map.insert(program_id, memory_domain, key, guard) }
     }
 
-    /// Safety:
-    /// Do not free the lock before finished using memory map
-    pub unsafe fn get_write_program_memory(&self) -> (parking_lot::lock_api::RwLockWriteGuard<'_, parking_lot::RawRwLock, ()>, &RawProgramMemoryMap) {
-        (self.lock.write(), &self.raw_program_memory_map)
-    }
-
     // can refactor checked_reservations over an abstract builder thing
     pub fn ok_reservations(&self, other: Self, source: &Source) 
         -> Result<
