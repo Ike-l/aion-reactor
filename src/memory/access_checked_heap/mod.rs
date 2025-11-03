@@ -10,7 +10,7 @@ pub mod raw_access_map;
 
 #[derive(Debug, Default)]
 pub struct AccessCheckedHeap {
-    access_map: Mutex<ReservationAccessMap>,
+    reservation_access_map: Mutex<ReservationAccessMap>,
     heap: Heap,
 }
 
@@ -20,25 +20,34 @@ impl AccessCheckedHeap {
     }
 
     pub fn ok_access(&self, testing_heap_id: &HeapId, testing_access: &Access, source: Option<&Source>) -> bool {
-        let access_map = self.access_map.lock().unwrap();
+        let access_map = self.reservation_access_map.lock().unwrap();
         self.ok_resource(testing_heap_id) && access_map.ok_access(testing_heap_id, testing_access, source)
     }
 
     pub fn unreserve(&self, heap_id: &HeapId, access: Access, source: &Source) {
-        self.access_map.lock().unwrap().unreserve(heap_id, access, source)
+        self.reservation_access_map.lock().unwrap().unreserve(heap_id, access, source)
     }
 
     /// Will drain the access map
     pub fn reserve_accesses(&self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
-        self.access_map.lock().unwrap().reserve_accesses(memory_domain, source, access_map)
+        self.reservation_access_map.lock().unwrap().reserve_accesses(memory_domain, source, access_map)
+    }
+
+    /// Will drain the access map
+    pub fn reserve_accesses_self(&self, memory_domain: &MemoryDomain, source: Source, other: &mut Self) -> Result<(), ReservationError> {
+        self.reservation_access_map.lock().unwrap().reserve_accesses_self(memory_domain, source, &mut other.reservation_access_map.lock().unwrap())
     }
 
     pub fn reserve_current_accesses(&self, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
-        self.access_map.lock().unwrap().reserve_current_accesses(source, access_map)
+        self.reservation_access_map.lock().unwrap().reserve_current_accesses(source, access_map)
+    }
+
+    pub fn ok_reservation_self(&self, other: &Self, source: Option<&Source>, memory_domain: &MemoryDomain) -> Option<ReservationError> {
+        self.reservation_access_map.lock().unwrap().ok_reservation_self(&mut other.reservation_access_map.lock().unwrap(), source, memory_domain)
     }
 
     pub fn insert(&self, heap_id: HeapId, resource: HeapObject) -> Result<Option<HeapObject>, InsertError> {
-        let access_map = self.access_map.lock().unwrap();
+        let access_map = self.reservation_access_map.lock().unwrap();
         if let Some(_) = access_map.get_access(&heap_id) {
             return Err(InsertError::ConcurrentAccess)
         }
@@ -53,7 +62,7 @@ impl AccessCheckedHeap {
     /// Safety:
     /// Do not deaccess something unless you actually free the access!
     pub(crate) unsafe fn deaccess(&self, access: Access, heap_id: &HeapId) -> Result<(), DeResolveError> {
-        self.access_map.lock().unwrap().deaccess(access, heap_id)
+        self.reservation_access_map.lock().unwrap().deaccess(access, heap_id)
     }
 
     pub fn get_cloned<T: 'static + Clone>(&self, heap_id: &HeapId) -> Result<T, ResolveError> {
@@ -65,7 +74,7 @@ impl AccessCheckedHeap {
     }
 
     pub fn get_shared<T: 'static>(&self, heap_id: &HeapId, source: Option<&Source>) -> Result<&T, ResolveError> {
-        let mut access_map = self.access_map.lock().unwrap();
+        let mut access_map = self.reservation_access_map.lock().unwrap();
 
         // Safety:
         // Accesses are tracked
@@ -79,7 +88,7 @@ impl AccessCheckedHeap {
     }
 
     pub fn get_unique<T: 'static>(&self, heap_id: &HeapId, source: Option<&Source>) -> Result<&mut T, ResolveError> {
-        let mut access_map = self.access_map.lock().unwrap();
+        let mut access_map = self.reservation_access_map.lock().unwrap();
 
         // Safety:
         // Accesses are tracked

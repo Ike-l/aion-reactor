@@ -100,7 +100,7 @@ macro_rules! impl_sync_system {
                 } )*
 
                 // then if all are ok together try to integrate them atomically
-                return match memory.try_integrate_reservations(other_memory) {
+                return match memory.try_integrate_reservations(other_memory, source) {
                     None => Some(Ok(())),
                     Some(err) => Some(Err(err)),
                 }

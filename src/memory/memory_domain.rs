@@ -37,10 +37,19 @@ impl MemoryDomain {
         }
     }
 
+    /// will drain the other memory
+    pub fn reserve_accesses_self(&self, source: Source, mut other: Self) -> Result<(), ReservationError> {
+        self.heap.reserve_accesses_self(&self, source, &mut other.heap)
+    }
+
     pub fn reserve_current_accesses(&self, source: Source, access_map: AccessMap) -> Result<(), ReservationError> {
         match access_map {
             AccessMap::Heap(access_map) => self.heap.reserve_current_accesses(source, &mut RawAccessMap::from(access_map))
         }
+    }
+
+    pub fn ok_reservation_self(&self, other: &Self, source: Option<&Source>) -> Option<ReservationError> {
+        self.heap.ok_reservation_self(&other.heap, source, &self)
     }
 
     pub fn insert(&self, resource_id: ResourceId, resource: Resource) -> Result<Option<Resource>, InsertError> {

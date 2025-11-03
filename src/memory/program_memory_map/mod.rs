@@ -33,4 +33,14 @@ impl ProgramMemoryMap {
         // Tracked through "lock"
         unsafe { self.raw_program_memory_map.insert(program_id, memory_domain, key, guard) }
     }
+
+    /// Safety:
+    /// Do not free the lock before finished using memory map
+    pub unsafe fn get_write_program_memory(&self) -> (parking_lot::lock_api::RwLockWriteGuard<'_, parking_lot::RawRwLock, ()>, &RawProgramMemoryMap) {
+        (self.lock.write(), &self.raw_program_memory_map)
+    }
+
+    pub fn consume(self) -> impl Iterator<Item = (Option<Key>, Id, Arc<MemoryDomain>)> {
+        self.raw_program_memory_map.consume()
+    }
 }

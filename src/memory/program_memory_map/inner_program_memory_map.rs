@@ -32,4 +32,8 @@ impl InnerProgramMemoryMap {
         
         self.memory_map.get(program_id)
     }
+
+    pub fn consume(mut self) -> impl Iterator<Item = (Option<Key>, Id, Arc<MemoryDomain>)> {
+        self.memory_map.into_iter().map(move |(id, memory_domain)| (self.key_map.remove(&id), id, memory_domain, ))
+    }
 }

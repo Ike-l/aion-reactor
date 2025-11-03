@@ -29,6 +29,12 @@ impl RawProgramMemoryMap {
         unsafe { self.get_inner_heap().get(program_id, key) }
     }
 
+    /// Safety:
+    /// Ensure the lock actually guards the memory
+    pub unsafe fn get_with_write(&self, program_id: &Id, key: Option<&Key>, _guard: &parking_lot::RwLockWriteGuard<()>) -> Option<&Arc<MemoryDomain>> {
+        unsafe { self.get_inner_heap().get(program_id, key) }
+    }
+
     /// Safety restrain satisfied because it will only insert if it doesn't exist already
     /// Safety:
     /// Ensure no concurrent accesses
@@ -40,5 +46,9 @@ impl RawProgramMemoryMap {
         }
         
         false
+    }
+
+    pub fn consume(self) -> impl Iterator<Item = (Option<Key>, Id, Arc<MemoryDomain>)> {
+        self.inner_program_memory_map.into_inner().consume()
     }
 }

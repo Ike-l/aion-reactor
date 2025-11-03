@@ -82,12 +82,23 @@ macro_rules! impl_async_system {
                 source: Source,
                 key: Option<&Key>
             ) -> Option<Result<(), ReservationError>> {
-                Some({
-                    $(
-                        memory.reserve_accesses::<$params>(program_id, None, source.clone(), key)?; 
-                    )*
-                    Ok(())
-                })
+                let other_memory = Memory::new();
+                // simulate reservations together in a separate memory, exclude no resource as an error.
+                $( {
+                    let result = other_memory.reserve_current_accesses::<$params>(program_id, None, source.clone(), key); 
+                    // check if all reservations work and if any fail then return the error
+                    match result {
+                        None => return None,
+                        Some(Err(err)) => return Some(Err(err)),
+                        Some(Ok(_)) => {}
+                    }
+                } )*
+
+                // then if all are ok together try to integrate them atomically
+                return match memory.try_integrate_reservations(other_memory, source) {
+                    None => Some(Ok(())),
+                    Some(err) => Some(Err(err)),
+                }
             }
         }
     };

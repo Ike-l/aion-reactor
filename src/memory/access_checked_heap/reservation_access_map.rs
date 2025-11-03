@@ -31,25 +31,42 @@ impl ReservationAccessMap {
         self.reserve_map.unreserve(source, heap_id, access);
     }
 
-    /// will drain the access map
-    pub fn reserve_accesses(&mut self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
-        if self.reserve_map.has_conflicting_reservation(&access_map, Some(&source)) {
-            return Err(ReservationError::ConflictingReservation);
+    pub fn ok_reservation_self(&self, other: &Self, source: Option<&Source>, memory_domain: &MemoryDomain) -> Option<ReservationError> {
+        self.ok_reservation(&other.access_map, source, memory_domain)
+    }
+
+    pub fn ok_reservation(&self, other: &RawAccessMap, source: Option<&Source>, memory_domain: &MemoryDomain) -> Option<ReservationError> {
+        if self.reserve_map.has_conflicting_reservation(&other, source) {
+            return Some(ReservationError::ConflictingReservation);
         }
 
-        if !access_map.ok_resources(memory_domain) {
-            return Err(ReservationError::ErrResource);
+        if !other.ok_resources(memory_domain) {
+            return Some(ReservationError::ErrResource);
         }
 
         // May lead to a bug in the future, basically
         // i am making the assumption that if we are checking for an access that access is always only in one place (self),
         // a more abstract version would ask memory domain if there is a conflict however that leads to a deadlock over self (currently).
-        if self.access_map.conflicts(&access_map) {
-            return Err(ReservationError::ConcurrentAccess);
+        if self.access_map.conflicts(&other) {
+            return Some(ReservationError::ConcurrentAccess);
+        }
+
+        None
+    }
+
+    /// will drain the access map
+    pub fn reserve_accesses(&mut self, memory_domain: &MemoryDomain, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
+        if let Some(err) = self.ok_reservation(&access_map, Some(&source), memory_domain) {
+            return Err(err);
         }
         
         self.reserve_map.reserve(source, access_map.drain());
         Ok(())
+    }
+
+    /// will drain the access map
+    pub fn reserve_accesses_self(&mut self, memory_domain: &MemoryDomain, source: Source, other: &mut Self) -> Result<(), ReservationError> {
+        self.reserve_accesses(memory_domain, source, &mut other.access_map)
     }
 
     pub fn reserve_current_accesses(&mut self, source: Source, access_map: &mut RawAccessMap) -> Result<(), ReservationError> {
