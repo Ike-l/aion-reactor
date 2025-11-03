@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{id::Id, memory::{memory_domain::MemoryDomain, program_memory_map::{inner_program_memory_map::Key, raw_program_memory_map::RawProgramMemoryMap}}};
+use crate::{id::Id, memory::{errors::ReservationError, memory_domain::MemoryDomain, program_memory_map::{inner_program_memory_map::Key, raw_program_memory_map::RawProgramMemoryMap}}, system::system_metadata::Source};
 
 pub mod inner_program_memory_map;
 pub mod raw_program_memory_map;
@@ -40,7 +40,52 @@ impl ProgramMemoryMap {
         (self.lock.write(), &self.raw_program_memory_map)
     }
 
-    pub fn consume(self) -> impl Iterator<Item = (Option<Key>, Id, Arc<MemoryDomain>)> {
-        self.raw_program_memory_map.consume()
+    // can refactor checked_reservations over an abstract builder thing
+    pub fn ok_reservations(&self, other: Self, source: &Source) 
+        -> Result<
+            (
+                parking_lot::lock_api::RwLockWriteGuard<'_, parking_lot::RawRwLock, ()>,
+                Vec<(Option<u64>, Id, Arc<MemoryDomain>)>
+            ), 
+            ReservationError
+        > 
+    {
+        let guard = self.lock.write();
+
+        let other = other.raw_program_memory_map.consume().collect::<Vec<_>>();
+
+        for (key, program_id, memory_domain) in other.iter() {
+            // Safety:
+            // The guard is held for the entire function
+            if let Some(program_memory) = unsafe { self.raw_program_memory_map.get_with_write(program_id, key.as_ref(), &guard) } {
+                match program_memory.ok_reservation_self(memory_domain.as_ref(), Some(source)) {
+                    Some(reservation_error) => return Err(reservation_error),
+                    None => ()
+                }
+            }
+        }
+
+        Ok((guard, other))
+    }
+
+    pub fn do_reservations(
+        &self, 
+        guard: parking_lot::lock_api::RwLockWriteGuard<'_, parking_lot::RawRwLock, ()>,
+        other: Vec<(Option<u64>, Id, Arc<MemoryDomain>)>,
+        source: &Source,
+    ) -> Result<(), ReservationError> {
+        for (key, program_id, memory_domain) in other {
+            // Safety:
+            // The guard is held for the entire function
+            if let Some(program_memory) = unsafe { self.raw_program_memory_map.get_with_write(&program_id, key.as_ref(), &guard) } {
+                match program_memory.reserve_accesses_self(source.clone(), Arc::into_inner(memory_domain).unwrap()) {
+                    Err(reservation_error) => return Err(reservation_error),
+                    Ok(_) => ()
+                }
+            }
+        }
+
+
+        Ok(())
     }
 }

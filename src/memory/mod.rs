@@ -80,54 +80,23 @@ impl Memory {
         })
     }
 
-    pub fn consume(self) -> impl Iterator<Item = (Option<Key>, Option<Id>, Option<MemoryDomain>)> {
-        self.program_memory_map
-            .consume()
-            .map(|(key, id, memory_domain)| (key, Some(id), Arc::into_inner(memory_domain)))
-            .chain(vec![(None, None, Arc::into_inner(self.global_memory))])
-    }
-
     pub fn try_integrate_reservations(&self, other: Self, source: Source) -> Option<ReservationError> {
-        // Todo: Remove unsafety and just use a closure to self.program_memory_map that wraps the function logic with the correct guard logic
-        // Safety:
-        // Doesnt free the guard before program_memory (ignoring unwinding order)
-        let (guard, raw_program_memory) = unsafe { self.program_memory_map.get_write_program_memory() };
-        
-        let other = other.consume().collect::<Vec<_>>();
+        // Data race because the global memory is checked separately
+        // hold the lock over self.program_memory_map
+        match self.program_memory_map.ok_reservations(other.program_memory_map, &source) {
+            Ok((guard, other_flat)) => {
+                match self.global_memory.ok_reservation_self(&other.global_memory.as_ref(), Some(&source)) {
+                    Some(reservation_error) => Some(reservation_error),
+                    None => {
+                        assert!(self.global_memory.reserve_accesses_self(source.clone(), Arc::into_inner(other.global_memory).unwrap()).is_ok());
+                        assert!(self.program_memory_map.do_reservations(guard, other_flat, &source).is_ok());
 
-        for (key, program_id, memory_domain) in other.iter() {
-            match program_id {
-                Some(id) => {
-                    if let Some(program_memory) = unsafe { raw_program_memory.get_with_write(id, key.as_ref(), &guard) } {
-                        match program_memory.ok_reservation_self(memory_domain.as_ref().unwrap(), Some(&source)) {
-                            Some(reservation_error) => return Some(reservation_error),
-                            None => ()
-                        }
-                    }
-                },
-                None => {
-                    match self.global_memory.ok_reservation_self(memory_domain.as_ref().unwrap(), Some(&source)) {
-                        Some(reservation_error) => return Some(reservation_error),
-                        None => ()
+                        None
                     }
                 }
-            }
+            },
+            Err(err) => Some(err),
         }
-
-        for (key, program_id, memory_domain) in other {
-            match program_id {
-                Some(id) => {
-                    if let Some(program_memory) = unsafe { raw_program_memory.get_with_write(&id, key.as_ref(), &guard) } {
-                        assert!(program_memory.reserve_accesses_self(source.clone(), memory_domain.unwrap()).is_ok())
-                    }
-                },
-                None => {
-                    assert!(self.global_memory.reserve_accesses_self(source.clone(), memory_domain.unwrap()).is_ok())
-                }
-            }
-        }
-
-        None
     }
 
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>, key: Option<&Key>) -> Option<Result<T::Item<'_>, ResolveError>> {
