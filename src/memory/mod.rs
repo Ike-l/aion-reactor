@@ -13,15 +13,20 @@ pub use resource_id::ResourceId;
 
 #[derive(Debug)]
 pub struct Memory {
-    global_memory: Arc<MemoryDomain>,
-    program_memory_map: ProgramMemoryMap
+    program_memory_map: ProgramMemoryMap,
+    global_memory: Id,
 }
 
 impl Memory {
     pub fn new() -> Self {
+        let global_memory = Id("_GlobalMemory".to_string());
+        let program_memory_map = ProgramMemoryMap::default();
+
+        assert!(program_memory_map.insert(global_memory.clone(), Arc::new(MemoryDomain::new()), None));
+
         Self {
-            global_memory: Arc::new(MemoryDomain::new()),
-            program_memory_map: ProgramMemoryMap::default()
+            program_memory_map: ProgramMemoryMap::default(),
+            global_memory
         }
     }
 
@@ -32,30 +37,35 @@ impl Memory {
     /// Safety:
     /// Do not deaccess something unless you actually free the access!
     pub unsafe fn end_drop_delay(&self, key: u64, program_id: Option<&Id>, program_key: Option<&Key>) -> Option<()> {
-        Some(if let Some(program_id) = program_id {
-            unsafe { self.program_memory_map.get(program_id, program_key)?.end_drop_delay(&key) };
-        } else {
-            unsafe { self.global_memory.end_drop_delay(&key) };
-        })
+        let program_id = if let Some(program_id) = program_id { program_id } else { &self.global_memory };
+        
+        unsafe { self.program_memory_map.get(program_id, program_key)?.end_drop_delay(&key) };
+        Some(())
     }
 
     // True if success, False if fail, None if program_id is Invalid
     pub fn ok_resources<T: Injection>(&self, program_id: Option<&Id>, source: Option<&Source>, resource_id: Option<ResourceId>, key: Option<&Key>) -> Option<bool> {
         let mut access_map = T::create_access_map();
         T::resolve_accesses(&mut access_map, source, resource_id);
-        Some(match T::select_memory_target() {
-            MemoryTarget::Global => access_map.ok_resources(&self.global_memory),
-            MemoryTarget::Program => access_map.ok_resources(self.program_memory_map.get(program_id.as_ref()?, key)?) 
-        })
+        
+        let program_id = match T::select_memory_target() { 
+            MemoryTarget::Global => &self.global_memory,
+            MemoryTarget::Program => program_id.as_ref()?    
+        };
+
+        Some(access_map.ok_resources(self.program_memory_map.get(program_id, key)?))
     }
 
     pub fn ok_accesses<T: Injection>(&self, program_id: Option<&Id>, source: Option<&Source>, resource_id: Option<ResourceId>, key: Option<&Key>) -> Option<bool> {
         let mut access_map = T::create_access_map();
         T::resolve_accesses(&mut access_map, source, resource_id);
-        Some(match T::select_memory_target() {
-            MemoryTarget::Global => access_map.ok_accesses(&self.global_memory, source),
-            MemoryTarget::Program => access_map.ok_accesses(self.program_memory_map.get(program_id.as_ref()?, key)?, source)
-        })
+        
+        let program_id = match T::select_memory_target() { 
+            MemoryTarget::Global => &self.global_memory,
+            MemoryTarget::Program => program_id.as_ref()?    
+        };
+
+        Some(access_map.ok_accesses(self.program_memory_map.get(program_id, key)?, source))
     }
 
     // True if success, False if fail, None if program_id is Invalid
@@ -63,10 +73,12 @@ impl Memory {
         let mut access_map = T::create_access_map();
         T::resolve_accesses(&mut access_map, Some(&source), resource_id);
 
-        Some(match T::select_memory_target() {
-            MemoryTarget::Global => self.global_memory.reserve_accesses(source, access_map),
-            MemoryTarget::Program => self.program_memory_map.get(program_id.as_ref()?, key)?.reserve_accesses(source, access_map) 
-        })
+        let program_id = match T::select_memory_target() { 
+            MemoryTarget::Global => &self.global_memory,
+            MemoryTarget::Program => program_id.as_ref()?    
+        };
+
+        Some(self.program_memory_map.get(program_id, key)?.reserve_accesses(source, access_map))
     }
 
     /// doesnt check for resource (so works for empty)
@@ -74,39 +86,29 @@ impl Memory {
         let mut access_map = T::create_access_map();
         T::resolve_accesses(&mut access_map, Some(&source), resource_id);
 
-        Some(match T::select_memory_target() {
-            MemoryTarget::Global => self.global_memory.reserve_accesses(source, access_map),
-            MemoryTarget::Program => self.program_memory_map.get_or_default(program_id?.clone(), key).reserve_accesses(source, access_map) 
-        })
+        let program_id = match T::select_memory_target() { 
+            MemoryTarget::Global => &self.global_memory,
+            MemoryTarget::Program => program_id.as_ref()?    
+        };
+        
+        Some(self.program_memory_map.get_or_default(program_id.clone(), key).reserve_accesses(source, access_map))
     }
 
     pub fn try_integrate_reservations(&self, other: Self, source: Source) -> Option<ReservationError> {
-        // Data race because the global memory is checked separately
-        // hold the lock over self.program_memory_map
-        match self.program_memory_map.ok_reservations(other.program_memory_map, &source) {
-            Ok((guard, other_flat)) => {
-                match self.global_memory.ok_reservation_self(&other.global_memory.as_ref(), Some(&source)) {
-                    Some(reservation_error) => Some(reservation_error),
-                    None => {
-                        assert!(self.global_memory.reserve_accesses_self(source.clone(), Arc::into_inner(other.global_memory).unwrap()).is_ok());
-                        assert!(self.program_memory_map.do_reservations(guard, other_flat, &source).is_ok());
-
-                        None
-                    }
-                }
-            },
+        match self.program_memory_map.atomic_reservations(other.program_memory_map, &source) {
+            Ok(_) => None,
             Err(err) => Some(err),
         }
     }
 
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>, key: Option<&Key>) -> Option<Result<T::Item<'_>, ResolveError>> {
         let map = match T::select_memory_target() {
-            MemoryTarget::Global => &self.global_memory,
+            MemoryTarget::Global => self.program_memory_map.get(&self.global_memory, key)?,
             MemoryTarget::Program => {
                 if let Some(program_id) = program_id {
                     self.program_memory_map.get(program_id, key)?
                 } else {
-                    &self.global_memory
+                    self.program_memory_map.get(&self.global_memory, key)?
                 }
             } 
         };
@@ -116,10 +118,21 @@ impl Memory {
 
     pub fn insert<T: 'static>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, key: Option<&Key>, resource: T) -> Option<Result<Option<Resource>, InsertError>> {
         let resource: Box<dyn Any> = Box::new(resource);
-        Some(if let Some(id) = program_id {
-            self.program_memory_map.get(id, key)?.insert(resource_id.unwrap_or(ResourceId::from(HeapId::from(TypeId::of::<T>()))), Resource::Heap(HeapObject(RawHeapObject::new(resource))))
-        } else {
-            self.global_memory.insert(resource_id.unwrap_or(ResourceId::from(HeapId::from(TypeId::of::<T>()))), Resource::Heap(HeapObject(RawHeapObject::new(resource))))
-        })
+
+        let program_id = match program_id {
+            Some(program_id) => program_id,
+            None => &self.global_memory,
+        };
+
+        Some(
+            self.program_memory_map.get(program_id, key)?
+                .insert(
+                    resource_id
+                        .unwrap_or(
+                            ResourceId::from(HeapId::from(TypeId::of::<T>()))), 
+                            Resource::Heap(HeapObject(RawHeapObject::new(resource))
+                    )
+            )            
+        )
     }
 }
