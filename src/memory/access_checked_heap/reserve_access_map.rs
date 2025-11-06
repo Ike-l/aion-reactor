@@ -67,7 +67,7 @@ impl ReserveAccessMap {
 
 #[cfg(test)]
 mod reserve_access_map_tests {
-    use crate::memory::{access_checked_heap::reserve_access_map::ReserveAccessMap, memory_domain::MemoryDomain};
+    use crate::{id::Id, memory::{access_checked_heap::{heap::HeapId, reserve_access_map::ReserveAccessMap}, access_map::Access, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
     #[test]
     fn ok_accesses() {
@@ -79,14 +79,43 @@ mod reserve_access_map_tests {
         assert!(reserve_access_map.ok_accesses(&memory_domain, source));
     }
 
-    #[test]
-    fn is_reserved() {
-        todo!()
-    }
+    // #[test]
+    // fn is_reserved() {
+    //     todo!()
+    // }
 
     #[test]
     fn is_conflicting_reservation() {
-        todo!()
+        let mut reserve_access_map = ReserveAccessMap::default();
+
+        let item = HeapId::Label(Id("foo".to_string()));
+        let access = Access::Shared(1);
+        let source = None;
+        assert!(!reserve_access_map.is_conflicting_reservation(&item, &access, source));
+
+        let source1 = Source(Id("bar".to_string()));
+        let access_map = vec![(
+            item.clone(), access.clone()
+        )].into_iter();
+        
+        reserve_access_map.reserve(source1.clone(), access_map);
+
+
+        assert!(!reserve_access_map.is_conflicting_reservation(&item, &access, source));
+        assert!(!reserve_access_map.is_conflicting_reservation(&item, &access, Some(&source1)));
+        assert!(reserve_access_map.unreserve(&source1, &item, access.clone()).unwrap().is_ok());
+
+        let access_map = vec![(
+            item.clone(), Access::Unique
+        )].into_iter();
+        
+        reserve_access_map.reserve(source1.clone(), access_map);
+
+        assert!(reserve_access_map.is_conflicting_reservation(&item, &access, source));
+        assert!(reserve_access_map.is_conflicting_reservation(&item, &access, Some(&source1)));
+        assert!(!reserve_access_map.is_conflicting_reservation(&item, &Access::Unique, Some(&source1)));
+        assert!(reserve_access_map.unreserve(&source1, &item, Access::Unique).unwrap().is_ok());
+        assert!(!reserve_access_map.is_conflicting_reservation(&item, &access, source));
     }
 
     #[test]

@@ -205,49 +205,62 @@ mod reservation_access_map_tests {
         assert!(reservation_access_map.do_access(heap_id, source, Access::Unique).is_ok());
     }
 
+    /*
+    // #[test]
+    // // fn reserve() {
+    // //     let mut reservation_access_map = ReservationAccessMap::default();
+
+    // //     let memory_domain = MemoryDomain::new();
+    // //     let source1 = Source(Id("foo".to_string()));
+    // //     let mut access_map = RawAccessMap::default();
+
+    // //     assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_ok());
+
+    // //     let heap_id = HeapId::Label(Id("baz".to_string()));
+    // //     assert!(access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+
+    // //     assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_err());
+
+    // //     assert!(memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123)).is_ok());
+
+    // //     assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_ok());
+
+    // //     // fails with no res
+    // //     let _source2 = Source(Id("bar".to_string()));
+
+    // //     todo!("finish testing");
+    // //     // access shared and fails reserve
+    // //     // access unique and fails reserve
+    // //     // no access succeed reserve(shared) then fails unique then accesses shared
+    // //     // no access succeed reserve(shared) then succeeds shared then accesses shared
+    // //     // no access succeed reserve(unique) then fails shared then accesses unique
+    // //     // no access succeed reserve(unique) then fails shared then fails accesses shared
+    // // }
+    */
+
+    /*
     #[test]
-    fn reserve() {
-        let mut reservation_access_map = ReservationAccessMap::default();
+    fn ok_resourcea() {
+        let reservation_access_map = ReservationAccessMap::default();
 
-        let memory_domain = MemoryDomain::new();
-        let source1 = Source(Id("foo".to_string()));
-        let mut access_map = RawAccessMap::default();
 
-        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_ok());
 
-        let heap_id = HeapId::Label(Id("baz".to_string()));
-        assert!(access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
+        reservation_access_map.ok_resources(memory_domain);
 
-        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_err());
-
-        assert!(memory_domain.insert(ResourceId::Heap(heap_id), Resource::dummy(123)).is_ok());
-
-        assert!(reservation_access_map.reserve_accesses(&memory_domain, source1.clone(), &mut access_map).is_ok());
-
-        // fails with no res
-        let _source2 = Source(Id("bar".to_string()));
-
-        todo!("finish testing");
-        // access shared and fails reserve
-        // access unique and fails reserve
-        // no access succeed reserve(shared) then fails unique then accesses shared
-        // no access succeed reserve(shared) then succeeds shared then accesses shared
-        // no access succeed reserve(unique) then fails shared then accesses unique
-        // no access succeed reserve(unique) then fails shared then fails accesses shared
-    }
-
-    #[test]
-    fn ok_resource() {
         todo!()
     }
-
+    */
+    /*
     #[test]
     fn conflicts() {
         todo!()
     }
+    */
 
+    /*
     #[test]
     fn deaccess() {
         todo!()
     }
+    */
 }

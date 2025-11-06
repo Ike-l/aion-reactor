@@ -20,6 +20,7 @@ impl RawAccessMap {
         self.0.iter()
     }
 
+    /// Overwrites existing keys (may change in future to only new and return a bool?)
     pub fn merge(&mut self, other: impl Iterator<Item = (HeapId, Access)>) {
         self.0.extend(other);
     }
