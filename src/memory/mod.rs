@@ -25,7 +25,7 @@ impl Memory {
         assert!(program_memory_map.insert(global_memory.clone(), Arc::new(MemoryDomain::new()), None));
 
         Self {
-            program_memory_map: ProgramMemoryMap::default(),
+            program_memory_map: program_memory_map,
             global_memory
         }
     }

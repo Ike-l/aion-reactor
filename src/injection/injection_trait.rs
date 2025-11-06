@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use crate::{injection::AccessDropper, memory::{access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source };
 
+#[derive(Debug)]
 pub enum MemoryTarget {
     Program,
     Global

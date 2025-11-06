@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use crate::{injection::{AccessDropper, DeAccessResolver, injection_trait::{Injection, MemoryTarget}}, memory::{ResourceId, access_checked_heap::reservation_access_map::ReservationAccessMap, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
+#[derive(Debug, small_derive_deref::Deref, small_derive_deref::DerefMut)]
 pub struct Resulting<'a, T: Injection> {
+    #[DerefTarget]
+    #[DerefMutTarget]
     inner: Result<T::Item<'a>, ResolveError>,
     access_dropper: Option<DeAccessResolver>
 }
@@ -53,5 +56,34 @@ impl<T: Injection> Injection for Resulting<'_, T> {
 
     fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError> {
         Ok(Resulting::new(T::retrieve(memory_domain, resource_id, source)))
+    }
+}
+
+#[cfg(test)]
+mod resulting_tests {
+    use std::{any::TypeId, sync::Arc};
+
+    use crate::{ injection::{injection_advanced::resulting::Resulting, injection_primitives::shared::Shared}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject}, memory_domain::MemoryDomain, resource_id::Resource, Memory, ResourceId}};
+
+    #[test]
+    fn resolve_resulting_ok_no_res() {
+        let memory_domain = Arc::new(MemoryDomain::new());
+        assert!(memory_domain.resolve::<Resulting<Shared<i32>>>(None, None).unwrap().is_err())
+    }
+
+    #[test]
+    fn resolve_resulting_shared() {
+        let memory_domain = Arc::new(MemoryDomain::new());
+        
+        assert!(memory_domain.insert(
+            ResourceId::Heap(
+                HeapId::RawType(
+                    TypeId::of::<i32>()
+                )
+            ), 
+            Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1 as i32))))
+        ).unwrap().is_none());
+
+        assert_eq!(***memory_domain.resolve::<Resulting<Shared<i32>>>(None, None).unwrap().as_ref().unwrap(), 1 as i32);
     }
 }
