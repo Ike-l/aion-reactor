@@ -10,24 +10,15 @@ pub struct ReserveAccessMap {
 impl ReserveAccessMap {
     pub fn is_conflicting_reservation(&self, item: &HeapId, access: &Access, source: Option<&Source>) -> bool {
         for (reserver, access_map) in self.access_maps.iter() {
-            // if accesses are not compatible then check source.
-            // if accesses are compatible continue
-            // however if they are not the same access then  
-
-            // if the accesses conflict
             if !access_map.ok_access(item, access) {
-                // and if the reserver is not the same
                 if source.map_or(true, |s| s != reserver) {
-                    // signal conflict
                     return true;
                 } else {
-                    // should never fail by the nature of ok_access but if it does not worth panicking over
                     if let Some(item) = access_map.get_access(item) {
                         if item.is_semantically_different(access) {
                             return true;
                         }
                     }
-                    // if access and the incompatible access are not the same also return true
                 }
             }
         }
@@ -38,14 +29,6 @@ impl ReserveAccessMap {
     pub fn has_conflicting_reservation(&self, raw_access_map: &RawAccessMap, source: Option<&Source>) -> bool {
         raw_access_map.iter().any(|(item, access)| self.is_conflicting_reservation(item, access, source))
     }
-
-    // pub fn is_reserved_by(&self, item: &HeapId, access: &Access, source: &Source) -> bool {
-    //     if let Some(source) = self.access_maps.get(source) {
-    //         return source.get_access(item).is_some_and(|existing_access| !existing_access.is_semantically_different(access))
-    //     }
-
-    //     false
-    // }
 
     /// if any of the reservation maps conflicts with memory
     pub fn ok_accesses(&self, memory_domain: &MemoryDomain, source: Option<&Source>) -> bool {
@@ -67,7 +50,7 @@ impl ReserveAccessMap {
 
 #[cfg(test)]
 mod reserve_access_map_tests {
-    use crate::{id::Id, memory::{access_checked_heap::{heap::HeapId, reserve_access_map::ReserveAccessMap}, access_map::Access, memory_domain::MemoryDomain}, system::system_metadata::Source};
+    use crate::{id::Id, memory::{access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reserve_access_map::ReserveAccessMap}, access_map::Access, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
     #[test]
     fn ok_accesses() {
@@ -78,11 +61,6 @@ mod reserve_access_map_tests {
 
         assert!(reserve_access_map.ok_accesses(&memory_domain, source));
     }
-
-    // #[test]
-    // fn is_reserved() {
-    //     todo!()
-    // }
 
     #[test]
     fn is_conflicting_reservation() {
@@ -120,16 +98,21 @@ mod reserve_access_map_tests {
 
     #[test]
     fn has_conflicting_reservation() {
-        todo!()
-    }
+        let mut reserve_access_map = ReserveAccessMap::default();
 
-    #[test]
-    fn ok_access() {
-        todo!()
-    }
+        let mut raw_access_map = RawAccessMap::default();
+        let source = None;
+        assert!(!reserve_access_map.has_conflicting_reservation(&raw_access_map, source));
 
-    #[test]
-    fn reserve_unreserve() {
-        todo!()
+        let item = HeapId::Label(Id("foo".to_string()));
+        let access = Access::Unique;
+
+        assert!(raw_access_map.do_access(item.clone(), access.clone()).is_ok());
+        assert!(!reserve_access_map.has_conflicting_reservation(&raw_access_map, source));
+        reserve_access_map.reserve(Source(Id("bax".to_string())), raw_access_map.clone().drain());
+        assert!(reserve_access_map.has_conflicting_reservation(&raw_access_map, source));
+        assert!(reserve_access_map.unreserve(&Source(Id("bax".to_string())), &item, access).unwrap().is_ok());
+        reserve_access_map.reserve(Source(Id("bax".to_string())), raw_access_map.clone().drain());
+        assert!(!reserve_access_map.has_conflicting_reservation(&raw_access_map, Some(&Source(Id("bax".to_string())))));
     }
 }

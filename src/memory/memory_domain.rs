@@ -129,12 +129,6 @@ mod memory_domain_tests {
     use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, errors::ReservationError, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
 
     #[test]
-    fn delay_end_drop() {
-        // test you can delay a drop, then end the drop
-        todo!()
-    }
-
-    #[test]
     fn reserve_access() {
         let memory_domain = MemoryDomain::new();
         let source = Source(Id("foo".to_string()));
