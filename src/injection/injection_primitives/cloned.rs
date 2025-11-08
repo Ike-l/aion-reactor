@@ -2,7 +2,7 @@ use std::{any::{type_name, TypeId}, sync::Arc};
 
 use crate::{injection::{injection_trait::Injection, DeAccessResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
 
-#[derive(Debug, small_derive_deref::Deref, small_derive_deref::DerefMut)]
+#[derive(small_derive_deref::Deref, small_derive_deref::DerefMut)]
 pub struct Cloned<T> {
     #[DerefTarget]
     #[DerefMutTarget]

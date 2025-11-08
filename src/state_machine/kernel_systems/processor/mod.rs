@@ -43,22 +43,27 @@ impl Processor {
         let events = current_events.read().collect::<HashSet<_>>();
     
         system_registry.read()
+            .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|&(id, _)| !current_blockers.blocks(id.clone()))
+            .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|(_, system_metadata)| system_metadata.test(&events))
+            .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|(id, system_metadata)| {
                 let resource_id = system_metadata.resource_id();
                 let program_id = system_metadata.program_id();
                 let key = system_metadata.key();
-                let system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None, None).unwrap().unwrap();
+                let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None, None).unwrap().unwrap();
                 system.ok_resources(&memory, program_id.as_ref(), Some(&Source((*id).clone())), key.as_ref()).is_some_and(|t| t)
             })
+            .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|(id, system_metadata)| {
                 let resource_id = system_metadata.resource_id();
                 let program_id = system_metadata.program_id();
                 let key = system_metadata.key();
-                let system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None, None).unwrap().unwrap();
+                let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None, None).unwrap().unwrap();
                 system.ok_accesses(&memory, program_id.as_ref(), Some(&Source((*id).clone())), key.as_ref()).is_some_and(|t| t)
             })
+            .inspect(|(id, _)| println!("id: {id:?}") )
             .collect()
     }
 
@@ -124,6 +129,7 @@ impl Processor {
         );
 
         let results = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+        println!("Starting");
         for i in 0..self.threadpool.max_count() {
             let start_graph = (i * graph_count) / self.threadpool.max_count();
 
@@ -145,6 +151,7 @@ impl Processor {
                         let mut current_graph_index = start_graph;
 
                         while finished_graphs.load(Ordering::Acquire) > 0 {
+                            // println!("Looping");
                             let current_graph = execution_graphs.graphs.get(current_graph_index).unwrap();
 
                             let mut chain = 0;
@@ -168,7 +175,7 @@ impl Processor {
 
                                     if let Some(id) = nth_leaf {
                                         let (resource_id, program_id, key) = system_map.get(&id).unwrap();
-                                        let stored_system = memory.resolve::<Unique<StoredSystem>>(program_id.as_ref(), Some(resource_id), None, None).unwrap().unwrap();
+                                        let stored_system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(resource_id), None, None).unwrap().unwrap();
                                         
                                         match stored_system.status().try_lock() {
                                             Ok(mut status) => {
@@ -254,8 +261,8 @@ impl Processor {
                                                     SystemStatus::Executing => { unreachable!("Somehow got a lock while another thread should be holding it (possible if another thread panics)") }
                                                 }
                                             },
-                                            Err(err) => {
-                                                assert!(matches!(err, std::sync::TryLockError::WouldBlock), "How poison?");
+                                            Err(_) => {
+                                                // assert!(matches!(err, std::sync::TryLockError::WouldBlock), "How poison?");
                                                 
                                                 chain += 1;
                                                 continue 'graphs_walk;
@@ -272,7 +279,7 @@ impl Processor {
                                         } else {
                                             Some(finished - 1)
                                         }
-                                    }).unwrap();
+                                    });
                                 }
 
                                 let mut not_done = Vec::new();

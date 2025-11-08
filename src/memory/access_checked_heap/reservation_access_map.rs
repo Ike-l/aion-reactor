@@ -116,7 +116,7 @@ impl ReservationAccessMap {
 
 #[cfg(test)]
 mod reservation_access_map_tests {
-    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::HeapId, raw_access_map::RawAccessMap, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
+    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
 
     #[test]
     fn ok_access() {

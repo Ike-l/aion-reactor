@@ -56,8 +56,8 @@ impl ProgramMemoryMap {
             // The guard is held for the entire function
             if let Some(program_memory) = unsafe { self.raw_program_memory_map.get_with_write(&program_id, key.as_ref(), &guard) } {
                 match program_memory.reserve_accesses_self(source.clone(), Arc::into_inner(memory_domain).unwrap()) {
-                    Err(reservation_error) => return Err(reservation_error),
-                    Ok(_) => unreachable!()
+                    Err(_) => unreachable!(),
+                    Ok(_) => ()
                 }
             }
         }

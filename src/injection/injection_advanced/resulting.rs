@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::{injection::{AccessDropper, DeAccessResolver, injection_trait::{Injection, MemoryTarget}}, memory::{ResourceId, access_checked_heap::reservation_access_map::ReservationAccessMap, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
-#[derive(Debug, small_derive_deref::Deref, small_derive_deref::DerefMut)]
+#[derive(small_derive_deref::Deref, small_derive_deref::DerefMut)]
 pub struct Resulting<'a, T: Injection> {
     #[DerefTarget]
     #[DerefMutTarget]
@@ -63,7 +63,7 @@ impl<T: Injection> Injection for Resulting<'_, T> {
 mod resulting_tests {
     use std::{any::TypeId, sync::Arc};
 
-    use crate::{ injection::{injection_advanced::resulting::Resulting, injection_primitives::shared::Shared}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject}, memory_domain::MemoryDomain, resource_id::Resource, Memory, ResourceId}};
+    use crate::{ injection::{injection_advanced::resulting::Resulting, injection_primitives::shared::Shared}, memory::{access_checked_heap::heap::{raw_heap_object::RawHeapObject, HeapId, HeapObject}, memory_domain::MemoryDomain, resource_id::Resource, ResourceId}};
 
     #[test]
     fn resolve_resulting_ok_no_res() {

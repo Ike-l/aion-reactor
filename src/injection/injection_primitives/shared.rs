@@ -2,7 +2,7 @@ use std::{any::{type_name, TypeId}, sync::Arc};
 
 use crate::{injection::{AccessDropper, DeAccessResolver, injection_trait::Injection}, memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, errors::ResolveError, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
-#[derive(Debug, small_derive_deref::Deref, small_derive_deref::DerefMut)]
+#[derive(small_derive_deref::Deref, small_derive_deref::DerefMut)]
 pub struct Shared<'a, T> {
     #[DerefTarget]
     #[DerefMutTarget]

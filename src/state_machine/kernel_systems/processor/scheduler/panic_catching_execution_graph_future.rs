@@ -22,16 +22,16 @@ impl<'a> Future for PanicCatchingExecutionGraphsFuture<'a> {
     type Output = ();
 
     fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
-        if self.execution_graphs.drop_signals.load(Ordering::Relaxed) == 0 {
-            if self.execution_graphs.panicked_signal.load(Ordering::Relaxed) {
-                panic!("A Scheduler thread has panicked. Choosing to panic the main thread");
-            } else {
+        if self.execution_graphs.panicked_signal.load(Ordering::Relaxed) {
+            panic!("A Scheduler thread has panicked. Choosing to panic the main thread");
+        } else {
+            if self.execution_graphs.drop_signals.load(Ordering::Relaxed) == 0 {
                 self.threadpool.join();      
                 Poll::Ready(())
-            }            
-        } else {
-            cx.waker().wake_by_ref();
-            Poll::Pending
-        }
+            } else {
+                cx.waker().wake_by_ref();
+                Poll::Pending
+            }
+        }          
     }
 }

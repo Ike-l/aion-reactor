@@ -89,27 +89,27 @@ impl StateMachine {
 
     pub async fn transition(&self) {
         let mut kernel_systems = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
-        for phase in TransitionPhase::iter_fields() {
-            for kernel_systems in kernel_systems.iter() {
-                for kernel_system in kernel_systems {
-                    println!("Doing: {kernel_system:?}");
-                    let mut kernel_system = self.state.resolve::<Unique<StoredKernelSystem>>(Some(&self.program_id), Some(&kernel_system), None, Some(&self.kernel_key)).unwrap().unwrap();
-                    // println!("Running");
-                    kernel_system.tick(&self.state, phase).await;
-                    println!("Finished");
-                }
-                // for kernel_system in kernel_systems.clone() {
-                //     let memory = Arc::clone(&self.state);
-                //     let runtime = Arc::clone(&self.runtime);
-                //     self.threadpool.execute(move || {
-                //         let mut kernel_system = memory.resolve::<Unique<StoredKernelSystem>>(None, Some(&kernel_system), None).unwrap().unwrap();
-                //         runtime.block_on(kernel_system.tick(&memory, phase));
-                //     });
-                // }
-    
-                // self.threadpool.join();
+        // for phase in TransitionPhase::iter_fields() {
+        for kernel_systems in kernel_systems.iter() {
+            for kernel_system in kernel_systems {
+                // println!("Doing: {kernel_system:?}");
+                let mut kernel_system = self.state.resolve::<Unique<StoredKernelSystem>>(Some(&self.program_id), Some(&kernel_system), None, Some(&self.kernel_key)).unwrap().unwrap();
+                // println!("Running");
+                kernel_system.tick(&self.state, TransitionPhase::Compute).await;
+                // println!("Finished");
             }
         }
+        // for kernel_system in kernel_systems.clone() {
+        //     let memory = Arc::clone(&self.state);
+        //     let runtime = Arc::clone(&self.runtime);
+        //     self.threadpool.execute(move || {
+        //         let mut kernel_system = memory.resolve::<Unique<StoredKernelSystem>>(None, Some(&kernel_system), None).unwrap().unwrap();
+        //         runtime.block_on(kernel_system.tick(&memory, phase));
+        //     });
+        // }
+
+        // self.threadpool.join();
+        // }
     }
 }
 

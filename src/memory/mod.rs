@@ -50,7 +50,7 @@ impl Memory {
         
         let program_id = match T::select_memory_target() { 
             MemoryTarget::Global => &self.global_memory,
-            MemoryTarget::Program => program_id.as_ref()?    
+            MemoryTarget::Program => if let Some(program_id) = program_id.as_ref() { program_id } else { &self.global_memory }
         };
 
         Some(access_map.ok_resources(self.program_memory_map.get(program_id, key)?))
@@ -62,7 +62,7 @@ impl Memory {
         
         let program_id = match T::select_memory_target() { 
             MemoryTarget::Global => &self.global_memory,
-            MemoryTarget::Program => program_id.as_ref()?    
+            MemoryTarget::Program => if let Some(program_id) = program_id.as_ref() { program_id } else { &self.global_memory }
         };
 
         Some(access_map.ok_accesses(self.program_memory_map.get(program_id, key)?, source))
@@ -75,7 +75,7 @@ impl Memory {
 
         let program_id = match T::select_memory_target() { 
             MemoryTarget::Global => &self.global_memory,
-            MemoryTarget::Program => program_id.as_ref()?    
+            MemoryTarget::Program => if let Some(program_id) = program_id.as_ref() { program_id } else { &self.global_memory }   
         };
 
         Some(self.program_memory_map.get(program_id, key)?.reserve_accesses(source, access_map))
@@ -88,10 +88,10 @@ impl Memory {
 
         let program_id = match T::select_memory_target() { 
             MemoryTarget::Global => &self.global_memory,
-            MemoryTarget::Program => program_id.as_ref()?    
+            MemoryTarget::Program => if let Some(program_id) = program_id.as_ref() { program_id } else { &self.global_memory }   
         };
         
-        Some(self.program_memory_map.get_or_default(program_id.clone(), key).reserve_accesses(source, access_map))
+        Some(self.program_memory_map.get_or_default(program_id.clone(), key).reserve_current_accesses(source, access_map))
     }
 
     pub fn try_integrate_reservations(&self, other: Self, source: Source) -> Option<ReservationError> {

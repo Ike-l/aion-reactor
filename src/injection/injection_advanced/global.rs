@@ -2,7 +2,7 @@ use std::{any::type_name, sync::Arc};
 
 use crate::{injection::{injection_trait::{Injection, MemoryTarget}, AccessDropper, DeAccessResolver}, memory::{access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
 
-#[derive(Debug, small_derive_deref::Deref, small_derive_deref::DerefMut)]
+#[derive(small_derive_deref::Deref, small_derive_deref::DerefMut)]
 pub struct Global<'a, T: Injection> {
     value: T::Item<'a>,
 }
