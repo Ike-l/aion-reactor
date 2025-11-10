@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, event_manager::EventManager, processor::Processor}, transition_phases::TransitionPhase}, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, delay_manager::DelayManager, event_manager::EventManager, processor::Processor}, transition_phases::TransitionPhase}, system::system_metadata::Source};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
@@ -54,6 +54,7 @@ impl StateMachine {
     }
 
     pub fn load_default(&self, processor_threads: usize) {
+        // Finish & Start have a special relationship so this first part is for that
         let mut finish_background_processor = FinishBackgroundProcessor::default();
         let resource_id = finish_background_processor.init(&self.state);
         let start_background_processor = StartBackgroundProcessor::create_from(&finish_background_processor).unwrap();
@@ -64,15 +65,17 @@ impl StateMachine {
             assert!(self.state.insert(Some(&self.program_id), Some(resource_id.clone()), Some(&self.kernel_key), Box::new(finish_background_processor) as StoredKernelSystem).unwrap().unwrap().is_none());
             kernel_system_registry.insert(0, resource_id);
         }
+        //
 
         self.load_kernel_system(EventManager, 1);
-        self.load_kernel_system(BlockerManager, 1);
-        self.load_kernel_system(start_background_processor, 3);
+        self.load_kernel_system(BlockerManager, 2);
+        self.load_kernel_system(DelayManager, 3);
+        self.load_kernel_system(start_background_processor, 5);
 
         // Refactor: Make a separate unit struct for the `KernelSystem` trait and the rest are on a separate struct the unit instantiates in init
         // So processor can get the processor_threads from memory/state before hand
         let processor = Processor::new(processor_threads);
-        self.load_kernel_system(processor, 2);
+        self.load_kernel_system(processor, 4);
     }
 
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>, key: Option<&Key>) -> Option<Result<T::Item<'_>, ResolveError>> {
