@@ -18,3 +18,5 @@ I personally made this to be the pillar of a game engine i want to make
 TODO:
 
 allow systems to be run directly from `MemoryDomain`
+
+make blocker manager remove the event from current events && remove it from Processing

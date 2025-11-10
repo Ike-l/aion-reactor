@@ -6,6 +6,7 @@ pub mod processor;
 pub mod event_manager;
 pub mod blocker_manager;
 pub mod background_processor;
+pub mod delay_manager;
 
 pub trait KernelSystem {
     fn init(&mut self, memory: &Memory) -> ResourceId;

@@ -49,4 +49,12 @@ impl CurrentEvents {
     pub fn read(&self) -> impl Iterator<Item = &Event> {
         self.0.iter()
     }
+
+    pub fn contains(&self, event: &Event) -> bool {
+        self.0.contains(event)
+    }
+
+    pub fn insert(&mut self, event: Event) -> bool {
+        self.0.insert(event)
+    }
 }
