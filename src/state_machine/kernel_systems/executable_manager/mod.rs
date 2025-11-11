@@ -46,6 +46,11 @@ fn parse_mapping() -> (Executable, String) { todo!() }
 
 impl KernelSystem for ExecutableManager {
     fn init(&mut self, memory: &Memory) -> ResourceId {
+        // spawn ExecutableQueue
+        // ExecutableBuffer
+        // ExecutableRegistry
+
+        // World?
         ResourceId::Heap(HeapId::Label(Id("KernelExecutableManager".to_string())))
     }
 

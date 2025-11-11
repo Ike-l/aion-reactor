@@ -27,3 +27,5 @@ Make my own threadpool implementation
 MemoryDomain injection parameter
 
 fix kernel systems to better elogance and move load default into Default implementation 
+
+schedule executable manager before DelayManager
