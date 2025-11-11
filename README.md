@@ -20,5 +20,10 @@ TODO:
 allow systems to be run directly from `MemoryDomain`
 
 make blocker manager remove the event from current events && remove it from Processing
+schedule blocker manager after DelayManager
+
+Make my own threadpool implementation
+
+MemoryDomain injection parameter
 
 fix kernel systems to better elogance and move load default into Default implementation 
