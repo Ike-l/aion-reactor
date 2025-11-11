@@ -1,15 +1,41 @@
 use std::collections::HashMap;
 
 pub use crate::kernel_prelude::*;
-use crate::{id::Id, memory::access_checked_heap::heap::HeapId, state_machine::kernel_systems::event_manager::event::Event};
+use crate::{id::Id, injection::injection_primitives::unique::Unique, memory::access_checked_heap::heap::HeapId, state_machine::kernel_systems::event_manager::event::{CurrentEvents, Event}};
 
 pub struct ExecutableManager;
 
+// String is what is first mapped
 pub struct ExecutableRegistry(pub HashMap<String, Executable>);
 pub struct Executable {
+    // used as the ExecutableLabelComponent
     label: String,
     trigger: Event,
 }
+
+#[derive(Clone)]
+pub enum ExecutableMessage {
+    ResourceId(ResourceId),
+
+    #[cfg(feature = "ecs")]
+    ECS(EntityId)
+}
+
+#[cfg(feature = "ecs")]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct EntityId(hecs::Entity);
+
+#[cfg(feature = "ecs")]
+pub struct World(pub hecs::World);
+
+pub struct ExecutableBuffer(Vec<(ExecutableLabelComponent, ExecutableDataComponent)>);
+
+pub struct ExecutableQueue(pub Vec<(String, ExecutableMessage)>);
+
+pub struct ExecutableLabelComponent(pub String);
+pub struct ExecutableDataComponent(pub ExecutableMessage);
+
+fn parse_mapping() -> (Executable, String) { todo!() }
 
 impl KernelSystem for ExecutableManager {
     fn init(&mut self, memory: &Memory) -> ResourceId {
@@ -20,7 +46,40 @@ impl KernelSystem for ExecutableManager {
         let memory = Arc::clone(&memory);
 
         Box::pin(async move {
+            let mut executable_queue = memory.resolve::<Unique<ExecutableQueue>>(None, None, None, None).unwrap().unwrap();
+            let mut current_events = memory.resolve::<Unique<CurrentEvents>>(None, None, None, None).unwrap().unwrap();
             
+            let mut new_executable_queue = ExecutableQueue(Vec::new());
+            
+            for (mapping, message) in executable_queue.0.drain(..) {
+                // give mapping and executable registry (fn on registry)
+                let (executable, remaining) = parse_mapping();
+                let event = executable.trigger;
+                current_events.insert(event);
+
+                let new_message = match message {
+                    ExecutableMessage::ResourceId(resource_id) => {
+                        let mut buffer = memory.resolve::<Unique<ExecutableBuffer>>(None, None, None, None).unwrap().unwrap();
+                        let new_message = ExecutableMessage::ResourceId(resource_id);
+                        buffer.0.push(
+                            (ExecutableLabelComponent(executable.label), ExecutableDataComponent(new_message.clone()))
+                        );
+
+                        new_message
+                    },
+                    #[cfg(feature = "ecs")]
+                    ExecutableMessage::ECS(entity_id) => {
+                        let mut buffer = memory.resolve::<Unique<World>>(None, None, None, None).unwrap().unwrap();
+                        ExecutableMessage::ECS(EntityId(buffer.0.spawn(
+                            (ExecutableLabelComponent(executable.label), ExecutableDataComponent(ExecutableMessage::ECS(entity_id)))
+                        )))
+                    },
+                };
+
+                new_executable_queue.0.push((remaining, new_message));
+            }
+
+            executable_queue.0.extend(new_executable_queue.0);
         })
     }
 }

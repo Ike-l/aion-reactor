@@ -17,7 +17,8 @@ impl Resource {
 pub enum ResourceId {
     Heap(HeapId),
     // Stack,
-    // ECS
+    // #[cfg(feature = "ecs")]
+    // ECS(EntityId)
 }
 
 impl From<HeapId> for ResourceId {
