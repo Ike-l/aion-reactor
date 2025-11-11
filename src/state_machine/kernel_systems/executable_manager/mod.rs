@@ -28,8 +28,15 @@ pub struct EntityId(hecs::Entity);
 #[cfg(feature = "ecs")]
 pub struct World(pub hecs::World);
 
-pub struct ExecutableBuffer(Vec<(ExecutableLabelComponent, ExecutableDataComponent)>);
+// Label (which process handler), From resource, To resource
+pub struct ExecutableBuffer(Vec<(ExecutableLabelComponent, ExecutableDataComponent, ExecutableDataComponent)>);
 
+// "Foo|FooBarAdapter|Bar|BarBazAdapter|Baz", FooInput
+// "FooBarAdapter|Bar|BarBazAdapter|Baz", FooOutput
+// "Bar|BarBazAdapter|Baz", BarInput 
+// "BarBazAdapter|Baz", BarOutput 
+// "Baz", BazInput
+// Complete
 pub struct ExecutableQueue(pub Vec<(String, ExecutableMessage)>);
 
 pub struct ExecutableLabelComponent(pub String);
@@ -58,16 +65,19 @@ impl KernelSystem for ExecutableManager {
                 current_events.insert(event);
 
                 let new_message = match message {
+                    // if resource id, supply the resource_id of both the origin/source (so requires the resource to downcast to the same type (since i cant create a new resource and the user cant replace the resource))
+                    // maybe later can accept an event which will map the new_message to a different resource_id than the one from before, in those cases, the latter data component will be different
                     ExecutableMessage::ResourceId(resource_id) => {
                         let mut buffer = memory.resolve::<Unique<ExecutableBuffer>>(None, None, None, None).unwrap().unwrap();
                         let new_message = ExecutableMessage::ResourceId(resource_id);
                         buffer.0.push(
-                            (ExecutableLabelComponent(executable.label), ExecutableDataComponent(new_message.clone()))
+                            (ExecutableLabelComponent(executable.label), ExecutableDataComponent(new_message.clone()), ExecutableDataComponent(new_message.clone()))
                         );
 
                         new_message
                     },
                     #[cfg(feature = "ecs")]
+                    // if ecs, create a new entity with the label of the process handler, and the id of where to get the old data
                     ExecutableMessage::ECS(entity_id) => {
                         let mut buffer = memory.resolve::<Unique<World>>(None, None, None, None).unwrap().unwrap();
                         ExecutableMessage::ECS(EntityId(buffer.0.spawn(
