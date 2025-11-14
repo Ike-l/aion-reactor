@@ -1,12 +1,26 @@
 use std::collections::HashMap;
 
 pub use crate::kernel_prelude::*;
-use crate::{id::Id, injection::injection_primitives::unique::Unique, memory::access_checked_heap::heap::HeapId, state_machine::kernel_systems::event_manager::event::{CurrentEvents, Event}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::access_checked_heap::heap::HeapId, state_machine::kernel_systems::event_manager::event::{CurrentEvents, Event}};
 
 pub struct ExecutableManager;
 
 // String is what is first mapped
 pub struct ExecutableRegistry(pub HashMap<String, Executable>);
+
+impl ExecutableRegistry {
+    pub fn parse_mapping<'a>(&self, sequence: &'a str) -> (Result<Executable, String>, Option<&'a str>) {
+        let (current, then) = if let Some((current, then)) = sequence.split_once(">") {
+            (current, Some(then))
+        } else {
+            (sequence, None)
+        };
+
+        (self.0.get(current).cloned().ok_or(format!("No Executable Found: {current}")), then)
+    }
+}
+
+#[derive(Clone)]
 pub struct Executable {
     // used as the ExecutableLabelComponent
     label: String,
@@ -42,14 +56,11 @@ pub struct ExecutableQueue(pub Vec<(String, ExecutableMessage)>);
 pub struct ExecutableLabelComponent(pub String);
 pub struct ExecutableDataComponent(pub ExecutableMessage);
 
-fn parse_mapping() -> (Executable, String) { todo!() }
-
 impl KernelSystem for ExecutableManager {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        // spawn ExecutableQueue
-        // ExecutableBuffer
-        // ExecutableRegistry
-
+        assert!(memory.insert(None, None, None, ExecutableQueue(Vec::new())).unwrap().is_ok());
+        assert!(memory.insert(None, None, None, ExecutableBuffer(Vec::new())).unwrap().is_ok());
+        assert!(memory.insert(None, None, None, ExecutableRegistry(HashMap::new())).unwrap().is_ok());
         // World?
         ResourceId::Heap(HeapId::Label(Id("KernelExecutableManager".to_string())))
     }
@@ -60,12 +71,19 @@ impl KernelSystem for ExecutableManager {
         Box::pin(async move {
             let mut executable_queue = memory.resolve::<Unique<ExecutableQueue>>(None, None, None, None).unwrap().unwrap();
             let mut current_events = memory.resolve::<Unique<CurrentEvents>>(None, None, None, None).unwrap().unwrap();
-            
+            let executable_registry = memory.resolve::<Shared<ExecutableRegistry>>(None, None, None, None).unwrap().unwrap();
+
             let mut new_executable_queue = ExecutableQueue(Vec::new());
             
             for (mapping, message) in executable_queue.0.drain(..) {
                 // give mapping and executable registry (fn on registry)
-                let (executable, remaining) = parse_mapping();
+                let (executable, remaining) = executable_registry.parse_mapping(&mapping);
+
+                let executable = match executable {
+                    Ok(executable) => executable,
+                    Err(err) => { println!("Warn: {err}. Skipping"); break; },
+                };
+
                 let event = executable.trigger;
                 current_events.insert(event);
 
@@ -91,7 +109,9 @@ impl KernelSystem for ExecutableManager {
                     },
                 };
 
-                new_executable_queue.0.push((remaining, new_message));
+                if let Some(remaining) = remaining {
+                    new_executable_queue.0.push((remaining.to_string(), new_message));
+                }
             }
 
             executable_queue.0.extend(new_executable_queue.0);
