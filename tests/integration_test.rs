@@ -1,4 +1,4 @@
-use aion_reactor::{id::Id, injection::injection_primitives::unique::Unique, memory::{ResourceId, access_checked_heap::heap::HeapId}, state_machine::{StateMachine, kernel_systems::{event_manager::event::{Event, NextEvents}, executable_manager::{EntityId, Executable, ExecutableBuffer, ExecutableDataComponent, ExecutableLabelComponent, ExecutableManager, ExecutableMessage, ExecutableQueue, ExecutableRegistry, World}, processor::{processor_system_registry::ProcessorSystemRegistry, scheduler::ordering::SchedulerOrdering}}}, system::{System, stored_system::StoredSystem, sync_system::into_sync_system::IntoSyncSystem, system_metadata::{SystemMetadata, criteria::Criteria}, system_result::SystemResult}};
+use aion_reactor::{id::Id, injection::injection_primitives::unique::Unique, memory::{ResourceId, access_checked_heap::heap::HeapId}, state_machine::{StateMachine, kernel_systems::{event_manager::event::Event, executable_manager::{EntityId, Executable, ExecutableDataComponent, ExecutableLabelComponent, ExecutableMessage, ExecutableQueue, ExecutableRegistry, World}, processor::{processor_system_registry::ProcessorSystemRegistry, scheduler::ordering::SchedulerOrdering}}}, system::{System, stored_system::StoredSystem, sync_system::into_sync_system::IntoSyncSystem, system_metadata::{SystemMetadata, criteria::Criteria}, system_result::SystemResult}};
 
 fn foo(mut bar: Unique<i32>, world: Unique<World>/*, data: ExecutableBuffer*/) -> Option<SystemResult> {
     // FooExec
@@ -22,7 +22,7 @@ fn foo(mut bar: Unique<i32>, world: Unique<World>/*, data: ExecutableBuffer*/) -
     // panic!("yurp")
 }
 
-fn bar(world: Unique<World>/*, data: ExecutableBuffer*/) -> Option<SystemResult> {
+fn _bar(world: Unique<World>/*, data: ExecutableBuffer*/) -> Option<SystemResult> {
     // FooExec
 
     let mut sources = Vec::new();
