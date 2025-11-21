@@ -1,1 +1,0 @@
-for<'a> fn(aion_reactor::injection::injection_primitives::unique::Unique<'a, i32>, aion_reactor::state_machine::kernel_systems::executable_manager::World, Executable) -> Option<SystemResult> {foo}

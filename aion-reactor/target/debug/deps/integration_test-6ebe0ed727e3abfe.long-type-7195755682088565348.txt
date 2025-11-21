@@ -1,1 +1,0 @@
-for<'a> fn({type error}, aion_reactor::injection::injection_primitives::unique::Unique<'a, aion_reactor::state_machine::kernel_systems::executable_manager::World>) -> Option<SystemResult> {bar}
