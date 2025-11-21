@@ -43,11 +43,11 @@ impl Processor {
         let events = current_events.read().collect::<HashSet<_>>();
     
         system_registry.read()
-            .inspect(|(id, _)| println!("id: {id:?}") )
+            // .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|&(id, _)| !current_blockers.blocks(id.clone()))
-            .inspect(|(id, _)| println!("id: {id:?}") )
+            // .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|(_, system_metadata)| system_metadata.test(&events))
-            .inspect(|(id, _)| println!("id: {id:?}") )
+            // .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|(id, system_metadata)| {
                 let resource_id = system_metadata.resource_id();
                 let program_id = system_metadata.program_id();
@@ -55,7 +55,7 @@ impl Processor {
                 let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None, None).unwrap().unwrap();
                 system.ok_resources(&memory, program_id.as_ref(), Some(&Source((*id).clone())), key.as_ref()).is_some_and(|t| t)
             })
-            .inspect(|(id, _)| println!("id: {id:?}") )
+            // .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|(id, system_metadata)| {
                 let resource_id = system_metadata.resource_id();
                 let program_id = system_metadata.program_id();
@@ -63,7 +63,7 @@ impl Processor {
                 let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None, None).unwrap().unwrap();
                 system.ok_accesses(&memory, program_id.as_ref(), Some(&Source((*id).clone())), key.as_ref()).is_some_and(|t| t)
             })
-            .inspect(|(id, _)| println!("id: {id:?}") )
+            // .inspect(|(id, _)| println!("id: {id:?}") )
             .collect()
     }
 

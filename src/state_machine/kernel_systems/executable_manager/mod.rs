@@ -27,6 +27,15 @@ pub struct Executable {
     trigger: Event,
 }
 
+impl Executable {
+    pub fn new(label: String, trigger: Event) -> Self {
+        Self {
+            label,
+            trigger
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum ExecutableMessage {
     ResourceId(ResourceId),
@@ -39,11 +48,21 @@ pub enum ExecutableMessage {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct EntityId(hecs::Entity);
 
+impl EntityId {
+    pub fn new(entity: hecs::Entity) -> Self {
+        Self(entity)
+    }
+
+    pub fn get_hecs(&self) -> &hecs::Entity {
+        &self.0
+    }
+}
+
 #[cfg(feature = "ecs")]
 pub struct World(pub hecs::World);
 
 // Label (which process handler), From resource, To resource
-pub struct ExecutableBuffer(Vec<(ExecutableLabelComponent, ExecutableDataComponent, ExecutableDataComponent)>);
+pub struct ExecutableBuffer(pub Vec<(ExecutableLabelComponent, ExecutableDataComponent, ExecutableDataComponent)>);
 
 // "Foo|FooBarAdapter|Bar|BarBazAdapter|Baz", FooInput
 // "FooBarAdapter|Bar|BarBazAdapter|Baz", FooOutput
@@ -53,6 +72,7 @@ pub struct ExecutableBuffer(Vec<(ExecutableLabelComponent, ExecutableDataCompone
 // Complete
 pub struct ExecutableQueue(pub Vec<(String, ExecutableMessage)>);
 
+#[derive(Debug)]
 pub struct ExecutableLabelComponent(pub String);
 pub struct ExecutableDataComponent(pub ExecutableMessage);
 
@@ -61,7 +81,6 @@ impl KernelSystem for ExecutableManager {
         assert!(memory.insert(None, None, None, ExecutableQueue(Vec::new())).unwrap().is_ok());
         assert!(memory.insert(None, None, None, ExecutableBuffer(Vec::new())).unwrap().is_ok());
         assert!(memory.insert(None, None, None, ExecutableRegistry(HashMap::new())).unwrap().is_ok());
-        // World?
         ResourceId::Heap(HeapId::Label(Id("KernelExecutableManager".to_string())))
     }
 

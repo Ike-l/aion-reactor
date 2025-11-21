@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, delay_manager::DelayManager, event_manager::EventManager, processor::Processor}, transition_phases::TransitionPhase}, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, delay_manager::DelayManager, event_manager::EventManager, executable_manager::ExecutableManager, processor::Processor}, transition_phases::TransitionPhase}, system::system_metadata::Source};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
@@ -17,6 +17,7 @@ pub struct StateMachine {
     program_id: Id,
     kernel_key: Key,
 }
+
 
 impl StateMachine {
     pub fn new(threads: usize) -> Self {
@@ -53,6 +54,13 @@ impl StateMachine {
         kernel_system_registry.insert(index, resource_id);
     }
 
+    const FINISH_BACKGROUND_PROCESSOR_ORDER: usize = 0;
+    const EVENT_MANAGER_ORDER: usize = Self::FINISH_BACKGROUND_PROCESSOR_ORDER + 1;
+    const EXECUTABLE_MANAGER_ORDER: usize = Self::EVENT_MANAGER_ORDER + 1;
+    const DELAY_MANAGER_ORDER: usize = Self::EXECUTABLE_MANAGER_ORDER + 1;
+    const BLOCKER_MANAGER_ORDER: usize = Self::DELAY_MANAGER_ORDER + 1;
+    const PROCESSOR_ORDER: usize = Self::BLOCKER_MANAGER_ORDER + 1;
+    const START_BACKGROUND_PROCESSOR_ORDER: usize = Self::PROCESSOR_ORDER + 1;
     pub fn load_default(&self, processor_threads: usize) {
         // Finish & Start have a special relationship so this first part is for that
         let mut finish_background_processor = FinishBackgroundProcessor::default();
@@ -63,19 +71,20 @@ impl StateMachine {
             let mut kernel_system_registry = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
     
             assert!(self.state.insert(Some(&self.program_id), Some(resource_id.clone()), Some(&self.kernel_key), Box::new(finish_background_processor) as StoredKernelSystem).unwrap().unwrap().is_none());
-            kernel_system_registry.insert(0, resource_id);
+            kernel_system_registry.insert(Self::FINISH_BACKGROUND_PROCESSOR_ORDER, resource_id);
         }
         //
 
-        self.load_kernel_system(EventManager, 1);
-        self.load_kernel_system(BlockerManager, 2);
-        self.load_kernel_system(DelayManager, 3);
-        self.load_kernel_system(start_background_processor, 5);
+        self.load_kernel_system(EventManager, Self::EVENT_MANAGER_ORDER);
+        self.load_kernel_system(ExecutableManager, Self::EXECUTABLE_MANAGER_ORDER);
+        self.load_kernel_system(BlockerManager, Self::BLOCKER_MANAGER_ORDER);
+        self.load_kernel_system(DelayManager, Self::DELAY_MANAGER_ORDER);
+        self.load_kernel_system(start_background_processor, Self::START_BACKGROUND_PROCESSOR_ORDER);
 
         // Refactor: Make a separate unit struct for the `KernelSystem` trait and the rest are on a separate struct the unit instantiates in init
         // So processor can get the processor_threads from memory/state before hand
         let processor = Processor::new(processor_threads);
-        self.load_kernel_system(processor, 4);
+        self.load_kernel_system(processor, Self::PROCESSOR_ORDER);
     }
 
     pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>, key: Option<&Key>) -> Option<Result<T::Item<'_>, ResolveError>> {
@@ -92,27 +101,12 @@ impl StateMachine {
 
     pub async fn transition(&self) {
         let mut kernel_systems = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
-        // for phase in TransitionPhase::iter_fields() {
         for kernel_systems in kernel_systems.iter() {
             for kernel_system in kernel_systems {
-                // println!("Doing: {kernel_system:?}");
                 let mut kernel_system = self.state.resolve::<Unique<StoredKernelSystem>>(Some(&self.program_id), Some(&kernel_system), None, Some(&self.kernel_key)).unwrap().unwrap();
-                // println!("Running");
                 kernel_system.tick(&self.state, TransitionPhase::Compute).await;
-                // println!("Finished");
             }
         }
-        // for kernel_system in kernel_systems.clone() {
-        //     let memory = Arc::clone(&self.state);
-        //     let runtime = Arc::clone(&self.runtime);
-        //     self.threadpool.execute(move || {
-        //         let mut kernel_system = memory.resolve::<Unique<StoredKernelSystem>>(None, Some(&kernel_system), None).unwrap().unwrap();
-        //         runtime.block_on(kernel_system.tick(&memory, phase));
-        //     });
-        // }
-
-        // self.threadpool.join();
-        // }
     }
 }
 

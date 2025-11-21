@@ -34,13 +34,7 @@ impl KernelSystem for DelayManager {
                 }
             }
 
-            // create a list of all delays
-            let mut new_delays = Vec::new();
-            for (_, delay) in buffer.0.iter() {
-                if let Some(delay) = delay {
-                    new_delays.push(delay.clone());
-                }
-            }
+            let new_delays = buffer.0.iter().filter_map(|(_, delay)| Some(delay.clone()?) ).collect::<Vec<_>>();
 
             // if delayed then queue for next time else put in current event
             for (into, delay) in buffer.0.drain(..) {
@@ -51,7 +45,6 @@ impl KernelSystem for DelayManager {
                 }
             }
 
-            // buffer.0.clear();
             buffer.0.extend(next_buffer.0);
         })
     }
