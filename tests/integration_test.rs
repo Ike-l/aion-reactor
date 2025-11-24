@@ -123,7 +123,7 @@ fn foobar() {
         let mut executable_registry = state_machine.resolve::<Unique<ExecutableRegistry>>(None, None, None, None).unwrap().unwrap();
 
         let executable_label = "fooExec".to_string();
-        executable_registry.0.insert(executable_label.clone(), Executable::new(executable_label.clone(), trigger_event.clone()));
+        executable_registry.insert(executable_label.clone(), Executable::new(executable_label.clone(), trigger_event.clone()));
 
         // let mut next_events = state_machine.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
         // next_events.insert(trigger_event);

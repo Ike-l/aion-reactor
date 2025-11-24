@@ -6,9 +6,27 @@ use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Un
 pub struct ExecutableManager;
 
 // String is what is first mapped
-pub struct ExecutableRegistry(pub HashMap<String, Executable>);
+pub struct ExecutableRegistry {
+    skip_message: String,
+    registry: HashMap<String, Executable>
+}
+
+impl Default for ExecutableRegistry {
+    fn default() -> Self {
+        let skip_message =  rand::random::<u64>().to_string();
+
+        Self {
+            skip_message,
+            registry: HashMap::new()
+        }
+    }
+}
 
 impl ExecutableRegistry {
+    pub fn get_skip(&self) -> &str {
+        &self.skip_message
+    }
+
     pub fn parse_mapping<'a>(&self, sequence: &'a str) -> (Result<Executable, String>, Option<&'a str>) {
         let (current, then) = if let Some((current, then)) = sequence.split_once(">") {
             (current, Some(then))
@@ -16,7 +34,11 @@ impl ExecutableRegistry {
             (sequence, None)
         };
 
-        (self.0.get(current).cloned().ok_or(format!("No Executable Found: {current}")), then)
+        (self.registry.get(current).cloned().ok_or(format!("No Executable Found: {current}")), then)
+    }
+
+    pub fn insert(&mut self, label: String, executable: Executable) -> Option<Executable> {
+        self.registry.insert(label, executable)
     }
 }
 
@@ -80,7 +102,7 @@ impl KernelSystem for ExecutableManager {
     fn init(&mut self, memory: &Memory) -> ResourceId {
         assert!(memory.insert(None, None, None, ExecutableQueue(Vec::new())).unwrap().is_ok());
         assert!(memory.insert(None, None, None, ExecutableBuffer(Vec::new())).unwrap().is_ok());
-        assert!(memory.insert(None, None, None, ExecutableRegistry(HashMap::new())).unwrap().is_ok());
+        assert!(memory.insert(None, None, None, ExecutableRegistry::default()).unwrap().is_ok());
         ResourceId::Heap(HeapId::Label(Id("KernelExecutableManager".to_string())))
     }
 
@@ -96,11 +118,19 @@ impl KernelSystem for ExecutableManager {
             
             for (mapping, message) in executable_queue.0.drain(..) {
                 // give mapping and executable registry (fn on registry)
+
+                // skip 
                 let (executable, remaining) = executable_registry.parse_mapping(&mapping);
 
                 let executable = match executable {
                     Ok(executable) => executable,
-                    Err(err) => { println!("Warn: {err}. Skipping"); break; },
+                    Err(err) => { 
+                        if err != executable_registry.get_skip() { 
+                            println!("Warn: {err}. Skipping"); 
+                        } 
+
+                        break; 
+                    },
                 };
 
                 let event = executable.trigger;
