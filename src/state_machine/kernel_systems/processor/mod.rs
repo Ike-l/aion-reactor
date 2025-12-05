@@ -2,7 +2,7 @@ use std::{collections::{HashMap, HashSet}, pin::Pin, sync::{atomic::{AtomicUsize
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{blocker_manager::blocker::{CurrentBlockers, NextBlockers}, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{processor_system_registry::ProcessorSystemRegistry, scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}, transition_phases::TransitionPhase, StateMachine}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{Source, SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{blocker_manager::blocker::{CurrentBlockers, NextBlockers}, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{processor_system_registry::ProcessorSystemRegistry, scheduler::{execution_graph::ExecutionGraph, panic_catching_execution_graph::PanicCatchingExecutionGraphs, panic_catching_execution_graph_future::PanicCatchingExecutionGraphsFuture}, tasks::DummyWaker}, KernelSystem}, StateMachine}, system::{stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{Source, SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus, System}};
 
 pub mod scheduler;
 pub mod tasks;
@@ -144,6 +144,7 @@ impl Processor {
             self.threadpool.execute(
                 move || {
                     runtime.block_on(async move {
+                    // runtime.spawn_blocking(async move {
                         let waker = Waker::from(Arc::new(DummyWaker));
                         let mut context = Context::from_waker(&waker);
                         let mut tasks = Vec::new();
@@ -335,7 +336,7 @@ impl KernelSystem for Processor {
         ResourceId::Heap(HeapId::Label(Id("KernelProcessor".to_string())))
     }
 
-    fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+    fn tick(&mut self, memory: &Arc<Memory>, ) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
             let system_registry = memory.resolve::<Shared<ProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();

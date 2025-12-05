@@ -7,7 +7,7 @@ pub mod injection;
 pub mod kernel_prelude {
     pub use std::{pin::Pin, sync::Arc};
 
-    pub use crate::{memory::{Memory, ResourceId}, state_machine::{kernel_systems::KernelSystem, transition_phases::TransitionPhase}};
+    pub use crate::{memory::{Memory, ResourceId}, state_machine::kernel_systems::KernelSystem};
 }
 
 

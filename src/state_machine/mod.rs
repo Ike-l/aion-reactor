@@ -1,26 +1,20 @@
 use std::sync::Arc;
 
-use threadpool::ThreadPool;
-
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, delay_manager::DelayManager, event_manager::EventManager, executable_manager::ExecutableManager, processor::Processor}, transition_phases::TransitionPhase}, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, delay_manager::DelayManager, event_manager::EventManager, executable_manager::ExecutableManager, processor::Processor}, }, system::system_metadata::Source};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
-pub mod transition_phases;
 
 #[derive(Debug)]
 pub struct StateMachine {
     state: Arc<Memory>,
-    threadpool: ThreadPool,
-    runtime: Arc<tokio::runtime::Runtime>,
-
     program_id: Id,
     kernel_key: Key,
 }
 
 
 impl StateMachine {
-    pub fn new(threads: usize) -> Self {
+    pub fn new() -> Self {
         let memory = Arc::new(Memory::new());
         
         let key = rand::random();
@@ -37,9 +31,6 @@ impl StateMachine {
 
         Self {
             state: memory,
-            threadpool: ThreadPool::new(threads),
-            runtime: Arc::new(tokio::runtime::Runtime::new().unwrap()),
-
             program_id: id,
             kernel_key: key,
         }
@@ -104,7 +95,7 @@ impl StateMachine {
         for kernel_systems in kernel_systems.iter() {
             for kernel_system in kernel_systems {
                 let mut kernel_system = self.state.resolve::<Unique<StoredKernelSystem>>(Some(&self.program_id), Some(&kernel_system), None, Some(&self.kernel_key)).unwrap().unwrap();
-                kernel_system.tick(&self.state, TransitionPhase::Compute).await;
+                kernel_system.tick(&self.state).await;
             }
         }
     }

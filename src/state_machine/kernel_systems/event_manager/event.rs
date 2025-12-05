@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::{id::Id, state_machine::transition_phases::TransitionPhase};
+use crate::{id::Id};
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct Event(Id);
@@ -14,12 +14,6 @@ impl Event {
 impl From<Id> for Event {
     fn from(value: Id) -> Self {
         Self(value)
-    }
-}
-
-impl From<TransitionPhase> for Event {
-    fn from(value: TransitionPhase) -> Self {
-        Self::from(Id::from(value))
     }
 }
 

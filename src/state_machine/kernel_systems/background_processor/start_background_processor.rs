@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId, program_memory_map::inner_program_memory_map::Key}, state_machine::{StateMachine, kernel_systems::{KernelSystem, background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, finish_background_processor::FinishBackgroundProcessor, sync_join_handles::SyncJoinHandles}, processor::Processor}, transition_phases::TransitionPhase}, system::{System, stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId, program_memory_map::inner_program_memory_map::Key}, state_machine::{StateMachine, kernel_systems::{KernelSystem, background_processor::{async_join_handles::AsyncJoinHandles, background_processor_system_registry::BackgroundProcessorSystemRegistry, finish_background_processor::FinishBackgroundProcessor, sync_join_handles::SyncJoinHandles}, processor::Processor}, }, system::{System, stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}}};
 
 pub struct StartBackgroundProcessor {
     program_id: Id,
@@ -32,7 +32,7 @@ impl KernelSystem for StartBackgroundProcessor {
         ResourceId::Heap(HeapId::Label(Id("KernelStartBackgroundProcessor".to_string())))
     }
 
-    fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+    fn tick(&mut self, memory: &Arc<Memory>, ) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
             let system_registry = memory.resolve::<Shared<BackgroundProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();

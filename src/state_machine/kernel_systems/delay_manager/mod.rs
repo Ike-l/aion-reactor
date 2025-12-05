@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::{kernel_systems::{KernelSystem, event_manager::event::{CurrentEvents, Event}}, transition_phases::TransitionPhase}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::{kernel_systems::{KernelSystem, event_manager::event::{CurrentEvents, Event}}, }};
 
 pub struct DelayManager;
 
@@ -18,7 +18,7 @@ impl KernelSystem for DelayManager {
         ResourceId::Heap(HeapId::Label(Id("KernelDelayManager".to_string())))
     }
 
-    fn tick(&mut self, memory: &Arc<Memory>, _phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+    fn tick(&mut self, memory: &Arc<Memory>) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
             let mut next_buffer = DelayBuffer(Vec::new());

@@ -106,7 +106,7 @@ impl KernelSystem for ExecutableManager {
         ResourceId::Heap(HeapId::Label(Id("KernelExecutableManager".to_string())))
     }
 
-    fn tick(&mut self, memory: &Arc<Memory>, phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+    fn tick(&mut self, memory: &Arc<Memory>, ) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
 
         Box::pin(async move {

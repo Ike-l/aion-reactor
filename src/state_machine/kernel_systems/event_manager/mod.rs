@@ -1,6 +1,6 @@
 use std::{collections::{HashMap, HashSet}, pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{event_manager::event::{CurrentEvents, Event, NextEvents}, KernelSystem}, transition_phases::TransitionPhase}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}, state_machine::{kernel_systems::{event_manager::event::{CurrentEvents, Event, NextEvents}, KernelSystem}}};
 
 pub mod event;
 
@@ -23,11 +23,10 @@ impl KernelSystem for EventManager {
         ResourceId::Heap(HeapId::Label(Id("KernelEventManager".to_string())))
     }
 
-    fn tick(&mut self, memory: &Arc<Memory>, phase: TransitionPhase) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+    fn tick(&mut self, memory: &Arc<Memory>, ) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
         Box::pin(async move {
             let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
-            next_events.insert(phase);
 
             let mut current_events = memory.resolve::<Unique<CurrentEvents>>(None, None, None, None).unwrap().unwrap();
 

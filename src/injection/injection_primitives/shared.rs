@@ -1,4 +1,4 @@
-use std::{any::{type_name, TypeId}, sync::Arc};
+use std::{any::{TypeId, type_name}, fmt::{Debug, Display}, sync::Arc};
 
 use crate::{injection::{AccessDropper, DeAccessResolver, injection_trait::Injection}, memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, errors::ResolveError, memory_domain::MemoryDomain}, system::system_metadata::Source};
 
@@ -8,6 +8,22 @@ pub struct Shared<'a, T> {
     #[DerefMutTarget]
     value: &'a T,
     dropper: DeAccessResolver
+}
+
+impl<T> Debug for Shared<'_, T> 
+    where T: Debug
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.value.fmt(f)
+    }   
+}
+
+impl<T> Display for Shared<'_, T> 
+    where T: Display
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.value.fmt(f)
+    }   
 }
 
 impl<'a, T: 'static> Shared<'a, T> {

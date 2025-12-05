@@ -1,4 +1,4 @@
-use std::{any::{type_name, TypeId}, sync::Arc};
+use std::{any::{TypeId, type_name}, fmt::{Debug, Display}, sync::Arc};
 
 use crate::{injection::{injection_trait::Injection, DeAccessResolver, AccessDropper}, memory::{access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source};
 
@@ -8,6 +8,22 @@ pub struct Cloned<T> {
     #[DerefMutTarget]
     value: T,
     dropper: DeAccessResolver
+}
+
+impl<T> Debug for Cloned<T> 
+    where T: Debug
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.value.fmt(f)
+    }   
+}
+
+impl<T> Display for Cloned<T> 
+    where T: Display
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.value.fmt(f)
+    }   
 }
 
 impl<T: 'static> Cloned<T> {
