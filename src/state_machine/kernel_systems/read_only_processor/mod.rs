@@ -2,7 +2,7 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::{cloned::Cloned, shared::Shared, unique::Unique}, injection_trait::Injection}, kernel_prelude::KernelSystem, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::kernel_systems::processor::Processor, system::{System, stored_system::StoredSystem, sync_system::SyncSystem, system_cell::SystemCell, system_metadata::{Source, SystemRegistry}, system_result::SystemResult}};
+use crate::{id::Id, injection::{injection_primitives::{cloned::Cloned, shared::Shared, unique::Unique}, injection_trait::Injection}, kernel_prelude::KernelSystem, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::kernel_systems::{event_manager::event::{Event, NextEvents}, processor::Processor}, system::{System, stored_system::StoredSystem, sync_system::SyncSystem, system_cell::SystemCell, system_metadata::{Source, SystemRegistry}, system_result::SystemResult}};
 
 pub struct ReadOnlyProcessor {
     threadpool: ThreadPool
@@ -107,10 +107,16 @@ impl ReadOnlyProcessor {
 #[derive(Default)]
 pub struct ReadOnlySystemRegistry(pub SystemRegistry);
 
+#[derive(Default)]
+pub struct SystemEventRegistry(pub HashMap<Id, Vec<Event>>);
+
+const SYSTEM_EVENT_REGISTRY_TYPE_NAME: &'static str = "SystemEventRegistry";
+
 impl KernelSystem for ReadOnlyProcessor {
     fn init(&mut self, memory: &Memory) -> ResourceId {
         assert!(memory.insert(None, None, None, ReadOnlySystemRegistry::default()).unwrap().is_ok());
-        // mapping of system id: Vec<Event>
+        assert!(memory.insert(None, None, None, SystemEventRegistry::default()).unwrap().is_ok());
+
         ResourceId::Heap(HeapId::Label(Id("KernelReadOnlyProcessorManager".to_string())))
     }
     
@@ -122,29 +128,20 @@ impl KernelSystem for ReadOnlyProcessor {
             
             let systems = systems.into_iter().map(|(id, _)| id.clone()).collect::<Vec<_>>();
             
-            // for each system check it is read only?
+            let results = self.execute(systems, &memory).await;
 
-            self.execute(systems, &memory).await;
-            
-            // ReadOnlySystem
-            // implemented for systems with ReadOnlyInjection
-            // has function `check_read_only`: for each injection, Injection::CreateAccessMap.is_read_only()
-            // when registering system call this function, if false -> reject
-            // else insert system into registry
-            
-            // collect systems: Processor::get_systems(memory, read_only_registry)
-            // Execute:
-            // for each thread in threadpool:
-            // thread.spawn(|| {
-            // for each system in chunk:
-            //  run system
-            //  if matches(run(system), SystemResult::Conditional(true))
-            //      spawn next event associated_event(system)
-            // })
-            
-            // CreateAccessMap:
-            // let mut access_map = Self::create_access_map();
-            // Self::resolve_accesses(&mut access_map, source, Some(accessing.clone()));
+            let system_event_registry = memory.resolve::<Shared<SystemEventRegistry>>(None, None, None, None).unwrap().unwrap();
+            let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
+
+            for (id, result) in results {
+                if matches!(result, SystemResult::Conditional(true)) {
+                    if let Some(events) = system_event_registry.0.get(&id) {
+                        next_events.extend(events.clone().into_iter());
+                    } else {
+                        println!("Warn: `ReadOnlySystem` returned `SystemResult::Conditional(true)` without an `Event` mapping\nSuggestion: insert `{SYSTEM_EVENT_REGISTRY_TYPE_NAME}` with system `Id` (`Source`), with the list of `Event`s you want to spawn in `NextEvents`");
+                    }
+                }
+            }
         })
     }
 }
@@ -158,15 +155,9 @@ pub trait ReadOnlySystem {
     fn check_read_only(&self, source: Option<&Source>) -> bool;    
 }
 
+// do AsyncSystems by abstracting SyncSystem & AsyncSystem traits
 impl<T: SyncSystem> ReadOnlySystem for T {
     fn check_read_only(&self, source: Option<&Source>) -> bool {
         SyncSystem::check_read_only(self, source)
     }
 }
-
-
-// Can choose to support AsyncSystems later by abstracting the check_read_only from SyncSystem
-// impl<T: AsyncSystem> ReadOnlySystem for T {
-
-// }
-

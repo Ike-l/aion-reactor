@@ -34,6 +34,10 @@ impl NextEvents {
     pub fn remove(&mut self, event: &Event) -> bool {
         self.0.remove(event)
     }
+
+    pub fn extend(&mut self, events: impl Iterator<Item = Event>) {
+        self.0.extend(events);
+    }
 }
 
 #[derive(Debug, Default, Clone)]
