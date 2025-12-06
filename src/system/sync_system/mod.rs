@@ -17,6 +17,8 @@ pub trait SyncSystem: Send + Sync {
     fn ok_resources(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool>;
     fn ok_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Option<&Source>, key: Option<&Key>) -> Option<bool>;
 
+    fn check_read_only(&self, source: Option<&Source>) -> bool;
+
     fn reserve_accesses(&self, memory: &Memory, program_id: Option<&Id>, source: Source, key: Option<&Key>) -> Option<Result<(), ReservationError>>;
 }
 
@@ -80,6 +82,14 @@ macro_rules! impl_sync_system {
                 Some(true $(&& memory.ok_accesses::<$params>(program_id, source, None, key)?)*)
             }
 
+            fn check_read_only(&self, source: Option<&Source>) -> bool {
+                true $(&& { 
+                    let mut access_map = $params::create_access_map();
+                    $params::resolve_accesses(&mut access_map, source, None);
+                    access_map.is_read_only()
+                 })*
+            }
+
             fn reserve_accesses(
                 &self,
                 memory: &Memory,
@@ -94,7 +104,7 @@ macro_rules! impl_sync_system {
                 $( {
                     let result = other_memory.reserve_current_accesses::<$params>(program_id, None, source.clone(), key); 
                     // check if all reservations work and if any fail then return the error
-                    println!("Result: {:?}", result);
+                    // println!("Result: {:?}", result);
                     std::thread::sleep(std::time::Duration::from_secs(1));
                     match result {
                         None => return None,

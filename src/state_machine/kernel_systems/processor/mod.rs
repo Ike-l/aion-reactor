@@ -36,6 +36,7 @@ impl Processor {
         system_registry.insert(id, system_metadata)
     }
 
+    // `Id` == `Source` 👍😁
     pub fn get_systems<'a>(memory: &Memory, system_registry: &'a SystemRegistry) -> HashMap<&'a Id, &'a SystemMetadata> {
         let current_blockers = memory.resolve::<Shared<CurrentBlockers>>(None, None, None, None).unwrap().unwrap();
         let current_events = memory.resolve::<Shared<CurrentEvents>>(None, None, None, None).unwrap().unwrap();
@@ -120,7 +121,9 @@ impl Processor {
                 .unwrap().unwrap().0
                 .into_map()
                 .collect::<HashMap<_, _>>()
-            );
+        );
+
+        let max_system_number = system_map.len();
             
         let system_mapping: Arc<HashMap<Id, SystemCell>> = Arc::new(
            system_map.iter().map(|(id, (resource_id, program_id, key))| {
@@ -128,7 +131,8 @@ impl Processor {
            }).collect() 
         );
 
-        let results = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+        let (results_tx, mut results_rx) = tokio::sync::mpsc::unbounded_channel();
+
         println!("Starting");
         for i in 0..self.threadpool.max_count() {
             let start_graph = (i * graph_count) / self.threadpool.max_count();
@@ -138,7 +142,7 @@ impl Processor {
             let memory = Arc::clone(&memory);
             let system_map = Arc::clone(&system_map);
             let system_mapping = Arc::clone(&system_mapping);
-            let results = Arc::clone(&results);
+            let results = results_tx.clone();
             let finished_graphs = Arc::clone(&finished_graphs);
 
             self.threadpool.execute(
@@ -216,7 +220,7 @@ impl Processor {
                                                                 );
 
                                                                 if let Some(result) = result {
-                                                                    results.lock().await.push((id.clone(), result));
+                                                                    let _ = results.send((id.clone(), result));
                                                                 }
 
                                                                 current_graph.write().await.mark_as_complete(&id);
@@ -245,7 +249,7 @@ impl Processor {
                                                                     },
                                                                     Poll::Ready(result) => {
                                                                         if let Some(result) = result {
-                                                                            results.lock().await.push((id.clone(), result));
+                                                                            let _ = results.send((id.clone(), result));
                                                                         }
 
                                                                         current_graph.write().await.mark_as_complete(&id);
@@ -291,7 +295,7 @@ impl Processor {
                                         },
                                         Poll::Ready(result) => {
                                             if let Some(result) = result {
-                                                results.lock().await.push((id.clone(), result));
+                                                let _ = results.send((id.clone(), result));
                                             }
 
                                             let (resource_id, program_id, key) = system_map.get(&id).unwrap();
@@ -315,7 +319,11 @@ impl Processor {
             );
         }
 
+        drop(results_tx);
+
         PanicCatchingExecutionGraphsFuture::new(&self.threadpool, &execution_graphs).await;
+
+        results_rx.close();
 
         let mut system_mapping = Arc::try_unwrap(system_mapping).unwrap();
         for (id, mut stored_system) in system_map.iter().map(|(id, (resource_id, program_id, key))| {
@@ -325,7 +333,11 @@ impl Processor {
             stored_system.insert_system(system_mapping.remove(id).unwrap().consume());
         }
 
-        Arc::try_unwrap(results).unwrap().into_inner()
+        let mut results = Vec::new();
+
+        results_rx.recv_many(&mut results, max_system_number).await;
+
+        results
     }
 }
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, read_only_processor::ReadOnlyProcessorManager, delay_manager::DelayManager, event_manager::EventManager, executable_manager::ExecutableManager, processor::Processor}, }, system::system_metadata::Source};
+use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::BlockerManager, read_only_processor::ReadOnlyProcessor, delay_manager::DelayManager, event_manager::EventManager, executable_manager::ExecutableManager, processor::Processor}, }, system::system_metadata::Source};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
@@ -72,7 +72,9 @@ impl StateMachine {
         self.load_kernel_system(BlockerManager, Self::BLOCKER_MANAGER_ORDER);
         self.load_kernel_system(DelayManager, Self::DELAY_MANAGER_ORDER);
         self.load_kernel_system(start_background_processor, Self::START_BACKGROUND_PROCESSOR_ORDER);
-        self.load_kernel_system(ReadOnlyProcessorManager, Self::CONDITIONAL_EVENTS_ORDER);
+
+        let read_only_processor = ReadOnlyProcessor::new(processor_threads);
+        self.load_kernel_system(read_only_processor, Self::CONDITIONAL_EVENTS_ORDER);
 
         // Refactor: Make a separate unit struct for the `KernelSystem` trait and the rest are on a separate struct the unit instantiates in init
         // So processor can get the processor_threads from memory/state before hand
