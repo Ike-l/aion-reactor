@@ -8,6 +8,10 @@ pub struct ReservationAccessMap {
 }
 
 impl ReservationAccessMap {
+    pub fn is_read_only(&self) -> bool {
+        self.access_map.is_read_only()
+    }
+
     pub fn drain(&mut self) -> impl Iterator<Item = (HeapId, Access)> {
         self.access_map.drain()
     }

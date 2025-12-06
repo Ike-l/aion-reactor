@@ -63,7 +63,9 @@ impl<T: 'static> Injection for Shared<'_, T> {
         let accessing = resource_id.unwrap_or(&default_resource_id);
         let result = memory_domain.get_shared::<T>(accessing, source)?;
 
-        let access_map = Self::create_and_resolve_access_map(source, Some(accessing.clone()));
+        let mut access_map = Self::create_access_map();
+        Self::resolve_accesses(&mut access_map, source, Some(accessing.clone()));
+        // let access_map = Self::create_and_resolve_access_map(source, Some(accessing.clone()));
 
         let dropper = DeAccessResolver::new(Arc::clone(memory_domain), access_map);
         let shared = Shared::new(result, dropper);

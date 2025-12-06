@@ -8,7 +8,7 @@ pub mod blocker_manager;
 pub mod background_processor;
 pub mod delay_manager;
 pub mod executable_manager;
-pub mod conditional_events;
+pub mod read_only_processor;
 
 pub trait KernelSystem {
     fn init(&mut self, memory: &Memory) -> ResourceId;

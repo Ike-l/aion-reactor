@@ -383,6 +383,16 @@ impl KernelSystem for Processor {
                         }
                     },
                     SystemResult::Error(error) => println!("{id:?}: {error}"),
+                    SystemResult::Conditional(_bool) => {
+                        // match bool {
+                        //     true => {
+                        //         todo!()
+                        //     },
+                        //     false => {
+                        //         todo!()
+                        //     }
+                        // }
+                    }
                 }
             }
         })        

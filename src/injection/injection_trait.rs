@@ -15,11 +15,11 @@ pub trait Injection {
 
     fn resolve_accesses(access_map: &mut AccessMap, source: Option<&Source>, resource_id: Option<ResourceId>);
     
-    fn create_and_resolve_access_map(source: Option<&Source>, resource_id: Option<ResourceId>) -> AccessMap {
-        let mut access_map = Self::create_access_map();
-        Self::resolve_accesses(&mut access_map, source, resource_id);
-        access_map
-    }
+    // fn create_and_resolve_access_map(source: Option<&Source>, resource_id: Option<ResourceId>) -> AccessMap {
+    //     let mut access_map = Self::create_access_map();
+    //     Self::resolve_accesses(&mut access_map, source, resource_id);
+    //     access_map
+    // }
 
     fn failed_message() -> String;
     

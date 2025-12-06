@@ -1,3 +1,8 @@
 go through all current tests for all cases! and edge cases
 
 split Injection accesses for "reservation" (for optional). Cant do because reservation requires success to be ok. Oh well
+
+// do i need to?
+remake waker to:
+wake thread to repoll
+otherwise if there is no work yield the thread?

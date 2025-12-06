@@ -53,6 +53,33 @@ async fn async_bar(/*mut bar: Unique<i32>, world: Unique<World>/*, data: Executa
         tokio::time::sleep(Duration::from_millis(10)).await;
         tokio::time::sleep(Duration::from_millis(1)).await;
     }
+
+    let handle = tokio::task::spawn(async {
+        tokio::task::yield_now().await;
+        tokio::time::sleep(Duration::from_millis(1)).await;
+        7u8
+    });
+
+    assert_eq!(match handle.await {
+        Ok(7) => "spawn-ok",
+        Ok(_) => "spawn-weird",
+        Err(_) => "spawn-panicked-or-cancelled"
+    }, "spawn-ok");
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<u8>();
+
+    tokio::spawn(async move {
+        tx.send(10).ok();
+    });
+
+    let val = rx.await.unwrap();
+
+    assert_eq!(if val == 10 {
+        "ok"
+    } else {
+        "wrong"
+    }, "ok");
+
     println!("Before Dummy Bar");
     dummy().await;
     println!("After Dummy Bar");

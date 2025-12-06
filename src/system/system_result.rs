@@ -10,5 +10,6 @@ pub enum SystemEvent {
 #[derive(Debug)]
 pub enum SystemResult {
     Events(Vec<SystemEvent>),
-    Error(anyhow::Error)
+    Error(anyhow::Error),
+    Conditional(bool)
 }

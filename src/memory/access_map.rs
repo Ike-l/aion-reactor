@@ -40,4 +40,10 @@ impl AccessMap {
             Self::Heap(access_map) => access_map.ok_accesses(memory_domain, source)
         }
     }
+
+    pub fn is_read_only(&self) -> bool {
+        match self {
+            Self::Heap(access_map) => access_map.is_read_only()
+        }
+    }
 }

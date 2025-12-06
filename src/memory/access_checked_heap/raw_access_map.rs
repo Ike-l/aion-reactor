@@ -12,6 +12,10 @@ impl From<ReservationAccessMap> for RawAccessMap {
 }
 
 impl RawAccessMap {
+    pub fn is_read_only(&self) -> bool {
+        !self.0.iter().any(|(_, access)| matches!(access, Access::Unique))
+    }
+
     pub fn drain(&mut self) -> impl Iterator<Item = (HeapId, Access)> {
         self.0.drain()
     }
