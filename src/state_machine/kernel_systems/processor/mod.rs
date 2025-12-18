@@ -1,5 +1,7 @@
 use std::{collections::{HashMap, HashSet}, pin::Pin, sync::{Arc, RwLock, atomic::{AtomicUsize, Ordering}}, task::{Context, Poll, Waker}};
 
+use threadpool::ThreadPool;
+
 use crate::{id::Id, injection::injection_primitives::{cloned::Cloned, shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::{StateMachine, kernel_systems::{KernelSystem, blocker_manager::blocker::{CurrentBlockers, NextBlockers}, event_manager::event::{CurrentEvents, Event, NextEvents}, processor::{processor_system_registry::ProcessorSystemRegistry, scheduler::execution_graph::ExecutionGraph, tasks::DummyWaker}}}, system::{System, stored_system::StoredSystem, system_cell::SystemCell, system_metadata::{Source, SystemMetadata, SystemRegistry}, system_result::{SystemEvent, SystemResult}, system_status::SystemStatus}};
 
 pub mod scheduler;
@@ -9,20 +11,31 @@ pub mod processor_system_registry;
 #[derive(Debug)]
 pub struct Processor {
     runtime: Arc<tokio::runtime::Runtime>,
-    threads: usize
+    threads: usize,
+    threadpool: ThreadPool
+}
+
+pub struct Unwinder {
+    results: std::sync::mpsc::Sender<bool>
+}
+
+impl Drop for Unwinder {
+    fn drop(&mut self) {
+        let _ = self.results.send(std::thread::panicking());
+    }
 }
 
 impl Processor {
     pub fn new(threads: usize) -> Self {
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
-            .worker_threads(threads + 1)
             .build()
             .unwrap();
 
         Self {
             runtime: Arc::new(rt),
-            threads
+            threads,
+            threadpool: ThreadPool::new(threads)
         }
     }
 
@@ -115,7 +128,7 @@ impl Processor {
         new_systems.into_iter()
     }
 
-    pub fn execute(&self, execution_graphs: Arc<Vec<RwLock<ExecutionGraph<Id>>>>, memory: &Arc<Memory>, trace: Arc<Trace>) -> Vec<(Id, SystemResult)> {
+    pub async fn execute(&self, execution_graphs: Arc<Vec<RwLock<ExecutionGraph<Id>>>>, memory: &Arc<Memory>, trace: Arc<Trace>) -> Vec<(Id, SystemResult)> {
         let graph_count = execution_graphs.len();
         let finished_graphs = Arc::new(AtomicUsize::new(graph_count));
 
@@ -133,8 +146,8 @@ impl Processor {
         );
 
         let (results_tx, results_rx) = std::sync::mpsc::channel();
+        let (unwinder_tx, unwinder_rx) = std::sync::mpsc::channel();
 
-        let mut join_handles = Vec::new();
         for i in 0..self.threads {
             let start_graph = (i * graph_count) / self.threads;
 
@@ -146,8 +159,12 @@ impl Processor {
             let results = results_tx.clone();
             let finished_graphs = Arc::clone(&finished_graphs);
             let trace = Arc::clone(&trace);
+
+            let unwinder = Unwinder {
+                results: unwinder_tx.clone()
+            };
             
-            let join_handle = std::thread::spawn(move || {
+            self.threadpool.execute(move || {
                 runtime.block_on(async {
                     let waker = Waker::from(Arc::new(DummyWaker));
                     let mut context = Context::from_waker(&waker);
@@ -328,17 +345,19 @@ impl Processor {
                     
                         current_graph_index = (current_graph_index + 1 ) % graph_count;
                     }
+                    drop(unwinder);
                 });
             });
-
-            join_handles.push(join_handle);
         }
         
         drop(results_tx);
         
-        for join_handle in join_handles {
-            join_handle.join().unwrap();
+        for _ in 0..self.threads {
+            let panicked = unwinder_rx.recv().unwrap();
+            assert!(!panicked, "Panicked!")
         }
+
+        self.threadpool.join();
 
         let mut system_mapping = Arc::try_unwrap(system_mapping).unwrap();
         for (id, mut stored_system) in system_map.iter().map(|(id, (resource_id, program_id, key))| {
@@ -421,7 +440,7 @@ impl KernelSystem for Processor {
                 Arc::new(execution_graphs),
                 &memory,
                 Arc::new(trace)
-            );
+            ).await;
 
             let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
             let mut next_blockers = memory.resolve::<Unique<NextBlockers>>(None, None, None, None).unwrap().unwrap();

@@ -36,7 +36,7 @@ async fn dummy() {
 }
 
 async fn async_foo(bar: Cloned<Arc<Mutex<i32>>>/*mut bar: Unique<i32>, world: Unique<World>/*, data: ExecutableBuffer*/*/) -> Option<SystemResult> {
-    // panic!("yurp");
+    panic!("yurp");
     let mut bar = bar.lock().await;
     println!("Bar: {}", bar);
     *bar += 1;
