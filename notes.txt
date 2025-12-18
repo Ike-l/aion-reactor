@@ -10,3 +10,14 @@ otherwise if there is no work yield the thread?
 
 
 link utils as dev dep for testing
+
+
+// After analysis if safe to do
+(dont think it is safe) // should be if same semantics as Unique, but would need another RwLock over the container
+Insert<T> inserts default T
+Take<T> removes T
+
+
+When plugins over StateMachine take String program name
+so multiple of the same plugin can exist in the same state machine over different program memory regions
+-> For any plugin assume it exists in parallel in the same state machine unless asserted otherwise

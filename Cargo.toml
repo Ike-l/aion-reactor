@@ -1,6 +1,6 @@
 [package]
 name = "aion-reactor"
-version = "0.1.2"
+version = "0.1.2+1"
 edition = "2024"
 license = "MIT"
 description = "Simple State Machine"
@@ -13,7 +13,6 @@ small_iter_fields = "0.1.8"
 
 parking_lot = "0.12.5"
 tokio = { version = "1.45.1", features = ["rt", "rt-multi-thread", "sync", "time"] }
-threadpool = "1.8.1"
 
 proptest = "1.7.0"
 

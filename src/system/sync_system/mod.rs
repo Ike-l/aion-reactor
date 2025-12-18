@@ -105,7 +105,7 @@ macro_rules! impl_sync_system {
                     let result = other_memory.reserve_current_accesses::<$params>(program_id, None, source.clone(), key); 
                     // check if all reservations work and if any fail then return the error
                     // println!("Result: {:?}", result);
-                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    // std::thread::sleep(std::time::Duration::from_secs(1));  THIS FLIPPING SLEEP COST ME 2 HOURS ;-;
                     match result {
                         None => return None,
                         Some(Err(err)) => return Some(Err(err)),

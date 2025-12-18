@@ -36,6 +36,7 @@ async fn dummy() {
 }
 
 async fn async_foo(bar: Cloned<Arc<Mutex<i32>>>/*mut bar: Unique<i32>, world: Unique<World>/*, data: ExecutableBuffer*/*/) -> Option<SystemResult> {
+    // panic!("yurp");
     let mut bar = bar.lock().await;
     println!("Bar: {}", bar);
     *bar += 1;
@@ -44,7 +45,6 @@ async fn async_foo(bar: Cloned<Arc<Mutex<i32>>>/*mut bar: Unique<i32>, world: Un
     println!("After Dummy Foo");
     None
     // std::thread::sleep(Duration::from_secs(1));
-    // panic!("yurp")
 }
 
 
@@ -141,9 +141,9 @@ fn sync_system() {
         assert!(state_machine.insert(program_id.as_ref(), None, program_key.as_ref(), 0 as i32).unwrap().is_ok());
     }
 
-    let _r = pollster::block_on(state_machine.transition());
-    let _r = pollster::block_on(state_machine.transition());
-    let _r = pollster::block_on(state_machine.transition());
+    let _r = state_machine.transition();
+    let _r = state_machine.transition();
+    let _r = state_machine.transition();
 }
 
 #[test]
@@ -184,7 +184,7 @@ fn foobar() {
         assert!(state_machine.insert(program_id.as_ref(), None, program_key.as_ref(), 0 as i32).unwrap().is_ok());
     }
 
-    let _r = pollster::block_on(state_machine.transition());
+    let _r = state_machine.transition();
 
     {
         let mut executable_registry = state_machine.resolve::<Unique<ExecutableRegistry>>(None, None, None, None).unwrap().unwrap();
@@ -199,7 +199,7 @@ fn foobar() {
         executable_queue.0.push((executable_label, ExecutableMessage::ECS(EntityId::new(current_entity))));
     }   
     
-    let _r = pollster::block_on(state_machine.transition());
+    let _r = state_machine.transition();
 
     {
         let executable_label = "fooExec".to_string();
@@ -207,13 +207,13 @@ fn foobar() {
         executable_queue.0.push((executable_label, ExecutableMessage::ECS(EntityId::new(current_entity))));
     }
 
-    let _r = pollster::block_on(state_machine.transition());
+    let _r = state_machine.transition();
 }
 
 #[test]
 fn async_system() {
     let state_machine = StateMachine::new();
-    state_machine.load_default(16);
+    state_machine.load_default(3);
 
     {
         let program_id = None;
@@ -262,8 +262,7 @@ fn async_system() {
         assert!(state_machine.insert(program_id.as_ref(), Some(resource_id), program_key.as_ref(), stored_system).unwrap().is_ok());
     }
 
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    runtime.block_on(state_machine.transition());
-    runtime.block_on(state_machine.transition());
-    runtime.block_on(state_machine.transition());
+    state_machine.transition();
+    state_machine.transition();
+    state_machine.transition();
 }

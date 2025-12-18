@@ -36,7 +36,7 @@ impl StateMachine {
         }
     }
 
-    pub fn load_kernel_system<T: KernelSystem + 'static>(&self, mut kernel_system: T, index: usize) {
+    fn load_kernel_system<T: KernelSystem + 'static>(&self, mut kernel_system: T, index: usize) {
         let resource_id = kernel_system.init(&self.state);
         
         let mut kernel_system_registry = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
@@ -94,12 +94,13 @@ impl StateMachine {
         self.state.insert_program(program_id, memory_domain, key)
     }
 
-    pub async fn transition(&self) {
+    // could make it async but then Processor run time weird stuff so idk
+    pub fn transition(&self) {
         let mut kernel_systems = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
         for kernel_systems in kernel_systems.iter() {
             for kernel_system in kernel_systems {
                 let mut kernel_system = self.state.resolve::<Unique<StoredKernelSystem>>(Some(&self.program_id), Some(&kernel_system), None, Some(&self.kernel_key)).unwrap().unwrap();
-                kernel_system.tick(&self.state).await;
+                pollster::block_on(kernel_system.tick(&self.state));
             }
         }
     }

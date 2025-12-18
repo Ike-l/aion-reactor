@@ -33,6 +33,10 @@ impl<T: 'static> Cloned<T> {
             dropper
         }
     }
+
+    pub fn take(self) -> T {
+        self.value
+    }
 }
 
 impl<T> AccessDropper for Cloned<T> {
