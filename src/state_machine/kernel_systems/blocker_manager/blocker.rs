@@ -21,8 +21,8 @@ impl Blocker {
 pub struct NextBlockers(HashSet<Blocker>);
 
 impl NextBlockers {
-    pub fn insert<T: Into<Blocker>>(&mut self, blocker: T) -> bool {
-        self.0.insert(blocker.into())
+    pub fn insert(&mut self, blocker: Blocker) -> bool {
+        self.0.insert(blocker)
     }
 
     pub fn remove(&mut self, blocker: &Blocker) -> bool {
@@ -44,7 +44,7 @@ impl CurrentBlockers {
         self.0.iter()
     }
 
-    pub fn blocks<T: Into<Blocker>>(&self, id: T) -> bool {
-        self.0.contains(&id.into())
+    pub fn blocks(&self, id: Blocker) -> bool {
+        self.0.contains(&id)
     }
 }

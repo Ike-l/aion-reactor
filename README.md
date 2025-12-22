@@ -67,3 +67,5 @@ MemoryDomain injection parameter
 fix kernel systems to better elogance and move load default into Default implementation 
 
 schedule executable manager before DelayManager
+
+change everywhere where i insert resources to take a resource/resolver builder? (so can inject where to get/insert resources)

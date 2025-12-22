@@ -20,6 +20,16 @@ pub struct SchedulerOrdering {
 }
 
 impl SchedulerOrdering {
+    pub fn consume(&mut self, other: Self) {
+        self.before.extend(other.before);
+        self.after.extend(other.after);
+        self.set_priority(other.priority);
+    }
+
+    pub fn set_priority(&mut self, new_priority: f64) {
+        self.priority = new_priority;
+    }
+
     pub fn insert_before(mut self, system_id: Id) -> Self {
         self.before.insert(system_id);
         self

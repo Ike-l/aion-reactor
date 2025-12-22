@@ -2,7 +2,7 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::{cloned::Cloned, shared::Shared, unique::Unique}, injection_trait::Injection}, kernel_prelude::KernelSystem, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::kernel_systems::{event_manager::event::{Event, NextEvents}, processor::Processor}, system::{System, stored_system::StoredSystem, sync_system::SyncSystem, system_cell::SystemCell, system_metadata::{Source, SystemRegistry}, system_result::SystemResult}};
+use crate::{id::Id, injection::{injection_primitives::{cloned::Cloned, shared::Shared, unique::Unique}, injection_trait::Injection}, kernel_prelude::KernelSystem, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::{StateMachine, kernel_systems::{event_manager::event::{Event, NextEvents}, processor::Processor}}, system::{System, stored_system::StoredSystem, sync_system::SyncSystem, system_cell::SystemCell, system_metadata::{Source, SystemMetadata, SystemRegistry}, system_result::SystemResult}};
 
 pub struct ReadOnlyProcessor {
     threadpool: ThreadPool
@@ -13,6 +13,11 @@ impl ReadOnlyProcessor {
         Self {
             threadpool: ThreadPool::new(num_threads)
         }
+    }
+
+    pub fn insert_system(state_machine: &StateMachine, system_id: Id, system_metadata: SystemMetadata, stored_system: StoredSystem) -> Option<Option<SystemMetadata>> {
+        let mut system_registry = state_machine.state.resolve::<Unique<ReadOnlySystemRegistry>>(None, None, None, None)?.ok()?;
+        Processor::insert_system2(state_machine, &mut system_registry.0, system_id, system_metadata, stored_system)
     }
 
     pub async fn execute(&self, systems: Vec<Id>, memory: &Arc<Memory>) -> Vec<(Id, SystemResult)> {

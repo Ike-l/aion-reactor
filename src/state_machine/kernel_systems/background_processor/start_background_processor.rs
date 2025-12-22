@@ -19,9 +19,9 @@ impl StartBackgroundProcessor {
         }
     }
 
-    pub fn insert_system(state_machine: &StateMachine, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
-        let mut system_registry = state_machine.state.resolve::<Unique<BackgroundProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();
-        Processor::insert_system(state_machine, &mut system_registry.0, id, system_metadata, system)
+    pub fn insert_system(state_machine: &StateMachine, system_id: Id, system_metadata: SystemMetadata, stored_system: StoredSystem) -> Option<Option<SystemMetadata>> {
+        let mut system_registry = state_machine.state.resolve::<Unique<BackgroundProcessorSystemRegistry>>(None, None, None, None)?.ok()?;
+        Processor::insert_system2(state_machine, &mut system_registry.0, system_id, system_metadata, stored_system)
     }
 }
 
@@ -46,7 +46,8 @@ impl KernelSystem for StartBackgroundProcessor {
     
                 let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(resource_id), None, None).unwrap().unwrap();
                 match system.reserve_accesses(&memory, program_id.as_ref(), Source(id.clone()), key.as_ref()) {
-                    Some(Ok(())) => false,
+                    Ok(Some(Ok(()))) => false,
+                    Err(_) => unreachable!(),
                     _ => true
                 }
                 }) {

@@ -116,6 +116,13 @@ impl Memory {
         Some(map.resolve::<T>(resource_id, source))
     }
 
+    /// None: No Program Found
+    /// 
+    /// Some/Err: InsertError
+    /// 
+    /// Some/Ok/None: No ResourceId/Resource Existed
+    /// 
+    /// Some/Ok/Some: Some ResourceId/Resource Existed
     pub fn insert<T: 'static>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, key: Option<&Key>, resource: T) -> Option<Result<Option<Resource>, InsertError>> {
         let resource: Box<dyn Any> = Box::new(resource);
 

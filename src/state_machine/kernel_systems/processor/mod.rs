@@ -39,17 +39,19 @@ impl Processor {
         }
     }
 
-    pub fn insert_system2(state_machine: &StateMachine, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
-        let mut system_registry = state_machine.state.resolve::<Unique<ProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();
-        Self::insert_system(state_machine, &mut system_registry.0, id, system_metadata, system)
+    pub fn insert_system(state_machine: &StateMachine, system_id: Id, system_metadata: SystemMetadata, stored_system: StoredSystem) -> Option<Option<SystemMetadata>> {
+        let mut system_registry = state_machine.state.resolve::<Unique<ProcessorSystemRegistry>>(None, None, None, None)?.ok()?;
+        Self::insert_system2(state_machine, &mut system_registry.0, system_id, system_metadata, stored_system)
     }
 
 
-    pub fn insert_system(state_machine: &StateMachine, system_registry: &mut SystemRegistry, id: Id, system_metadata: SystemMetadata, system: StoredSystem) -> Option<SystemMetadata> {
+    pub fn insert_system2(state_machine: &StateMachine, system_registry: &mut SystemRegistry, system_id: Id, system_metadata: SystemMetadata, stored_system: StoredSystem) -> Option<Option<SystemMetadata>> {
         let resource_id = system_metadata.resource_id();
-        state_machine.state.insert(None, Some(resource_id.clone()), None, system);
+        if !matches!(state_machine.state.insert(None, Some(resource_id.clone()), None, stored_system), Some(Ok(_))) {
+            return None;
+        }
 
-        system_registry.insert(id, system_metadata)
+        Some(system_registry.insert(system_id, system_metadata))
     }
 
     // `Id` == `Source` 👍😁
@@ -61,7 +63,7 @@ impl Processor {
     
         system_registry.read()
             // .inspect(|(id, _)| println!("id: {id:?}") )
-            .filter(|&(id, _)| !current_blockers.blocks(id.clone()))
+            .filter(|&(id, _)| !current_blockers.blocks(id.clone().into()))
             // .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|(_, system_metadata)| system_metadata.test(&events))
             // .inspect(|(id, _)| println!("id: {id:?}") )
@@ -70,7 +72,8 @@ impl Processor {
                 let program_id = system_metadata.program_id();
                 let key = system_metadata.key();
                 let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None, None).unwrap().unwrap();
-                system.ok_resources(&memory, program_id.as_ref(), Some(&Source((*id).clone())), key.as_ref()).is_some_and(|t| t)
+                system.ok_resources(&memory, program_id.as_ref(), Some(&Source((*id).clone())), key.as_ref())
+                    .is_ok_and(|t| t.is_some_and(|t| t))
             })
             // .inspect(|(id, _)| println!("id: {id:?}") )
             .filter(|(id, system_metadata)| {
@@ -78,7 +81,8 @@ impl Processor {
                 let program_id = system_metadata.program_id();
                 let key = system_metadata.key();
                 let system = memory.resolve::<Shared<StoredSystem>>(program_id.as_ref(), Some(&resource_id), None, None).unwrap().unwrap();
-                system.ok_accesses(&memory, program_id.as_ref(), Some(&Source((*id).clone())), key.as_ref()).is_some_and(|t| t)
+                system.ok_accesses(&memory, program_id.as_ref(), Some(&Source((*id).clone())), key.as_ref())
+                    .is_ok_and(|t| t.is_some_and(|t| t))
             })
             // .inspect(|(id, _)| println!("id: {id:?}") )
             .collect()

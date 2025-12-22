@@ -47,6 +47,14 @@ impl SystemMetadata {
     pub fn ordering(&self) -> &SchedulerOrdering {
         &self.ordering
     }
+
+    pub fn insert_ordering(&mut self, ordering: SchedulerOrdering) {
+        self.ordering.consume(ordering);
+    }
+
+    pub fn replace_criteria(&mut self, criteria: Criteria) {
+        self.criteria = criteria;
+    }
 }
 
 #[derive(Debug, Default)]

@@ -1,9 +1,23 @@
 use std::collections::HashMap;
 
 pub use crate::kernel_prelude::*;
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::access_checked_heap::heap::HeapId, state_machine::kernel_systems::event_manager::event::{CurrentEvents, Event}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::access_checked_heap::heap::HeapId, state_machine::{StateMachine, kernel_systems::event_manager::event::{CurrentEvents, Event}}};
 
 pub struct ExecutableManager;
+
+impl ExecutableManager {
+    pub fn insert_executable(state_machine: &StateMachine, executable_name: &str, trigger_event: Event) -> String {
+        let mut executable_registry = state_machine.resolve::<Unique<ExecutableRegistry>>(None, None, None, None).unwrap().unwrap();
+        let executable_label = format!("{executable_name}-Executable");
+        executable_registry.insert(executable_label.clone(), Executable::new(executable_label.clone(), trigger_event));
+        executable_label
+    }
+
+    pub fn queue_executable(state_machine: &StateMachine, executable_label: String, executable_message: ExecutableMessage) {
+        let mut executable_queue = state_machine.resolve::<Unique<ExecutableQueue>>(None, None, None, None).unwrap().unwrap();
+        executable_queue.0.push((executable_label, executable_message));
+    }
+}
 
 // String is what is first mapped
 pub struct ExecutableRegistry {
@@ -81,6 +95,7 @@ impl EntityId {
 }
 
 #[cfg(feature = "ecs")]
+#[derive(Default)]
 pub struct World(pub hecs::World);
 
 // Label (which process handler), From resource, To resource
