@@ -1,26 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{
-    id::Id, 
-    injection::injection_primitives::{
-        shared::Shared, unique::Unique
-    }, 
-    memory::{
-        Memory, ResourceId, access_checked_heap::heap::HeapId, program_memory_map::inner_program_memory_map::Key
-    }, 
-    state_machine::{
-        StateMachine, 
-        kernel_systems::{
-            KernelSystem, background_processor::prelude::*, processor::Processor
-        }, 
-    }, 
-    system::{
-        System, stored_system::StoredSystem, 
-        system_metadata::{
-            Source, SystemMetadata
-        }
-    }
-};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId, program_memory_map::inner_program_memory_map::Key}, state_machine::{StateMachine, kernel_systems::{KernelSystem, background_processor::prelude::*, processor::Processor}, }, system::{System, stored_system::StoredSystem, system_metadata::{Source, SystemMetadata}}};
 
 pub struct StartBackgroundProcessor {
     program_id: Id,
@@ -29,14 +9,12 @@ pub struct StartBackgroundProcessor {
 
 impl StartBackgroundProcessor {
     pub fn create_from(finish_background_processor: &FinishBackgroundProcessor) -> Option<Self> {
-        finish_background_processor.create_starter()
-    }
-
-    pub fn new(program_id: Id, key: Key) -> Self {
-        Self {
-            program_id,
-            key
-        }
+        let program_id = finish_background_processor.program_id().as_ref()?.clone();
+        let key = finish_background_processor.key().as_ref()?.clone();
+        
+        Some(Self {
+            program_id, key
+        })
     }
 
     pub fn insert_system(state_machine: &StateMachine, system_id: Id, system_metadata: SystemMetadata, stored_system: StoredSystem) -> Option<Option<SystemMetadata>> {
@@ -47,6 +25,8 @@ impl StartBackgroundProcessor {
 
 impl KernelSystem for StartBackgroundProcessor {
     fn init(&mut self, memory: &Memory) -> ResourceId {
+        todo!("Assert SyncJoinHandles");
+        todo!("Assert AsyncJoinHandles");
         assert!(memory.insert(None, None, None, BackgroundProcessorSystemRegistry::default()).unwrap().is_ok());
 
         ResourceId::Heap(HeapId::Label(Id("KernelStartBackgroundProcessor".to_string())))

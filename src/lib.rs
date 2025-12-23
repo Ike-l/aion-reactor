@@ -3,12 +3,13 @@ pub mod id;
 pub mod memory;
 pub mod system;
 pub mod injection;
+pub mod ecs;
 
-pub mod kernel_prelude {
-    pub use std::{pin::Pin, sync::Arc};
+// pub mod kernel_prelude {
+//     pub use std::{pin::Pin, sync::Arc};
 
-    pub use crate::{memory::{Memory, ResourceId}, state_machine::kernel_systems::KernelSystem};
-}
+//     pub use crate::{memory::{Memory, ResourceId}, state_machine::kernel_systems::KernelSystem};
+// }
 
 
 // #[cfg(test)]

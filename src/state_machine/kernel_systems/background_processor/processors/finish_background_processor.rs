@@ -1,7 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::prelude::*, event_manager::prelude::NextEvents, KernelSystem}}, system::stored_system::StoredSystem
-};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, Memory, ResourceId}, state_machine::{kernel_systems::{background_processor::prelude::*, event_manager::prelude::NextEvents, KernelSystem}}, system::stored_system::StoredSystem};
 
 #[derive(Default)]
 pub struct FinishBackgroundProcessor {
@@ -10,13 +9,20 @@ pub struct FinishBackgroundProcessor {
 }
 
 impl FinishBackgroundProcessor {
-    pub fn create_starter(&self) -> Option<StartBackgroundProcessor> {
-        Some(StartBackgroundProcessor::new(self.program_id.as_ref()?.clone(), self.key.as_ref()?.clone()))
+    pub fn program_id(&self) -> &Option<Id> {
+        &self.program_id
+    }
+
+    pub fn key(&self) -> &Option<Key> {
+        &self.key
     }
 }
 
 impl KernelSystem for FinishBackgroundProcessor {
     fn init(&mut self, memory: &Memory) -> ResourceId {
+        todo!("Assert NextEvents");
+        todo!("Assert BackgroundProcessorSystemRegistry");
+
         let program_id = Id("_FinishBackgroundProcessor".to_string());
         
         let key = Some(rand::random());
