@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use crate::id::Id;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
@@ -14,37 +12,5 @@ impl From<Id> for Blocker {
 impl Blocker {
     pub fn id(&self) -> &Id {
         &self.0
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct NextBlockers(HashSet<Blocker>);
-
-impl NextBlockers {
-    pub fn insert(&mut self, blocker: Blocker) -> bool {
-        self.0.insert(blocker)
-    }
-
-    pub fn remove(&mut self, blocker: &Blocker) -> bool {
-        self.0.remove(blocker)
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct CurrentBlockers(HashSet<Blocker>);
-
-impl CurrentBlockers {
-    pub fn tick(&mut self, new_blockers: &mut NextBlockers) {
-        self.0.clear();
-
-        self.0.extend(new_blockers.0.drain());
-    }
-
-    pub fn read(&self) -> impl Iterator<Item = &Blocker> {
-        self.0.iter()
-    }
-
-    pub fn blocks(&self, id: Blocker) -> bool {
-        self.0.contains(&id)
     }
 }

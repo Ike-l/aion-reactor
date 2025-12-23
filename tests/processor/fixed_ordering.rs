@@ -1,5 +1,5 @@
 use aion_reactor::{injection::injection_primitives::{shared::Shared, unique::Unique}, state_machine::{StateMachine, kernel_systems::processor::scheduler::ordering::SchedulerOrdering}, system::{System, system_metadata::criteria::Criteria, system_result::SystemResult}};
-use aion_utilities::inserts::{resolver::ResolverBuilder, resources::ResourceBuilder, systems::SystemBuilder};
+use aion_utilities::builders::{resolver::ResolverBuilder, resources::ResourceBuilder, systems::SystemBuilder};
 
 fn foo(mut number: Unique<i32>) -> Option<SystemResult> {
     assert_eq!(**number, 0);

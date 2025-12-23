@@ -1,51 +1,28 @@
-use std::{pin::Pin, sync::Arc};
+pub mod delay_registry;
+pub mod delay_buffer;
+pub mod delay;
+pub mod delay_manager;
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::{kernel_systems::{KernelSystem, event_manager::event::{CurrentEvents, Event}}, }};
+// Regular use-case:
+// RegisteredDelay { activated_by: Start, then_inserts: End, delayed_by: During }
+// Have Event `Start` sent Once
+// Have Event `During` sent Continuously 
+// When `During` finishes, insert `End`
 
-pub struct DelayManager;
+// Edge use-cases:
+// If no `During` or `delayed_by` is none: Acts as Map(`Start` -> `End`)
+// If `activated_by` == `delayed_by`: If Start only once then: Acts as Wait(1), Map(`Start` -> `End`)
+// If `activated_by` == `then_inserts`: Acts as continuous chain. `delayed_by` breaks the chain
+// If `then_inserts` == `delayed_by`: Can be used to prevent 2 `then_inserts` in a row, if there are 2 `activated_by`
 
-// From | Into | Delaying
-pub struct DelayRegistry(pub Vec<(Event, Event, Option<Event>)>);
-
-// Into | Delaying
-pub struct DelayBuffer(pub Vec<(Event, Option<Event>)>);
-
-impl KernelSystem for DelayManager {
-    fn init(&mut self, memory: &Memory) -> ResourceId {
-        assert!(memory.insert(None, None, None, DelayRegistry(Vec::new())).unwrap().is_ok());
-        assert!(memory.insert(None, None, None, DelayBuffer(Vec::new())).unwrap().is_ok());
-
-        ResourceId::Heap(HeapId::Label(Id("KernelDelayManager".to_string())))
-    }
-
-    fn tick(&mut self, memory: &Arc<Memory>) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
-        let memory = Arc::clone(&memory);
-        Box::pin(async move {
-            let mut next_buffer = DelayBuffer(Vec::new());
-
-            let mut buffer = memory.resolve::<Unique<DelayBuffer>>(None, None, None, None).unwrap().unwrap();
-            let registry = memory.resolve::<Shared<DelayRegistry>>(None, None, None, None).unwrap().unwrap();
-            let mut current_events = memory.resolve::<Unique<CurrentEvents>>(None, None, None, None).unwrap().unwrap();
-
-            // load buffer with registry that "could" be activated
-            for (from, into, delay) in registry.0.iter() {
-                if current_events.contains(from) {
-                    buffer.0.push((into.clone(), delay.clone()));
-                }
-            }
-
-            let new_delays = buffer.0.iter().filter_map(|(_, delay)| Some(delay.clone()?) ).collect::<Vec<_>>();
-
-            // if delayed then queue for next time else put in current event
-            for (into, delay) in buffer.0.drain(..) {
-                if new_delays.contains(&into) {
-                    next_buffer.0.push((into, delay));
-                } else {
-                    current_events.insert(into);
-                }
-            }
-
-            buffer.0.extend(next_buffer.0);
-        })
-    }
+pub mod prelude {
+    pub use super::{
+        delay_registry::DelayRegistry,
+        delay_buffer::DelayBuffer,
+        delay_manager::DelayManager,
+        delay::{
+            Delay, 
+            registered_delay::RegisteredDelay
+        }
+    };
 }
