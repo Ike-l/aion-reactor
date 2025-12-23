@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::state_machine::kernel_systems::{delay_manager::{delay::Delay, delay_registry::DelayRegistry}, event_manager::event::{CurrentEvents, Event}};
+use crate::state_machine::kernel_systems::{delay_manager::{delay::Delay, delay_registry::DelayRegistry}, event_manager::prelude::{CurrentEvents, Event}};
 
 #[derive(Default)]
 pub struct DelayBuffer(Vec<Delay>);

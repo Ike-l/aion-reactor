@@ -1,4 +1,4 @@
-use crate::state_machine::kernel_systems::{delay_manager::delay::{Delay, registered_delay::RegisteredDelay}, event_manager::event::CurrentEvents};
+use crate::state_machine::kernel_systems::{delay_manager::delay::{Delay, registered_delay::RegisteredDelay}, event_manager::prelude::CurrentEvents};
 
 #[derive(Default)]
 pub struct DelayRegistry(Vec<RegisteredDelay>);

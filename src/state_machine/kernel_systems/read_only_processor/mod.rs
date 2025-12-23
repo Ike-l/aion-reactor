@@ -2,7 +2,7 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 use threadpool::ThreadPool;
 
-use crate::{id::Id, injection::{injection_primitives::{cloned::Cloned, shared::Shared, unique::Unique}, injection_trait::Injection}, kernel_prelude::KernelSystem, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::{StateMachine, kernel_systems::{event_manager::event::{Event, NextEvents}, processor::Processor}}, system::{System, stored_system::StoredSystem, sync_system::SyncSystem, system_cell::SystemCell, system_metadata::{Source, SystemMetadata, SystemRegistry}, system_result::SystemResult}};
+use crate::{id::Id, injection::{injection_primitives::{cloned::Cloned, shared::Shared, unique::Unique}, injection_trait::Injection}, kernel_prelude::KernelSystem, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::{StateMachine, kernel_systems::{event_manager::prelude::{Event, NextEvents}, processor::Processor}}, system::{System, stored_system::StoredSystem, sync_system::SyncSystem, system_cell::SystemCell, system_metadata::{Source, SystemMetadata, SystemRegistry}, system_result::SystemResult}};
 
 pub struct ReadOnlyProcessor {
     threadpool: ThreadPool

@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::kernel_systems::{KernelSystem, delay_manager::{delay_buffer::DelayBuffer, delay_registry::DelayRegistry}, event_manager::event::CurrentEvents}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::kernel_systems::{KernelSystem, delay_manager::{delay_buffer::DelayBuffer, delay_registry::DelayRegistry}, event_manager::prelude::CurrentEvents}};
 
 pub struct DelayManager;
 

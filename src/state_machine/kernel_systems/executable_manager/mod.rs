@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 pub use crate::kernel_prelude::*;
-use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::access_checked_heap::heap::HeapId, state_machine::{StateMachine, kernel_systems::event_manager::event::{CurrentEvents, Event}}};
+use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::access_checked_heap::heap::HeapId, state_machine::{StateMachine, kernel_systems::event_manager::prelude::{CurrentEvents, Event}}};
 
 pub struct ExecutableManager;
 
