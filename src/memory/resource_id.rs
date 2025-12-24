@@ -1,3 +1,5 @@
+use std::any::TypeId;
+
 use crate::memory::access_checked_heap::heap::{HeapId, HeapObject};
 
 pub enum Resource {
@@ -19,6 +21,14 @@ pub enum ResourceId {
     // Stack,
     // #[cfg(feature = "ecs")]
     // ECS(EntityId)
+}
+
+impl ResourceId {
+    pub fn raw_heap<T: 'static>() -> Self {
+        Self::Heap(
+            HeapId::RawType(TypeId::of::<T>())
+        )
+    }
 }
 
 impl From<HeapId> for ResourceId {

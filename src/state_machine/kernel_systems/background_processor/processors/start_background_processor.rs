@@ -25,8 +25,9 @@ impl StartBackgroundProcessor {
 
 impl KernelSystem for StartBackgroundProcessor {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        todo!("Assert SyncJoinHandles");
-        todo!("Assert AsyncJoinHandles");
+        matches!(memory.contains_resource(None, &ResourceId::raw_heap::<AsyncJoinHandles>(), None), Some(true));
+        matches!(memory.contains_resource(None, &ResourceId::raw_heap::<SyncJoinHandles>(), None), Some(true));
+        
         assert!(memory.insert(None, None, None, BackgroundProcessorSystemRegistry::default()).unwrap().is_ok());
 
         ResourceId::Heap(HeapId::Label(Id("KernelStartBackgroundProcessor".to_string())))

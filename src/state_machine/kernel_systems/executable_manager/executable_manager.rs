@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{ecs::{entity::EntityId, world::World}, id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::{StateMachine, kernel_systems::{KernelSystem, event_manager::{event::Event, prelude::CurrentEvents}, executable_manager::{components::{ExecutableDataComponent, ExecutableLabelComponent}, executable::Executable, executable_buffer::{BufferedExecutable, ExecutableBuffer}, executable_message::ExecutableMessage, executable_queue::{ExecutableQueue, QueuedExecutable}, executable_registry::ExecutableRegistry}}}};
+use crate::{ecs::{entity::EntityId, world::World}, id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{Memory, ResourceId, access_checked_heap::heap::HeapId}, state_machine::{StateMachine, kernel_systems::{KernelSystem, event_manager::{event::Event, prelude::CurrentEvents}, executable_manager::{executable_label::ExecutableLabel, executable::Executable, executable_buffer::{BufferedExecutable, ExecutableBuffer}, executable_message::ExecutableMessage, executable_queue::{ExecutableQueue, QueuedExecutable}, executable_registry::{ExecutableRegistry, ParseResult}}}}};
 
 pub struct ExecutableManager;
 
@@ -20,8 +20,8 @@ impl ExecutableManager {
 
 impl KernelSystem for ExecutableManager {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        todo!("Assert CurrentEvents");
-        todo!("Assert World");
+        // matches!(memory.contains_resource(None, &ResourceId::raw_heap::<World>(), None), Some(true));
+
         assert!(memory.insert(None, None, None, ExecutableQueue::default()).unwrap().is_ok());
         assert!(memory.insert(None, None, None, ExecutableBuffer::default()).unwrap().is_ok());
         assert!(memory.insert(None, None, None, ExecutableRegistry::default()).unwrap().is_ok());
@@ -39,59 +39,50 @@ impl KernelSystem for ExecutableManager {
             let mut new_executable_queue = ExecutableQueue::default();
             
             for queued_executable in executable_queue.drain() {
-                // give mapping and executable registry (fn on registry)
-
-                // skip 
                 let (executable, remaining) = executable_registry.parse_mapping(&queued_executable.label);
 
-                let executable = match executable {
-                    Ok(executable) => executable,
-                    Err(err) => { 
-                        if err != executable_registry.get_skip() { 
-                            println!("Warn: {err}. Skipping"); 
-                        } 
-
-                        break; 
-                    },
+                match &executable {
+                    Err(ParseResult::NotFound(key)) => println!("Warn: Executable `{key}` Not Found. Skipping"),
+                    _ => ()
                 };
 
-                let event = executable.trigger;
-                current_events.insert(event);
+                let new_source_message = if let Ok(executable) = executable {
+                    let event = executable.trigger;
+                    // NextEvent ? 
+                    current_events.insert(event);
 
-                let new_message = match queued_executable.message {
-                    // if resource id, supply the resource_id of both the origin/source 
-                    // (so requires the resource to downcast to the same type 
-                    // (since i cant create a new resource and the user cant replace the resource))
-                    // maybe later can accept an event which will map the new_message to a different resource_id than the one from before, 
-                    // in those cases, the latter data component will be different
-                    ExecutableMessage::ResourceId(resource_id) => {
-                        let mut buffer = memory.resolve::<Unique<ExecutableBuffer>>(None, None, None, None).unwrap().unwrap();
-                        let new_message = ExecutableMessage::ResourceId(resource_id);
-                        
-                        buffer.push(BufferedExecutable::new(
-                            ExecutableLabelComponent::new(executable.label),
-                            ExecutableDataComponent::new(new_message.clone()),
-                            ExecutableDataComponent::new(new_message.clone())
-                        ));
+                    let label = ExecutableLabel::new(executable.label);
 
-                        new_message
-                    },
-                    ExecutableMessage::ECS(entity_id) => {
-                        let mut buffer = memory.resolve::<Unique<World>>(None, None, None, None).unwrap().unwrap();
-                           
-                        ExecutableMessage::ECS(
-                            EntityId::new_hecs(
-                                buffer.get_mut_hecs().unwrap().spawn((
-                                    ExecutableLabelComponent::new(executable.label), 
-                                    ExecutableDataComponent::new(ExecutableMessage::ECS(entity_id))
-                                ))
-                            )
-                        )
-                    },
+                    let target_message = match &queued_executable.message {
+                        ExecutableMessage::ResourceId(source_id) => {
+                            // TODO use an event to change the resource id
+                            let target_id = source_id.clone();
+                            ExecutableMessage::ResourceId(target_id)
+                        },
+                        ExecutableMessage::ECS(_) => {
+                            let mut world = memory.resolve::<Unique<World>>(None, None, None, None).unwrap().unwrap();
+                            let world = world.get_mut_hecs().expect("hecs::World in World");
+
+                            let target_id = EntityId::new_hecs(world.reserve_entity());
+                            ExecutableMessage::ECS(target_id)
+                        },
+                    };
+
+                    let source = queued_executable.message;
+                    let target = target_message.clone();
+
+                    let mut buffer = memory.resolve::<Unique<ExecutableBuffer>>(None, None, None, None).unwrap().unwrap();
+                    let buffered_executable = BufferedExecutable::new(label, source, target);
+
+                    buffer.push(buffered_executable);
+
+                    target_message
+                } else {
+                    queued_executable.message
                 };
-
+                
                 if let Some(remaining) = remaining {
-                    new_executable_queue.queue(QueuedExecutable::new(remaining.to_string(), new_message));
+                    new_executable_queue.queue(QueuedExecutable::new(remaining.to_string(), new_source_message));
                 }
             }
 

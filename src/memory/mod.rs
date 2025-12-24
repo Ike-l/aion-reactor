@@ -142,4 +142,13 @@ impl Memory {
             )            
         )
     }
+
+    pub fn contains_resource(&self, program_id: Option<&Id>, resource_id: &ResourceId, key: Option<&Key>) -> Option<bool> {
+        let program_id = match program_id {
+            Some(program_id) => program_id,
+            None => &self.global_memory,
+        };
+
+        Some(self.program_memory_map.get(program_id, key)?.ok_resource(resource_id))
+    }
 }

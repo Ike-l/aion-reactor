@@ -6,7 +6,8 @@ pub struct DelayManager;
 
 impl KernelSystem for DelayManager {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        todo!("Assert CurrentEvents");
+        matches!(memory.contains_resource(None, &ResourceId::raw_heap::<CurrentEvents>(), None), Some(true));
+
         assert!(memory.insert(None, None, None, DelayRegistry::default()).unwrap().is_ok());
         assert!(memory.insert(None, None, None, DelayBuffer::default()).unwrap().is_ok());
 

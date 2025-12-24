@@ -20,8 +20,8 @@ impl FinishBackgroundProcessor {
 
 impl KernelSystem for FinishBackgroundProcessor {
     fn init(&mut self, memory: &Memory) -> ResourceId {
-        todo!("Assert NextEvents");
-        todo!("Assert BackgroundProcessorSystemRegistry");
+        matches!(memory.contains_resource(None, &ResourceId::raw_heap::<NextEvents>(), None), Some(true));
+        matches!(memory.contains_resource(None, &ResourceId::raw_heap::<BackgroundProcessorSystemRegistry>(), None), Some(true));
 
         let program_id = Id("_FinishBackgroundProcessor".to_string());
         

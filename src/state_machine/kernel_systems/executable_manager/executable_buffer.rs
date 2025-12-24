@@ -1,13 +1,13 @@
-use crate::state_machine::kernel_systems::executable_manager::components::{ExecutableDataComponent, ExecutableLabelComponent};
+use crate::state_machine::kernel_systems::executable_manager::{executable_label::ExecutableLabel, executable_message::ExecutableMessage};
 
 pub struct BufferedExecutable {
-    pub label: ExecutableLabelComponent,
-    pub source: ExecutableDataComponent,
-    pub target: ExecutableDataComponent
+    pub label: ExecutableLabel,
+    pub source: ExecutableMessage,
+    pub target: ExecutableMessage
 }
 
 impl BufferedExecutable {
-    pub fn new(label: ExecutableLabelComponent, source: ExecutableDataComponent, target: ExecutableDataComponent) -> Self {
+    pub fn new(label: ExecutableLabel, source: ExecutableMessage, target: ExecutableMessage) -> Self {
         Self { label, source, target }
     }
 }
