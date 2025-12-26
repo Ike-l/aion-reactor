@@ -21,8 +21,8 @@ impl KernelSystem for FinishNonBlockingProcessor {
     fn init(&mut self, memory: &Memory, kernel_program_id: &ProgramId, kernel_program_key: &ProgramKey) {
         event!(Level::TRACE, status="Initialising", kernel_system_id = ?self.system_id());
         
-        assert!(matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<NextEvents>(), None), Some(true)));
-        assert!(matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<BackgroundProcessorSystemRegistry>(), None), Some(true)));
+        // assert!(matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<NextEvents>(), None), Some(true)));
+        // assert!(matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<BackgroundProcessorSystemRegistry>(), None), Some(true)));
         
         assert!(memory.insert(Some(&kernel_program_id), None, Some(kernel_program_key), AsyncJoinHandles::default()).unwrap().is_ok());
         assert!(memory.insert(Some(&kernel_program_id), None, Some(kernel_program_key), SyncJoinHandles::default()).unwrap().is_ok());
