@@ -4,13 +4,8 @@ pub mod memory;
 pub mod injection;
 pub mod ecs;
 
-// pub mod kernel_prelude {
-//     pub use std::{pin::Pin, sync::Arc};
-
-//     pub use crate::{memory::{Memory, ResourceId}, state_machine::kernel_systems::KernelSystem};
-// }
 #[allow(unused_imports)]
-pub(crate) mod prelude {
+pub mod prelude {
     pub use super::{
         ecs::{
             entity::EntityId, world::World
@@ -91,11 +86,11 @@ pub(crate) mod prelude {
                     },
                 },
                 processors::{
-                    system_event_registry::SystemEventRegistry,
-                    background_processor::{
+                    system_event_registry::SystemEventRegistry, Processor, tasks::DummyWaker, unwinder::Unwinder,
+                    non_blocking_processor::{
                         processors::{
-                            finish_background_processor::FinishBackgroundProcessor,
-                            start_background_processor::StartBackgroundProcessor
+                            finish_non_blocking_processor::FinishNonBlockingProcessor,
+                            start_non_blocking_processor::StartNonBlockingProcessor
                         },
                         join_handles::{
                             async_join_handles::AsyncJoinHandles,
@@ -115,14 +110,14 @@ pub(crate) mod prelude {
                             StoredSyncSystem, SyncSystem, into_sync_system::IntoSyncSystem   
                         },
                         system_metadata::{
-                            SystemMetadata, SystemRegistry, criteria::Criteria
+                            SystemMetadata, SystemRegistry, criteria::Criteria, stored_system_metadata::StoredSystemMetadata
                         },
                         system_result::{
                             SystemEvent, SystemResult
                         }
                     },
-                    processor::{
-                        Processor, Trace, Unwinder, processor_system_registry::ProcessorSystemRegistry, tasks::DummyWaker,
+                    blocking_processor::{
+                        processor::BlockingProcessor, processor_system_registry::ProcessorSystemRegistry, 
                         scheduler::{
                             execution_graph::ExecutionGraph, node::Node, 
                             ordering::{
@@ -131,74 +126,13 @@ pub(crate) mod prelude {
                         }
                     },
                     read_only_processor::{
-                        ReadOnlyInjection, ReadOnlyProcessor, ReadOnlySystem, ReadOnlySystemRegistry
+                        read_only_system_registry::ReadOnlySystemRegistry, processor::ReadOnlyProcessor,
+                        read_only_system::{
+                            ReadOnlyInjection, ReadOnlySystem
+                        }
                     }
                 }
             }
         }
     };
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use crate::{id::Id, injection::injection_primitives::{shared::Shared, unique::Unique}, memory::{access_checked_heap::heap::HeapId, Memory, ResourceId}};
-
-//     trait SyncSystem {
-//         fn r(&mut self, _memory: &Memory) { println!("Success 1") }
-
-//         fn s(&self, _memory: &Memory) { println!("Success 2") }
-//     }
-    
-//     struct Bar;
-    
-//     impl SyncSystem for Bar {}
-    
-//     #[test]
-//     fn foo() {
-//         let memory = Memory::new();
-//         let heap_label = ResourceId::Heap(HeapId::Label(Id("()".to_string())));
-//         memory.insert(None, Some(heap_label.clone()), Box::new(Bar) as Box<dyn SyncSystem>);
-//         let mut f = memory.resolve::<Unique<Box<dyn SyncSystem>>>(None, Some(&heap_label), None).unwrap().unwrap();
-//         f.r(&memory);
-//     }
-
-//     #[test]
-//     fn bar() {
-//         let memory = Memory::new();
-//         let heap_label = ResourceId::Heap(HeapId::Label(Id("()".to_string())));
-//         memory.insert(None, Some(heap_label.clone()), Box::new(Bar) as Box<dyn SyncSystem>);
-//         let mut f = memory.resolve::<Unique<Box<dyn SyncSystem>>>(None, Some(&heap_label), None).unwrap().unwrap();
-//         f.r(&memory);
-//         drop(f);
-//         let mut f = memory.resolve::<Unique<Box<dyn SyncSystem>>>(None, Some(&heap_label), None).unwrap().unwrap();
-//         f.r(&memory);
-//     }
-
-//     #[test]
-//     fn baz() {
-//         let memory = Memory::new();
-//         let heap_label = ResourceId::Heap(HeapId::Label(Id("()".to_string())));
-//         memory.insert(None, Some(heap_label.clone()), Box::new(Bar) as Box<dyn SyncSystem>);
-//         let f = memory.resolve::<Shared<Box<dyn SyncSystem>>>(None, Some(&heap_label), None).unwrap().unwrap();
-//         f.s(&memory);
-//         let fa = memory.resolve::<Shared<Box<dyn SyncSystem>>>(None, Some(&heap_label), None).unwrap().unwrap();
-//         fa.s(&memory);
-//     }
-
-//     #[test]
-//     #[should_panic]
-//     fn fizz() {
-//         let memory = Memory::new();
-//         let heap_label = ResourceId::Heap(HeapId::Label(Id("()".to_string())));
-
-//         let b = memory.reserve_accesses::<Unique<Box<dyn SyncSystem>>>(None, Some(heap_label.clone()), ResourceId::Heap(HeapId::Label(Id("yuurp".to_string()))));
-//         memory.insert(None, Some(heap_label.clone()), Box::new(Bar) as Box<dyn SyncSystem>);
-
-//         let f = memory.resolve::<Shared<Box<dyn SyncSystem>>>(None, Some(&heap_label), None).unwrap().unwrap();
-//         f.s(&memory);
-
-//         let fa = memory.resolve::<Shared<Box<dyn SyncSystem>>>(None, Some(&heap_label), None).unwrap().unwrap();
-//         fa.s(&memory);
-//     }
-// }
-

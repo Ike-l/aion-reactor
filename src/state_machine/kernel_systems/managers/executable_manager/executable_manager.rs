@@ -1,6 +1,8 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::prelude::{BufferedExecutable, CurrentEvents, EntityId, EventId, Executable, ExecutableBuffer, ExecutableLabel, ExecutableMessage, ExecutableQueue, ExecutableRegistry, KernelSystem, Memory, ParseResult, QueuedExecutable, ResourceId, Shared, StateMachine, Unique, World};
+use tracing::{Level, event};
+
+use crate::prelude::{BufferedExecutable, CurrentEvents, EntityId, EventId, Executable, ExecutableBuffer, ExecutableLabel, ExecutableMessage, ExecutableQueue, ExecutableRegistry, KernelSystem, Memory, ParseResult, ProgramId, ProgramKey, QueuedExecutable, Shared, StateMachine, SystemId, Unique, World};
 
 pub struct ExecutableManager;
 
@@ -19,17 +21,22 @@ impl ExecutableManager {
 }
 
 impl KernelSystem for ExecutableManager {
-    fn init(&mut self, memory: &Memory) -> ResourceId {
-        // matches!(memory.contains_resource(None, &ResourceId::raw_heap::<World>(), None), Some(true));
+    fn system_id(&self) -> SystemId {
+        SystemId::from("Executable Manager")
+    }
 
+    fn init(&mut self, memory: &Memory, _kernel_program_id: &ProgramId, _kernel_program_key: &ProgramKey) {
+        // matches!(memory.contains_resource(None, &ResourceId::raw_heap::<World>(), None), Some(true));
+        event!(Level::TRACE, status="Initialising", kernel_system_id = ?self.system_id());
+        
         assert!(memory.insert(None, None, None, ExecutableQueue::default()).unwrap().is_ok());
         assert!(memory.insert(None, None, None, ExecutableBuffer::default()).unwrap().is_ok());
         assert!(memory.insert(None, None, None, ExecutableRegistry::default()).unwrap().is_ok());
-
-        ResourceId::from_labelled_heap("KernelExecutableManager")
+        
+        event!(Level::TRACE, status="Initialised", kernel_system_id = ?self.system_id());
     }
 
-    fn tick(&mut self, memory: &Arc<Memory>, ) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+    fn tick(&mut self, memory: &Arc<Memory>, _kernel_program_id: ProgramId, _kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
         let memory = Arc::clone(&memory);
 
         Box::pin(async move {

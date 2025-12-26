@@ -25,6 +25,8 @@ pollster = "0.4.0"
 
 hecs = "0.10.5"
 
+tracing = "0.1.44"
+
 [dev-dependencies]
 aion-utilities = { path = "../../aion-utilities"}
 lazy_static = "1.5.0"

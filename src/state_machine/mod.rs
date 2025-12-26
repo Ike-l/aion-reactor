@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use crate::prelude::{BlockerManager, DelayManager, EventManager, ExecutableManager, FinishBackgroundProcessor, Injection, InsertError, KernelSystem, KernelSystemRegistry, ProgramKey, Memory, MemoryDomain, Processor, ProgramId, ReadOnlyProcessor, ResolveError, Resource, ResourceId, StartBackgroundProcessor, StoredKernelSystem, SystemId, Unique};
+use crate::prelude::{BlockerManager, BlockingProcessor, DelayManager, EventManager, ExecutableManager, FinishNonBlockingProcessor, Injection, InsertError, KernelSystem, KernelSystemRegistry, Memory, MemoryDomain, ProgramId, ProgramKey, ReadOnlyProcessor, ResolveError, Resource, ResourceId, StartNonBlockingProcessor, StoredKernelSystem, SystemId, Unique};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
 
 #[derive(Debug)]
 pub struct StateMachine {
-    state: Arc<Memory>,
+    memory: Arc<Memory>,
     program_id: ProgramId,
     kernel_key: ProgramKey,
 }
@@ -30,77 +30,102 @@ impl StateMachine {
         );
 
         Self {
-            state: memory,
+            memory,
             program_id: id,
             kernel_key: key,
         }
     }
 
-    fn load_kernel_system<T: KernelSystem + 'static>(&self, mut kernel_system: T, index: usize) {
-        let resource_id = kernel_system.init(&self.state);
+    fn insert_system<T: KernelSystem + 'static>(
+        &self, 
+        system_id: SystemId,
+        mut kernel_system: T, 
+        ordering_index: usize
+    ) {
+        kernel_system.init(&self.memory, &self.program_id, &self.kernel_key);
+
+        let mut kernel_system_registry = self.memory.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
         
-        let mut kernel_system_registry = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
-        
-        assert!(self.state.insert(Some(&self.program_id), Some(resource_id.clone()), Some(&self.kernel_key), Box::new(kernel_system) as StoredKernelSystem).unwrap().unwrap().is_none());
-        kernel_system_registry.insert(index, resource_id);
+        let resource_id = ResourceId::from_labelled_heap(system_id.into_id());
+
+        assert!(
+            self.memory.insert(
+                Some(&self.program_id), 
+                Some(resource_id.clone()), 
+                Some(&self.kernel_key), 
+                Box::new(kernel_system) as StoredKernelSystem
+            ).unwrap().unwrap().is_none()
+        );
+
+        kernel_system_registry.insert(ordering_index, resource_id);
     }
 
-    const FINISH_BACKGROUND_PROCESSOR_ORDER: usize = 0;
-    const EVENT_MANAGER_ORDER: usize = Self::FINISH_BACKGROUND_PROCESSOR_ORDER + 1;
-    const EXECUTABLE_MANAGER_ORDER: usize = Self::EVENT_MANAGER_ORDER + 1;
-    const DELAY_MANAGER_ORDER: usize = Self::EXECUTABLE_MANAGER_ORDER + 1;
-    const BLOCKER_MANAGER_ORDER: usize = Self::DELAY_MANAGER_ORDER + 1;
-    const PROCESSOR_ORDER: usize = Self::BLOCKER_MANAGER_ORDER + 1;
-    const CONDITIONAL_EVENTS_ORDER: usize = Self::PROCESSOR_ORDER + 1;
-    const START_BACKGROUND_PROCESSOR_ORDER: usize = Self::CONDITIONAL_EVENTS_ORDER + 1;
     pub fn load_default(&self, processor_threads: usize) {
-        // Finish & Start have a special relationship so this first part is for that
-        let mut finish_background_processor = FinishBackgroundProcessor::default();
-        let resource_id = finish_background_processor.init(&self.state);
-        let start_background_processor = StartBackgroundProcessor::create_from(&finish_background_processor).unwrap();
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .unwrap();
 
-        {
-            let mut kernel_system_registry = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
-    
-            assert!(self.state.insert(Some(&self.program_id), Some(resource_id.clone()), Some(&self.kernel_key), Box::new(finish_background_processor) as StoredKernelSystem).unwrap().unwrap().is_none());
-            kernel_system_registry.insert(Self::FINISH_BACKGROUND_PROCESSOR_ORDER, resource_id);
-        }
-        //
+        let threadpool = threadpool::ThreadPool::new(processor_threads);
 
-        self.load_kernel_system(EventManager, Self::EVENT_MANAGER_ORDER);
-        self.load_kernel_system(ExecutableManager, Self::EXECUTABLE_MANAGER_ORDER);
-        self.load_kernel_system(BlockerManager, Self::BLOCKER_MANAGER_ORDER);
-        self.load_kernel_system(DelayManager, Self::DELAY_MANAGER_ORDER);
-        self.load_kernel_system(start_background_processor, Self::START_BACKGROUND_PROCESSOR_ORDER);
+        assert!(self.memory.insert(
+            Some(&self.program_id), 
+            None, 
+            Some(&self.kernel_key), 
+            Arc::new(rt)
+        ).unwrap().is_ok());
 
-        let read_only_processor = ReadOnlyProcessor::new(processor_threads);
-        self.load_kernel_system(read_only_processor, Self::CONDITIONAL_EVENTS_ORDER);
+        assert!(self.memory.insert(
+            Some(&self.program_id), 
+            None, 
+            Some(&self.kernel_key), 
+            threadpool
+        ).unwrap().is_ok());
 
-        // Refactor: Make a separate unit struct for the `KernelSystem` trait and the rest are on a separate struct the unit instantiates in init
-        // So processor can get the processor_threads from memory/state before hand
-        let processor = Processor::new(processor_threads);
-        self.load_kernel_system(processor, Self::PROCESSOR_ORDER);
+        let system_id = FinishNonBlockingProcessor.system_id();
+        self.insert_system(system_id, FinishNonBlockingProcessor, 0);
+
+        let system_id = EventManager.system_id();
+        self.insert_system(system_id, EventManager, 1);
+
+        let system_id = ExecutableManager.system_id();
+        self.insert_system(system_id, ExecutableManager, 2);
+
+        let system_id = DelayManager.system_id();
+        self.insert_system(system_id, DelayManager, 3);
+
+        let system_id = BlockerManager.system_id();
+        self.insert_system(system_id, BlockerManager, 4);
+
+        let system_id = BlockingProcessor.system_id();
+        self.insert_system(system_id, BlockingProcessor, 5);
+
+        let system_id = ReadOnlyProcessor.system_id();
+        self.insert_system(system_id, ReadOnlyProcessor, 6);
+
+        let system_id = StartNonBlockingProcessor.system_id();
+        self.insert_system(system_id, StartNonBlockingProcessor, 7);
     }
 
     pub fn resolve<T: Injection>(&self, program_id: Option<&ProgramId>, resource_id: Option<&ResourceId>, source: Option<&SystemId>, key: Option<&ProgramKey>) -> Option<Result<T::Item<'_>, ResolveError>> {
-        self.state.resolve::<T>(program_id, resource_id, source, key)
+        self.memory.resolve::<T>(program_id, resource_id, source, key)
     }
 
     pub fn insert<T: 'static>(&self, program_id: Option<&ProgramId>, resource_id: Option<ResourceId>, key: Option<&ProgramKey>, resource: T) -> Option<Result<Option<Resource>, InsertError>> {
-        self.state.insert(program_id, resource_id, key, resource)
+        self.memory.insert(program_id, resource_id, key, resource)
     }
 
     pub fn insert_program(&self, program_id: ProgramId, memory_domain: Arc<MemoryDomain>, key: Option<ProgramKey>) -> bool {
-        self.state.insert_program(program_id, memory_domain, key)
+        self.memory.insert_program(program_id, memory_domain, key)
     }
 
     // could make it async but then Processor run time weird stuff so idk
     pub fn transition(&self) {
-        let mut kernel_systems = self.state.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
+        let mut kernel_systems = self.memory.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
         for kernel_systems in kernel_systems.iter() {
             for kernel_system in kernel_systems {
-                let mut kernel_system = self.state.resolve::<Unique<StoredKernelSystem>>(Some(&self.program_id), Some(&kernel_system), None, Some(&self.kernel_key)).unwrap().unwrap();
-                pollster::block_on(kernel_system.tick(&self.state));
+                let mut kernel_system = self.memory.resolve::<Unique<StoredKernelSystem>>(Some(&self.program_id), Some(&kernel_system), None, Some(&self.kernel_key)).unwrap().unwrap();
+                pollster::block_on(kernel_system.tick(&self.memory, self.program_id.clone(), self.kernel_key.clone()));
             }
         }
     }

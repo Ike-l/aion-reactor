@@ -18,6 +18,8 @@ pub trait AsyncSystem: Send + Sync {
     fn ok_resources(&self, memory: &Memory, program_id: Option<&ProgramId>, source: Option<&SystemId>, key: Option<&ProgramKey>) -> Option<bool>;
     fn ok_accesses(&self, memory: &Memory, program_id: Option<&ProgramId>, source: Option<&SystemId>, key: Option<&ProgramKey>) -> Option<bool>;
 
+    fn check_read_only(&self, source: Option<&SystemId>) -> bool;
+
     fn reserve_accesses(&self, memory: &Memory, program_id: Option<&ProgramId>, source: SystemId, key: Option<&ProgramKey>) -> Option<Result<(), ReservationError>>;
 }
 macro_rules! impl_async_system {
@@ -73,6 +75,14 @@ macro_rules! impl_async_system {
                 key: Option<&ProgramKey>
             ) -> Option<bool> {
                 Some(true $(&& memory.ok_accesses::<$params>(program_id, source, None, key)?)*)
+            }
+
+            fn check_read_only(&self, source: Option<&SystemId>) -> bool {
+                true $(&& { 
+                    let mut access_map = $params::create_access_map();
+                    $params::resolve_accesses(&mut access_map, source, None);
+                    access_map.is_read_only()
+                 })*
             }
 
             fn reserve_accesses(

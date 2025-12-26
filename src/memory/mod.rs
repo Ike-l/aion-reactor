@@ -99,6 +99,7 @@ impl Memory {
         }
     }
 
+    /// None: ProgramId failure
     pub fn resolve<T: Injection>(&self, program_id: Option<&ProgramId>, resource_id: Option<&ResourceId>, system_id: Option<&SystemId>, key: Option<&ProgramKey>) -> Option<Result<T::Item<'_>, ResolveError>> {
         let map = match T::select_memory_target() {
             MemoryTarget::Global => self.program_memory_map.get(&self.global_memory, key)?,

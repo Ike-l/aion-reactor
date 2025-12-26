@@ -1,0 +1,110 @@
+use std::{pin::Pin, sync::Arc};
+
+use tracing::{Level, event};
+
+use crate::prelude::{EventId, ExecutionGraph, KernelSystem, Memory, NextBlockers, NextEvents, Processor, ProcessorSystemRegistry, ProgramId, ProgramKey, ResourceId, Shared, StateMachine, StoredSystem, SystemEvent, SystemId, SystemMetadata, SystemResult, Unique};
+
+#[derive(Debug)]
+pub struct BlockingProcessor;
+
+impl BlockingProcessor {
+    pub fn insert_system(state_machine: &StateMachine, system_id: SystemId, system_metadata: SystemMetadata, stored_system: StoredSystem) -> Option<Option<SystemMetadata>> {
+        let mut system_registry = state_machine.memory.resolve::<Unique<ProcessorSystemRegistry>>(None, None, None, None)?.ok()?;
+        Processor::insert_system(state_machine, &mut system_registry.0, system_id, system_metadata, stored_system)
+    }
+}
+
+impl KernelSystem for BlockingProcessor {
+    fn system_id(&self) -> SystemId {
+        SystemId::from("Blocking Processor")
+    }
+
+    fn init(&mut self, memory: &Memory, kernel_program_id: &ProgramId, kernel_program_key: &ProgramKey) {
+        event!(Level::TRACE, status="Initialising", kernel_system_id = ?self.system_id());
+        
+        assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<Arc<tokio::runtime::Runtime>>(), Some(kernel_program_key)), Some(true)));
+        assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<threadpool::ThreadPool>(), Some(kernel_program_key)), Some(true)));
+        
+        assert!(memory.insert(None, None, None, ProcessorSystemRegistry::default()).unwrap().is_ok());
+        
+        event!(Level::TRACE, status="Initialised", kernel_system_id = ?self.system_id());
+    }
+
+    fn tick(&mut self, memory: &Arc<Memory>, kernel_program_id: ProgramId, kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
+        let memory = Arc::clone(&memory);
+        Box::pin(async move {
+            let system_registry = memory.resolve::<Shared<ProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();
+            
+            let systems = Processor::get_systems(self.system_id(), &memory, &system_registry.0);
+            
+            {
+                let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
+                for &id in systems.keys() {
+                    next_events.insert(id.clone().into_id());
+                }
+            }
+    
+            let independent_systems = Processor::divide_independent_by_aliasing(systems);
+    
+            let execution_graphs = independent_systems
+                .map(|systems| {
+                    systems.into_iter().map(|(id, system_metadata)| {
+                        (id, system_metadata.ordering())
+                    }).collect::<Vec<_>>()
+                })
+                .map(|systems| {
+                    std::sync::RwLock::new(ExecutionGraph::new(&systems))
+                })
+                .collect::<Vec<_>>();
+
+            let runtime = memory.resolve::<Shared<Arc<tokio::runtime::Runtime>>>(
+                Some(&kernel_program_id), 
+                None, 
+                None, 
+                Some(&kernel_program_key)
+            ).unwrap().unwrap();
+
+            let threadpool = memory.resolve::<Shared<threadpool::ThreadPool>>(
+                Some(&kernel_program_id), 
+                None, 
+                None, 
+                Some(&kernel_program_key)
+            ).unwrap().unwrap();
+
+            let results = Processor::execute(
+                self.system_id(),
+                &memory,
+                Arc::new(execution_graphs),
+                &system_registry.0,
+                &threadpool,
+                &runtime
+            ).await;
+
+            let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
+            let mut next_blockers = memory.resolve::<Unique<NextBlockers>>(None, None, None, None).unwrap().unwrap();
+
+            for (id, result) in results {
+                match result {
+                    SystemResult::Events(system_events) => {
+                        for system_event in system_events {
+                            match system_event {
+                                SystemEvent::NoEvent => { next_events.remove(&EventId::from(id.clone().into_id())); },
+                                SystemEvent::WithEvent(event) => { next_events.insert(event); },
+                                SystemEvent::WithBlocker(blocker) => { next_blockers.insert(blocker); },
+                            }
+                        }
+                    },
+                    SystemResult::Error(error) => println!("{id:?}: {error}"),
+                    SystemResult::Conditional(bool) => {
+                        match bool {
+                            true => {
+                                // system event mapper
+                            },
+                            false => ()
+                        }
+                    }
+                }
+            }
+        })        
+    }
+}

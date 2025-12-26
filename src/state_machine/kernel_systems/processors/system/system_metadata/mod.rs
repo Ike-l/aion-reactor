@@ -1,24 +1,25 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::prelude::{Criteria, EventId, ProgramKey, ProgramId, ResourceId, SchedulerOrdering, SystemId};
+use crate::{prelude::{Criteria, EventId, Memory, SchedulerOrdering, StoredSystem, SystemCell, SystemId, Unique}, state_machine::kernel_systems::processors::system::system_metadata::stored_system_metadata::StoredSystemMetadata};
 
 pub mod criteria;
+pub mod stored_system_metadata;
 
 #[derive(Debug)]
 pub struct SystemMetadata {
-    resource_id: ResourceId,
-    program_id: Option<ProgramId>,
-    key: Option<ProgramKey>,
+    stored_system_metadata: StoredSystemMetadata,
     criteria: Criteria,
     ordering: SchedulerOrdering,
 }
 
 impl SystemMetadata {
-    pub fn new(resource_id: ResourceId, program_id: Option<ProgramId>, key: Option<ProgramKey>, criteria: Criteria, ordering: SchedulerOrdering) -> Self {
+    pub fn new(
+        stored_system_metadata: StoredSystemMetadata,
+        criteria: Criteria, 
+        ordering: SchedulerOrdering
+    ) -> Self {
         Self {
-            resource_id,
-            program_id, 
-            key,
+            stored_system_metadata,
             criteria,
             ordering
         }
@@ -28,16 +29,8 @@ impl SystemMetadata {
         self.criteria.test(events)
     }
 
-    pub fn program_id(&self) -> &Option<ProgramId> {
-        &self.program_id
-    }
-
-    pub fn key(&self) -> &Option<ProgramKey> {
-        &self.key
-    }
-
-    pub fn resource_id(&self) -> &ResourceId {
-        &self.resource_id
+    pub fn stored_system_metadata(&self) -> &StoredSystemMetadata {
+        &self.stored_system_metadata
     }
 
     pub fn ordering(&self) -> &SchedulerOrdering {
@@ -61,20 +54,37 @@ impl SystemRegistry {
         self.0.iter()
     }
 
-    pub fn into_map(&self) -> impl Iterator<Item = (SystemId, (ResourceId, Option<ProgramId>, Option<ProgramKey>))> {
-        self.0.iter().map(|(id, system_metadata)| {
-            let resource_id = system_metadata.resource_id().clone();
-            let program_id = system_metadata.program_id().clone();
-            let key = system_metadata.key().clone();
-            (id.clone(), (resource_id, program_id, key))
-        })
-    }
-
     pub fn insert(&mut self, id: SystemId, system_metadata: SystemMetadata) -> Option<SystemMetadata> {
         self.0.insert(id, system_metadata)
     }
 
     pub fn get(&self, id: &SystemId) -> Option<&SystemMetadata> {
         self.0.get(id)
+    }
+
+    pub fn into_system_cell_map(&self, memory: &Memory) -> HashMap<SystemId, SystemCell> {
+        self.read()
+            .map(|(system_id, system_metadata)| (system_id.clone(), system_metadata.stored_system_metadata().clone()))
+            .filter_map(|(id, system_metadata)| {
+                let stored_system = memory.resolve::<Unique<StoredSystem>>(
+                    system_metadata.program_id().as_ref(), 
+                    Some(system_metadata.resource_id()), 
+                    None, 
+                    system_metadata.key().as_ref()
+                );
+
+                match stored_system {
+                    Some(Ok(mut stored_system)) => {
+                        if let Some(system) = stored_system.take_system() {
+                            return Some((id, SystemCell::new(system)));
+                        }
+                    },
+                    // cant do anything (like trace) since no guarantee the system will actually be ran
+                    _ => ()
+                }
+
+                None
+            })
+            .collect() 
     }
 }
