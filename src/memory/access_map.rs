@@ -1,4 +1,4 @@
-use crate::{memory::{ResourceId, access_checked_heap::reservation_access_map::ReservationAccessMap, memory_domain::MemoryDomain}, system::system_metadata::Source};
+use crate::prelude::{MemoryDomain, ReservationAccessMap, ResourceId, SystemId};
 
 #[derive(Debug, Clone)]
 pub enum Access {
@@ -25,7 +25,7 @@ pub enum AccessMap {
 impl AccessMap {
     pub fn drain(&mut self) -> impl Iterator<Item = (ResourceId, Access)> {
         match self {
-            Self::Heap(access_map) => access_map.drain().map(|(heap_id, access)| (ResourceId::from(heap_id), access))
+            Self::Heap(access_map) => access_map.drain().map(|(heap_id, access)| (ResourceId::Heap(heap_id), access))
         }
     }
 
@@ -35,9 +35,9 @@ impl AccessMap {
         }
     }
 
-    pub fn ok_accesses(&self, memory_domain: &MemoryDomain, source: Option<&Source>) -> bool {
+    pub fn ok_accesses(&self, memory_domain: &MemoryDomain, system_id: Option<&SystemId>) -> bool {
         match self {
-            Self::Heap(access_map) => access_map.ok_accesses(memory_domain, source)
+            Self::Heap(access_map) => access_map.ok_accesses(memory_domain, system_id)
         }
     }
 

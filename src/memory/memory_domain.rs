@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::{Arc, Mutex}};
 
-use crate::{injection::{AccessDropper, injection_trait::Injection}, memory::{ResourceId, access_checked_heap::{AccessCheckedHeap, raw_access_map::RawAccessMap}, access_map::{Access, AccessMap}, errors::{DeResolveError, InsertError, ReservationError, ResolveError}, resource_id::Resource}, system::system_metadata::Source};
+use crate::prelude::{Access, AccessCheckedHeap, AccessDropper, AccessMap, DeResolveError, Injection, InsertError, RawAccessMap, ReservationError, ResolveError, Resource, ResourceId, SystemId};
 
 // Should be no public way of creating one of these to enforce dropping behaviour by injection types // doesnt matter because the UB would just panic
 #[derive(Debug)]
@@ -24,32 +24,32 @@ impl MemoryDomain {
         }
     }
 
-    pub fn ok_access(&self, resource_id: &ResourceId, access: &Access, source: Option<&Source>) -> bool {
+    pub fn ok_access(&self, resource_id: &ResourceId, access: &Access, system_id: Option<&SystemId>) -> bool {
         match resource_id {
-            ResourceId::Heap(heap_id) => self.heap.ok_access(&heap_id, access, source)
+            ResourceId::Heap(heap_id) => self.heap.ok_access(&heap_id, access, system_id)
         }
     }
 
     /// will drain the access map
-    pub fn reserve_accesses(&self, source: Source, access_map: AccessMap) -> Result<(), ReservationError> {
+    pub fn reserve_accesses(&self, system_id: SystemId, access_map: AccessMap) -> Result<(), ReservationError> {
         match access_map {
-            AccessMap::Heap(access_map) => self.heap.reserve_accesses(&self, source, &mut RawAccessMap::from(access_map))
+            AccessMap::Heap(access_map) => self.heap.reserve_accesses(&self, system_id, &mut RawAccessMap::from(access_map))
         }
     }
 
     /// will drain the other memory
-    pub fn reserve_accesses_self(&self, source: Source, mut other: Self) -> Result<(), ReservationError> {
-        self.heap.reserve_accesses_self(&self, source, &mut other.heap)
+    pub fn reserve_accesses_self(&self, system_id: SystemId, mut other: Self) -> Result<(), ReservationError> {
+        self.heap.reserve_accesses_self(&self, system_id, &mut other.heap)
     }
 
-    pub fn reserve_current_accesses(&self, source: Source, access_map: AccessMap) -> Result<(), ReservationError> {
+    pub fn reserve_current_accesses(&self, system_id: SystemId, access_map: AccessMap) -> Result<(), ReservationError> {
         match access_map {
-            AccessMap::Heap(access_map) => self.heap.reserve_current_accesses(source, &mut RawAccessMap::from(access_map))
+            AccessMap::Heap(access_map) => self.heap.reserve_current_accesses(system_id, &mut RawAccessMap::from(access_map))
         }
     }
 
-    pub fn ok_reservation_self(&self, other: &Self, source: Option<&Source>) -> Option<ReservationError> {
-        self.heap.ok_reservation_self(&other.heap, source, &self)
+    pub fn ok_reservation_self(&self, other: &Self, system_id: Option<&SystemId>) -> Option<ReservationError> {
+        self.heap.ok_reservation_self(&other.heap, system_id, &self)
     }
 
     pub fn insert(&self, resource_id: ResourceId, resource: Resource) -> Result<Option<Resource>, InsertError> {
@@ -67,8 +67,8 @@ impl MemoryDomain {
         }
     }
 
-    pub fn resolve<T: Injection>(self: &Arc<Self>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<T::Item<'_>, ResolveError> {
-        let r = T::retrieve(&self, resource_id, source);
+    pub fn resolve<T: Injection>(self: &Arc<Self>, resource_id: Option<&ResourceId>, system_id: Option<&SystemId>) -> Result<T::Item<'_>, ResolveError> {
+        let r = T::retrieve(&self, resource_id, system_id);
         if let Ok(r) = &r {
             // make sure no panics so there MUST be a dropper
             std::hint::black_box(r.access_dropper());
@@ -111,55 +111,55 @@ impl MemoryDomain {
         }
     }
 
-    pub fn get_shared<T: 'static>(&self, resource_id: &ResourceId, source: Option<&Source>) -> Result<&T, ResolveError> {
+    pub fn get_shared<T: 'static>(&self, resource_id: &ResourceId, system_id: Option<&SystemId>) -> Result<&T, ResolveError> {
         match resource_id {
-            ResourceId::Heap(id) => self.heap.get_shared(id, source)
+            ResourceId::Heap(id) => self.heap.get_shared(id, system_id)
         }
     }
 
-    pub fn get_unique<T: 'static>(&self, resource_id: &ResourceId, source: Option<&Source>) -> Result<&mut T, ResolveError> {
+    pub fn get_unique<T: 'static>(&self, resource_id: &ResourceId, system_id: Option<&SystemId>) -> Result<&mut T, ResolveError> {
         match resource_id {
-            ResourceId::Heap(id) => self.heap.get_unique(id, source)
+            ResourceId::Heap(id) => self.heap.get_unique(id, system_id)
         }
     }
 }
 
 #[cfg(test)]
 mod memory_domain_tests {
-    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, errors::ReservationError, memory_domain::MemoryDomain, resource_id::Resource}, system::system_metadata::Source};
+    use crate::prelude::{Access, AccessMap, HeapId, Id, MemoryDomain, ReservationAccessMap, ReservationError, Resource, ResourceId, SystemId};
 
     #[test]
     fn reserve_access() {
         let memory_domain = MemoryDomain::new();
-        let source = Source(Id("foo".to_string()));
+        let system_id = SystemId::from("foo");
         let mut access_map = ReservationAccessMap::default();
 
-        assert_eq!(memory_domain.reserve_accesses(source.clone(), AccessMap::Heap(access_map.clone())), Ok(()));
+        assert_eq!(memory_domain.reserve_accesses(system_id.clone(), AccessMap::Heap(access_map.clone())), Ok(()));
 
-        let heap_id1 = HeapId::Label(Id("baz".to_string()));
+        let heap_id1 = HeapId::Label(Id::from("baz"));
         assert!(access_map.do_access(heap_id1.clone(), None, Access::Unique).is_ok());
-        // memory_domain.get_shared(&ResourceId::Heap(heap_id1.clone()), Some(&source)
-        assert_eq!(memory_domain.reserve_accesses(source.clone(), AccessMap::Heap(access_map.clone())), Err(ReservationError::ErrResource));
+        // memory_domain.get_shared(&ResourceId::Heap(heap_id1.clone()), Some(&system_id)
+        assert_eq!(memory_domain.reserve_accesses(system_id.clone(), AccessMap::Heap(access_map.clone())), Err(ReservationError::ErrResource));
 
         assert!(memory_domain.insert(ResourceId::Heap(heap_id1.clone()), Resource::dummy(123)).is_ok());
         assert!(memory_domain.ok_resource(&ResourceId::Heap(heap_id1.clone())));
 
-        assert!(memory_domain.reserve_accesses(source.clone(), AccessMap::Heap(access_map.clone())).is_ok());
+        assert!(memory_domain.reserve_accesses(system_id.clone(), AccessMap::Heap(access_map.clone())).is_ok());
 
-        assert!(memory_domain.reserve_accesses(Source(Id("bar".to_string())), AccessMap::Heap(access_map.clone())).is_err());
+        assert!(memory_domain.reserve_accesses(SystemId::from("bar"), AccessMap::Heap(access_map.clone())).is_err());
 
-        assert!(memory_domain.get_shared::<i32>(&ResourceId::Heap(heap_id1.clone()), Some(&source)).is_err());
+        assert!(memory_domain.get_shared::<i32>(&ResourceId::Heap(heap_id1.clone()), Some(&system_id)).is_err());
 
         assert_eq!(memory_domain.get_cloned::<i32>(&ResourceId::Heap(heap_id1.clone())), Ok(123));
 
         assert!(memory_domain.get_unique::<i32>(&ResourceId::Heap(heap_id1.clone()), None).is_err());
 
-        assert_eq!(memory_domain.get_unique::<i32>(&ResourceId::Heap(heap_id1.clone()), Some(&source)), Ok(&mut 123));
+        assert_eq!(memory_domain.get_unique::<i32>(&ResourceId::Heap(heap_id1.clone()), Some(&system_id)), Ok(&mut 123));
         
         assert!(unsafe { memory_domain.deresolve(Access::Unique, &ResourceId::Heap(heap_id1.clone())) }.is_ok());
 
         assert!(memory_domain.get_unique::<i32>(&ResourceId::Heap(heap_id1.clone()), None).is_ok());
 
-        assert!(memory_domain.reserve_accesses(source, AccessMap::Heap(access_map)).is_err())
+        assert!(memory_domain.reserve_accesses(system_id, AccessMap::Heap(access_map)).is_err())
     }
 }

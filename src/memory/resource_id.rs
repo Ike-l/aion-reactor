@@ -1,6 +1,8 @@
 use std::any::TypeId;
 
-use crate::memory::access_checked_heap::heap::{HeapId, HeapObject};
+use crate::{memory::access_checked_heap::heap::{HeapId, HeapObject}};
+
+use crate::prelude::Id;
 
 pub enum Resource {
     Heap(HeapObject),
@@ -18,21 +20,21 @@ impl Resource {
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ResourceId {
     Heap(HeapId),
-    // Stack,
+    // Stack (arena allocator?),
     // #[cfg(feature = "ecs")]
     // ECS(EntityId)
 }
 
 impl ResourceId {
-    pub fn raw_heap<T: 'static>() -> Self {
+    pub fn from_raw_heap<T: 'static>() -> Self {
         Self::Heap(
             HeapId::RawType(TypeId::of::<T>())
         )
     }
-}
 
-impl From<HeapId> for ResourceId {
-    fn from(value: HeapId) -> Self {
-        Self::Heap(value)
+    pub fn from_labelled_heap<T>(id: T) -> Self 
+    where Id: From<T>
+    {
+        Self::Heap(HeapId::Label(id.into()))
     }
 }

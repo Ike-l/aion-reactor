@@ -1,4 +1,4 @@
-use crate::memory::ResourceId;
+use crate::prelude::ResourceId;
 
 #[derive(Debug, PartialEq)]
 pub enum ResolveError {

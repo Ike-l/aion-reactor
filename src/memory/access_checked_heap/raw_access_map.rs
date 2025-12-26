@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::Access, errors::{DeResolveError, ResolveError}, memory_domain::MemoryDomain}, system::system_metadata::Source};
+use crate::prelude::{Access, DeResolveError, HeapId, MemoryDomain, ReservationAccessMap, ResolveError, ResourceId, SystemId};
 
 #[derive(Debug, Default, Clone)]
 pub struct RawAccessMap(HashMap<HeapId, Access>);
@@ -35,8 +35,8 @@ impl RawAccessMap {
     }
 
     /// are all accesses in self ok / do not conflict with the memory domain's accesses
-    pub fn ok_accesses(&self, memory_domain: &MemoryDomain, source: Option<&Source>) -> bool {
-        self.0.iter().all(|(heap_id, access)| memory_domain.ok_access(&ResourceId::Heap(heap_id.clone()), access, source))
+    pub fn ok_accesses(&self, memory_domain: &MemoryDomain, system_id: Option<&SystemId>) -> bool {
+        self.0.iter().all(|(heap_id, access)| memory_domain.ok_access(&ResourceId::Heap(heap_id.clone()), access, system_id))
     }
 
     /// checks if the testing access would conflict with any current access
@@ -114,12 +114,12 @@ impl RawAccessMap {
                     Access::Shared(n) => {
                         match n.checked_add(additional_shared) {
                             Some(new_n) => *n = new_n,
-                            None => return Err(ResolveError::TooManyAccesses(ResourceId::from(heap_id))),
+                            None => return Err(ResolveError::TooManyAccesses(ResourceId::Heap(heap_id))),
                         }
         
                         Ok(())
                     },
-                    Access::Unique => Err(ResolveError::ConflictingAccess(ResourceId::from(heap_id)))
+                    Access::Unique => Err(ResolveError::ConflictingAccess(ResourceId::Heap(heap_id)))
                 }
             },
         }
@@ -128,7 +128,7 @@ impl RawAccessMap {
 
 #[cfg(test)]
 mod raw_access_map_tests {
-    use crate::{id::Id, memory::{ResourceId, access_checked_heap::{heap::{HeapId, HeapObject, raw_heap_object::RawHeapObject}, raw_access_map::RawAccessMap}, access_map::Access, memory_domain::MemoryDomain, resource_id::Resource}};
+    use crate::prelude::{Access, HeapId, MemoryDomain, RawAccessMap, Resource, ResourceId, Id};
 
     #[test]
     fn ok_resources() {
@@ -137,13 +137,13 @@ mod raw_access_map_tests {
 
         assert!(heap_access_map.ok_resources(&memory_domain));
         
-        let heap_id = HeapId::Label(Id("foo".to_string()));
+        let heap_id = HeapId::Label(Id::from("foo"));
 
         assert!(heap_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
         assert!(!heap_access_map.ok_resources(&memory_domain));
 
         let resource_id = ResourceId::Heap(heap_id);
-        memory_domain.insert(resource_id, Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1))))).unwrap();
+        memory_domain.insert(resource_id, Resource::dummy(1)).unwrap();
         assert!(heap_access_map.ok_resources(&memory_domain));
     }
 
@@ -152,27 +152,27 @@ mod raw_access_map_tests {
         let mut heap_access_map = RawAccessMap::default();
         let memory_domain = MemoryDomain::new();
 
-        let source = None;
+        let system_id = None;
 
-        assert!(heap_access_map.ok_accesses(&memory_domain, source));
+        assert!(heap_access_map.ok_accesses(&memory_domain, system_id));
         
-        let heap_id = HeapId::Label(Id("foo".to_string()));
+        let heap_id = HeapId::Label(Id::from("foo"));
 
         assert!(heap_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
-        assert!(!heap_access_map.ok_accesses(&memory_domain, source));
+        assert!(!heap_access_map.ok_accesses(&memory_domain, system_id));
 
         let resource_id = ResourceId::Heap(heap_id);
-        memory_domain.insert(resource_id.clone(), Resource::Heap(HeapObject(RawHeapObject::new(Box::new(1))))).unwrap();
-        assert!(heap_access_map.ok_accesses(&memory_domain, source));
-        let _r = memory_domain.get_unique::<i32>(&resource_id, source);
-        assert!(!heap_access_map.ok_accesses(&memory_domain, source));
+        memory_domain.insert(resource_id.clone(), Resource::dummy(1)).unwrap();
+        assert!(heap_access_map.ok_accesses(&memory_domain, system_id));
+        let _r = memory_domain.get_unique::<i32>(&resource_id, system_id);
+        assert!(!heap_access_map.ok_accesses(&memory_domain, system_id));
     }
 
     #[test]
     fn access_shared() {
         let mut raw_access_map = RawAccessMap::default();
 
-        let heap_id = HeapId::Label(Id("foo".to_string()));
+        let heap_id = HeapId::Label(Id::from("foo"));
         
         assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
         assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
@@ -184,13 +184,13 @@ mod raw_access_map_tests {
     fn access_unique() {
         let mut raw_access_map = RawAccessMap::default();
 
-        let heap_id = HeapId::Label(Id("foo".to_string()));
+        let heap_id = HeapId::Label(Id::from("foo"));
         
         assert!(raw_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
         assert!(raw_access_map.do_access(heap_id.clone(), Access::Unique).is_err());
         assert!(raw_access_map.do_access(heap_id.clone(), Access::Shared(1)).is_err());
 
-        let heap_id2 = HeapId::Label(Id("bar".to_string()));
+        let heap_id2 = HeapId::Label(Id::from("bar"));
         assert!(raw_access_map.do_access(heap_id2.clone(), Access::Unique).is_ok());
     }
     
@@ -198,7 +198,7 @@ mod raw_access_map_tests {
     fn deaccess() {
         let mut raw_access_map = RawAccessMap::default();
 
-        let heap_id = HeapId::Label(Id("foo".to_string()));
+        let heap_id = HeapId::Label(Id::from("foo"));
 
         assert!(raw_access_map.do_access(heap_id.clone(), Access::Unique).is_ok());
         assert!(raw_access_map.deaccess(Access::Unique, &heap_id).is_ok());
@@ -227,7 +227,7 @@ mod raw_access_map_tests {
 
         assert!(!raw_access_map_1.conflicts(&raw_access_map_2));
 
-        let heap_id = HeapId::Label(Id("foo".to_string()));
+        let heap_id = HeapId::Label(Id::from("foo"));
 
         assert!(raw_access_map_1.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
 
@@ -255,7 +255,7 @@ mod raw_access_map_tests {
 
         assert!(!raw_access_map_2.conflicts(&raw_access_map_1));
 
-        let heap_id = HeapId::Label(Id("foo".to_string()));
+        let heap_id = HeapId::Label(Id::from("foo"));
 
         assert!(raw_access_map_2.do_access(heap_id.clone(), Access::Shared(1)).is_ok());
 
@@ -280,8 +280,8 @@ mod raw_access_map_tests {
     fn ok_access() {
         let mut raw_access_map = RawAccessMap::default();
 
-        let heap_id = HeapId::Label(Id("foo".to_string()));
-        let heap_id2 = HeapId::Label(Id("bar".to_string()));
+        let heap_id = HeapId::Label(Id::from("foo"));
+        let heap_id2 = HeapId::Label(Id::from("bar"));
 
         assert!(raw_access_map.ok_access(&heap_id, &Access::Unique));
         assert!(raw_access_map.ok_access(&heap_id, &Access::Shared(1)));

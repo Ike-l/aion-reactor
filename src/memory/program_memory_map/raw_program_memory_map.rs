@@ -1,6 +1,6 @@
 use std::{cell::UnsafeCell, sync::Arc};
 
-use crate::{id::Id, memory::{memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::{InnerProgramMemoryMap, Key}}};
+use crate::{ids::program_id::ProgramId, memory::{memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::{InnerProgramMemoryMap, ProgramKey}}};
 
 #[derive(Debug, Default)]
 pub struct RawProgramMemoryMap {
@@ -25,20 +25,20 @@ impl RawProgramMemoryMap {
 
     /// Safety:
     /// Ensure no concurrent mutable accesses
-    pub unsafe fn get(&self, program_id: &Id, key: Option<&Key>, _guard: parking_lot::RwLockReadGuard<()>) -> Option<&Arc<MemoryDomain>> {
+    pub unsafe fn get(&self, program_id: &ProgramId, key: Option<&ProgramKey>, _guard: parking_lot::RwLockReadGuard<()>) -> Option<&Arc<MemoryDomain>> {
         unsafe { self.get_inner_heap().get(program_id, key) }
     }
 
     /// Safety:
     /// Ensure the lock actually guards the memory
-    pub unsafe fn get_with_write(&self, program_id: &Id, key: Option<&Key>, _guard: &parking_lot::RwLockWriteGuard<()>) -> Option<&Arc<MemoryDomain>> {
+    pub unsafe fn get_with_write(&self, program_id: &ProgramId, key: Option<&ProgramKey>, _guard: &parking_lot::RwLockWriteGuard<()>) -> Option<&Arc<MemoryDomain>> {
         unsafe { self.get_inner_heap().get(program_id, key) }
     }
 
     /// Safety restrain satisfied because it will only insert if it doesn't exist already
     /// Safety:
     /// Ensure no concurrent accesses
-    pub unsafe fn insert(&self, program_id: Id, memory_domain: Arc<MemoryDomain>, key: Option<Key>, _guard: parking_lot::RwLockWriteGuard<()>) -> bool {
+    pub unsafe fn insert(&self, program_id: ProgramId, memory_domain: Arc<MemoryDomain>, key: Option<ProgramKey>, _guard: parking_lot::RwLockWriteGuard<()>) -> bool {
         let inner_program_map = unsafe { self.get_mut_inner_heap() };
         if !inner_program_map.contains(&program_id) {
             inner_program_map.insert(program_id, memory_domain, key);
@@ -48,7 +48,7 @@ impl RawProgramMemoryMap {
         false
     }
 
-    pub fn consume(self) -> impl Iterator<Item = (Option<Key>, Id, Arc<MemoryDomain>)> {
+    pub fn consume(self) -> impl Iterator<Item = (Option<ProgramKey>, ProgramId, Arc<MemoryDomain>)> {
         self.inner_program_memory_map.into_inner().consume()
     }
 }

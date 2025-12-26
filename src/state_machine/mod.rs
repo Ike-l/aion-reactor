@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{id::Id, injection::{injection_primitives::unique::Unique, injection_trait::Injection}, memory::{Memory, ResourceId, errors::{InsertError, ResolveError}, memory_domain::MemoryDomain, program_memory_map::inner_program_memory_map::Key, resource_id::Resource}, state_machine::{kernel_registry::KernelSystemRegistry, kernel_systems::{KernelSystem, StoredKernelSystem, background_processor::processors::{finish_background_processor::FinishBackgroundProcessor, start_background_processor::StartBackgroundProcessor}, blocker_manager::prelude::BlockerManager, delay_manager::prelude::DelayManager, event_manager::prelude::EventManager, executable_manager::executable_manager::ExecutableManager, processor::Processor, read_only_processor::ReadOnlyProcessor}, }, system::system_metadata::Source};
+use crate::prelude::{BlockerManager, DelayManager, EventManager, ExecutableManager, FinishBackgroundProcessor, Injection, InsertError, KernelSystem, KernelSystemRegistry, ProgramKey, Memory, MemoryDomain, Processor, ProgramId, ReadOnlyProcessor, ResolveError, Resource, ResourceId, StartBackgroundProcessor, StoredKernelSystem, SystemId, Unique};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
@@ -8,8 +8,8 @@ pub mod kernel_registry;
 #[derive(Debug)]
 pub struct StateMachine {
     state: Arc<Memory>,
-    program_id: Id,
-    kernel_key: Key,
+    program_id: ProgramId,
+    kernel_key: ProgramKey,
 }
 
 
@@ -18,7 +18,7 @@ impl StateMachine {
         let memory = Arc::new(Memory::new());
         
         let key = rand::random();
-        let id = Id("_KernelMemory".to_string());
+        let id = ProgramId::from("_KernelMemory");
 
         assert!(memory.insert_program(id.clone(), Arc::new(MemoryDomain::new()), Some(key)), "Kernel must have access to `_KernelMemory`");
 
@@ -82,15 +82,15 @@ impl StateMachine {
         self.load_kernel_system(processor, Self::PROCESSOR_ORDER);
     }
 
-    pub fn resolve<T: Injection>(&self, program_id: Option<&Id>, resource_id: Option<&ResourceId>, source: Option<&Source>, key: Option<&Key>) -> Option<Result<T::Item<'_>, ResolveError>> {
+    pub fn resolve<T: Injection>(&self, program_id: Option<&ProgramId>, resource_id: Option<&ResourceId>, source: Option<&SystemId>, key: Option<&ProgramKey>) -> Option<Result<T::Item<'_>, ResolveError>> {
         self.state.resolve::<T>(program_id, resource_id, source, key)
     }
 
-    pub fn insert<T: 'static>(&self, program_id: Option<&Id>, resource_id: Option<ResourceId>, key: Option<&Key>, resource: T) -> Option<Result<Option<Resource>, InsertError>> {
+    pub fn insert<T: 'static>(&self, program_id: Option<&ProgramId>, resource_id: Option<ResourceId>, key: Option<&ProgramKey>, resource: T) -> Option<Result<Option<Resource>, InsertError>> {
         self.state.insert(program_id, resource_id, key, resource)
     }
 
-    pub fn insert_program(&self, program_id: Id, memory_domain: Arc<MemoryDomain>, key: Option<Key>) -> bool {
+    pub fn insert_program(&self, program_id: ProgramId, memory_domain: Arc<MemoryDomain>, key: Option<ProgramKey>) -> bool {
         self.state.insert_program(program_id, memory_domain, key)
     }
 

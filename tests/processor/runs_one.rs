@@ -1,4 +1,4 @@
-use aion_reactor::{injection::injection_primitives::{shared::Shared, unique::Unique}, state_machine::StateMachine, system::{System, system_metadata::criteria::Criteria, system_result::SystemResult}};
+use aion_reactor::{injection::injection_primitives::{shared::Shared, unique::Unique}, state_machine::{StateMachine, kernel_systems::processors::system::{System, system_metadata::criteria::Criteria, system_result::SystemResult}}};
 use aion_utilities::builders::{resolver::ResolverBuilder, resources::ResourceBuilder, systems::SystemBuilder};
 
 use lazy_static::lazy_static;

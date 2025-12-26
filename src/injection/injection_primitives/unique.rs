@@ -1,6 +1,6 @@
 use std::{any::{TypeId, type_name}, fmt::{Debug, Display}, sync::Arc};
 
-use crate::{injection::{AccessDropper, DeAccessResolver, injection_trait::Injection}, memory::{ResourceId, access_checked_heap::{heap::HeapId, reservation_access_map::ReservationAccessMap}, access_map::{Access, AccessMap}, errors::ResolveError, memory_domain::MemoryDomain}, system::system_metadata::Source};
+use crate::prelude::{Access, AccessDropper, AccessMap, DeAccessResolver, HeapId, Injection, MemoryDomain, ReservationAccessMap, ResolveError, ResourceId, SystemId};
 
 #[derive(small_derive_deref::Deref, small_derive_deref::DerefMut)]
 pub struct Unique<'a, T> {
@@ -52,20 +52,20 @@ impl<T: 'static> Injection for Unique<'_, T> {
         AccessMap::Heap(ReservationAccessMap::default())
     }
 
-    fn resolve_accesses(access_map: &mut AccessMap, source: Option<&Source>, resource_id: Option<ResourceId>) {
+    fn resolve_accesses(access_map: &mut AccessMap, system_id: Option<&SystemId>, resource_id: Option<ResourceId>) {
         match (access_map, resource_id.unwrap_or(ResourceId::Heap(HeapId::RawType(TypeId::of::<T>())))) {
-            (AccessMap::Heap(access_map), ResourceId::Heap(heap_id)) => access_map.do_access(heap_id, source, Access::Unique).unwrap()
+            (AccessMap::Heap(access_map), ResourceId::Heap(heap_id)) => access_map.do_access(heap_id, system_id, Access::Unique).unwrap()
         }
     }
 
-    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError> {
-        let default_resource_id = ResourceId::from(HeapId::from(TypeId::of::<T>()));
+    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, system_id: Option<&SystemId>) -> Result<Self::Item<'a>, ResolveError> {
+        let default_resource_id = ResourceId::from_raw_heap::<T>();
         let accessing = resource_id.clone().unwrap_or(&default_resource_id);
-        let result = memory_domain.get_unique::<T>(accessing, source)?;
+        let result = memory_domain.get_unique::<T>(accessing, system_id)?;
 
         let mut access_map = Self::create_access_map();
-        Self::resolve_accesses(&mut access_map, source, Some(accessing.clone()));
-        // let access_map = Self::create_and_resolve_access_map(source, Some(accessing.clone()));
+        Self::resolve_accesses(&mut access_map, system_id, Some(accessing.clone()));
+        // let access_map = Self::create_and_resolve_access_map(system_id, Some(accessing.clone()));
 
         let dropper = DeAccessResolver::new(Arc::clone(memory_domain), access_map);
         let shared = Unique::new(result, dropper);

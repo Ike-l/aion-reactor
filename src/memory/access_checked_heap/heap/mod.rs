@@ -1,6 +1,6 @@
 use std::any::{Any, TypeId};
 
-use crate::{id::Id, memory::access_checked_heap::heap::raw_heap_object::RawHeapObject};
+use crate::{ids::Id, memory::access_checked_heap::heap::raw_heap_object::RawHeapObject};
 
 pub mod heap;
 pub mod raw_heap_object;

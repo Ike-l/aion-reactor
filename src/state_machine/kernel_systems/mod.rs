@@ -1,14 +1,9 @@
 use std::{pin::Pin, sync::Arc};
 
-use crate::{memory::{Memory, ResourceId}};
+use crate::prelude::{Memory, ResourceId};
 
-pub mod processor;
-pub mod event_manager;
-pub mod blocker_manager;
-pub mod background_processor;
-pub mod delay_manager;
-pub mod executable_manager;
-pub mod read_only_processor;
+pub mod processors;
+pub mod managers;
 
 pub trait KernelSystem {
     fn init(&mut self, memory: &Memory) -> ResourceId;

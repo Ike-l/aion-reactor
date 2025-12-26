@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{injection::AccessDropper, memory::{access_map::AccessMap, errors::ResolveError, memory_domain::MemoryDomain, ResourceId}, system::system_metadata::Source };
+use crate::prelude::{AccessDropper, AccessMap, MemoryDomain, ResolveError, ResourceId, SystemId};
 
 #[derive(Debug)]
 pub enum MemoryTarget {
@@ -13,7 +13,7 @@ pub trait Injection {
     
     fn create_access_map() -> AccessMap;
 
-    fn resolve_accesses(access_map: &mut AccessMap, source: Option<&Source>, resource_id: Option<ResourceId>);
+    fn resolve_accesses(access_map: &mut AccessMap, system_id: Option<&SystemId>, resource_id: Option<ResourceId>);
     
     // fn create_and_resolve_access_map(source: Option<&Source>, resource_id: Option<ResourceId>) -> AccessMap {
     //     let mut access_map = Self::create_access_map();
@@ -23,7 +23,7 @@ pub trait Injection {
 
     fn failed_message() -> String;
     
-    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, source: Option<&Source>) -> Result<Self::Item<'a>, ResolveError>;
+    fn retrieve<'a>(memory_domain: &'a Arc<MemoryDomain>, resource_id: Option<&ResourceId>, system_id: Option<&SystemId>) -> Result<Self::Item<'a>, ResolveError>;
 
     fn select_memory_target() -> MemoryTarget {
         MemoryTarget::Program
