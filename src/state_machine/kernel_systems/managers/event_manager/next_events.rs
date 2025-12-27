@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Range};
 
 use crate::prelude::EventId;
 
@@ -20,5 +20,14 @@ impl NextEvents {
 
     pub fn drain(&mut self) -> impl Iterator<Item = EventId> {
         self.0.drain()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// no guarantees about the ordering
+    pub fn get_range(&self, amount: Range<usize>) -> impl Iterator<Item = &EventId> {
+        self.0.iter().take(amount.end)
     }
 }

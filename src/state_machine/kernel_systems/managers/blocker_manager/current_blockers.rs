@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, ops::Range};
 
 use crate::prelude::{Blocker, NextBlockers};
 
@@ -18,5 +18,14 @@ impl CurrentBlockers {
 
     pub fn blocks(&self, blocker: &Blocker) -> bool {
         self.0.contains(blocker)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// no guarantees about the ordering
+    pub fn get_range(&self, amount: Range<usize>) -> impl Iterator<Item = &Blocker> {
+        self.0.iter().take(amount.end)
     }
 }

@@ -27,13 +27,13 @@ impl KernelSystem for ExecutableManager {
 
     fn init(&mut self, memory: &Memory, _kernel_program_id: &ProgramId, _kernel_program_key: &ProgramKey) {
         // matches!(memory.contains_resource(None, &ResourceId::raw_heap::<World>(), None), Some(true));
-        event!(Level::TRACE, status="Initialising", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, status="Initialising", kernel_system_id = ?self.system_id());
         
         assert!(memory.insert(None, None, None, ExecutableQueue::default()).unwrap().is_ok());
         assert!(memory.insert(None, None, None, ExecutableBuffer::default()).unwrap().is_ok());
         assert!(memory.insert(None, None, None, ExecutableRegistry::default()).unwrap().is_ok());
         
-        event!(Level::TRACE, status="Initialised", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, status="Initialised", kernel_system_id = ?self.system_id());
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, _kernel_program_id: ProgramId, _kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
@@ -46,17 +46,22 @@ impl KernelSystem for ExecutableManager {
 
             let mut new_executable_queue = ExecutableQueue::default();
             
+            event!(Level::DEBUG, executable_queue_count = executable_queue.len());
+            event!(Level::DEBUG, some_executables_queued = ?executable_queue.get_range(0..5).collect::<Vec<_>>());
+
             for queued_executable in executable_queue.drain() {
                 let (executable, remaining) = executable_registry.parse_mapping(&queued_executable.label);
 
                 match &executable {
-                    Err(ParseResult::NotFound(key)) => println!("Warn: Executable `{key}` Not Found. Skipping"),
+                    Err(ParseResult::NotFound(key)) => event!(Level::WARN, key=key, "Executable Not Found (Skipping)"),
                     _ => ()
                 };
 
                 let new_source_message = if let Ok(executable) = executable {
                     let event = executable.trigger;
-                    // NextEvent ? 
+                    event!(Level::TRACE, event=?event, "New Event");
+                    
+                    // NextEvent ? (if put executable before EventManager)
                     current_events.insert(event);
 
                     let label = ExecutableLabel::new(executable.label);
@@ -74,13 +79,15 @@ impl KernelSystem for ExecutableManager {
                             let target_id = EntityId::new_hecs(world.reserve_entity());
                             ExecutableMessage::ECS(target_id)
                         },
-                    };
+                    };  
 
                     let source = queued_executable.message;
                     let target = target_message.clone();
 
                     let mut buffer = memory.resolve::<Unique<ExecutableBuffer>>(None, None, None, None).unwrap().unwrap();
                     let buffered_executable = BufferedExecutable::new(label, source, target);
+
+                    event!(Level::TRACE, buffered_executable=?buffered_executable, "New Buffered Executable");
 
                     buffer.push(buffered_executable);
 
@@ -90,6 +97,7 @@ impl KernelSystem for ExecutableManager {
                 };
                 
                 if let Some(remaining) = remaining {
+                    event!(Level::TRACE, remaining=remaining, new_source_message=?new_source_message, "Queuing Executable");
                     new_executable_queue.queue(QueuedExecutable::new(remaining.to_string(), new_source_message));
                 }
             }

@@ -1,4 +1,6 @@
-use std::sync::Arc;
+use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+
+use tracing::{Level, event, span};
 
 use crate::prelude::{BlockerManager, BlockingProcessor, DelayManager, EventManager, ExecutableManager, FinishNonBlockingProcessor, Injection, InsertError, KernelSystem, KernelSystemRegistry, Memory, MemoryDomain, ProgramId, ProgramKey, ReadOnlyProcessor, ResolveError, Resource, ResourceId, StartNonBlockingProcessor, StoredKernelSystem, SystemId, Unique};
 
@@ -10,6 +12,8 @@ pub struct StateMachine {
     memory: Arc<Memory>,
     program_id: ProgramId,
     kernel_key: ProgramKey,
+    
+    current_tick: AtomicUsize,
 }
 
 
@@ -33,6 +37,7 @@ impl StateMachine {
             memory,
             program_id: id,
             kernel_key: key,
+            current_tick: AtomicUsize::new(0),
         }
     }
 
@@ -61,6 +66,11 @@ impl StateMachine {
     }
 
     pub fn load_default(&self, processor_threads: usize) {
+        let span = span!(Level::DEBUG, "Loading Default Systems");
+        let _enter = span.enter();
+
+        event!(Level::DEBUG, "Started");
+
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
@@ -121,11 +131,20 @@ impl StateMachine {
 
     // could make it async but then Processor run time weird stuff so idk
     pub fn transition(&self) {
+        let current_tick = self.current_tick.fetch_add(1, Ordering::Acquire);
+        let span = span!(Level::INFO, "Transition", current_tick=current_tick);
+        let _enter = span.enter();
+        event!(Level::INFO, "Start Transition");
         let mut kernel_systems = self.memory.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
         for kernel_systems in kernel_systems.iter() {
             for kernel_system in kernel_systems {
                 let mut kernel_system = self.memory.resolve::<Unique<StoredKernelSystem>>(Some(&self.program_id), Some(&kernel_system), None, Some(&self.kernel_key)).unwrap().unwrap();
+                let span = span!(Level::DEBUG, "Kernel System", kernel_system = ?kernel_system.system_id().into_id());
+                let _enter = span.enter();
+
+                event!(Level::DEBUG, status="Ticking");
                 pollster::block_on(kernel_system.tick(&self.memory, self.program_id.clone(), self.kernel_key.clone()));
+                event!(Level::DEBUG, status="Ticked");
             }
         }
     }

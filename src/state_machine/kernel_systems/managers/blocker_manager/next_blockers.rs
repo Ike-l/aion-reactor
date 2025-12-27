@@ -17,4 +17,8 @@ impl NextBlockers {
     pub fn drain(&mut self) -> impl Iterator<Item = Blocker> {
         self.0.drain()
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }

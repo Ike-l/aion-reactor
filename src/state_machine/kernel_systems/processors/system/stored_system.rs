@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use crate::prelude::{ProgramKey, Memory, ProgramId, ReservationError, System, SystemId, SystemStatus};
 
+#[derive(Debug)]
 pub enum StoredSystemError {
     MissingSystem
 }

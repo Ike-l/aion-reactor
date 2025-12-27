@@ -1,5 +1,6 @@
 use crate::prelude::{ExecutableLabel, ExecutableMessage};
 
+#[derive(Debug)]
 pub struct BufferedExecutable {
     pub label: ExecutableLabel,
     pub source: ExecutableMessage,

@@ -2,6 +2,8 @@ use aion_reactor::{injection::injection_primitives::{shared::Shared, unique::Uni
 use aion_utilities::builders::{resolver::ResolverBuilder, resources::ResourceBuilder, systems::SystemBuilder};
 
 use lazy_static::lazy_static;
+use tracing::Level;
+use tracing_subscriber::fmt::format::FmtSpan;
 
 use std::sync::Mutex;
 
@@ -40,15 +42,29 @@ fn enters_function_body() {
     }
 }
 
+#[tracing::instrument]
 fn has_input(mut number: Unique<i32>) -> Option<SystemResult> {
     **number += 1;
-    None
+
+    // Some(SystemResult::Error(anyhow::anyhow!("has input has errored!")))
+    Some(SystemResult::Conditional(true))
+    // Some(SystemResult::Event(SystemEvent::NoEvent))
 }
 
 #[test]
 fn state_changes() {
+    tracing_subscriber::fmt()
+        .with_max_level(Level::TRACE)
+        // .compact()
+        // .pretty()
+        // .with_env_filter(EnvFilter::new("info,aion_reactor=debug"))
+        .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT)
+        .with_target(false)
+        .with_test_writer()
+        .init();
+
     let state_machine = StateMachine::new();
-    state_machine.load_default(1);
+    state_machine.load_default(2);
 
     let _ = SystemBuilder::new("Foo", System::new_sync(has_input))
         .replace_criteria(Criteria::new(|_| true))

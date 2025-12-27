@@ -5,8 +5,11 @@
 // "Baz", BazInput
 // Complete
 
+use std::ops::Range;
+
 use crate::prelude::ExecutableMessage;
 
+#[derive(Debug)]
 pub struct QueuedExecutable {
     pub label: String,
     pub message: ExecutableMessage
@@ -34,5 +37,14 @@ impl ExecutableQueue {
         where T: IntoIterator<Item = QueuedExecutable> 
     {
         self.0.extend(iter);
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// no guarantees about the ordering
+    pub fn get_range(&self, amount: Range<usize>) -> impl Iterator<Item = &QueuedExecutable> {
+        self.0.iter().take(amount.end)
     }
 }

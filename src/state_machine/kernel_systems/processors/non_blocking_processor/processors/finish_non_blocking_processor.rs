@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use tracing::{Level, event};
 
-use crate::prelude::{AsyncJoinHandles, BackgroundProcessorSystemRegistry, KernelSystem, Memory, NextEvents, ProgramId, ProgramKey, ResourceId, Shared, StartNonBlockingProcessor, StateMachine, StoredSystem, SyncJoinHandles, SystemId, SystemMetadata, Unique};
+use crate::prelude::{AsyncJoinHandles, BackgroundProcessorSystemRegistry, EventId, KernelSystem, Memory, NextEvents, ProgramId, ProgramKey, Shared, StartNonBlockingProcessor, StateMachine, StoredSystem, SyncJoinHandles, SystemId, SystemMetadata, Unique};
 
 #[derive(Default)]
 pub struct FinishNonBlockingProcessor;
@@ -19,7 +19,7 @@ impl KernelSystem for FinishNonBlockingProcessor {
     }
 
     fn init(&mut self, memory: &Memory, kernel_program_id: &ProgramId, kernel_program_key: &ProgramKey) {
-        event!(Level::TRACE, status="Initialising", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, status="Initialising", kernel_system_id = ?self.system_id());
         
         // assert!(matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<NextEvents>(), None), Some(true)));
         // assert!(matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<BackgroundProcessorSystemRegistry>(), None), Some(true)));
@@ -27,7 +27,7 @@ impl KernelSystem for FinishNonBlockingProcessor {
         assert!(memory.insert(Some(&kernel_program_id), None, Some(kernel_program_key), AsyncJoinHandles::default()).unwrap().is_ok());
         assert!(memory.insert(Some(&kernel_program_id), None, Some(kernel_program_key), SyncJoinHandles::default()).unwrap().is_ok());
 
-        event!(Level::TRACE, status="Initialised", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, status="Initialised", kernel_system_id = ?self.system_id());
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, kernel_program_id: ProgramId, kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
@@ -41,7 +41,11 @@ impl KernelSystem for FinishNonBlockingProcessor {
             let system_registry = memory.resolve::<Shared<BackgroundProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();
 
             let async_finished = async_join_handles.get_finished().await;
+
+            event!(Level::DEBUG, non_blocking_async_finished_count=async_finished.len(), "Finished Non Blocking Async Systems");
+
             for (id, finished) in async_finished {
+                event!(Level::TRACE, system_id=?id, "Finished Non Blocking Async System");
                 let finished = finished.unwrap();
                 
                 let resource_id = system_registry.get(&id).unwrap().stored_system_metadata().resource_id();
@@ -49,11 +53,19 @@ impl KernelSystem for FinishNonBlockingProcessor {
                 let mut system = memory.resolve::<Unique<StoredSystem>>(None, Some(&resource_id), None, None).unwrap().unwrap();
 
                 system.insert_system(finished);
-                next_events.insert(id.into_id());
+                
+                let event_id: EventId = id.into_id().into();
+                event!(Level::TRACE, event_id=?event_id, "New Event");
+
+                next_events.insert(event_id);
             }
 
             let sync_finished = sync_join_handles.get_finished();
+
+            event!(Level::DEBUG, non_blocking_sync_finished_count=sync_finished.len(), "Finished Non Blocking Sync Systems");
+
             for (id, finished) in sync_finished {
+                event!(Level::TRACE, system_id=?id, "Finished Non Blocking Sync System");
                 let finished = finished.unwrap();
 
                 let resource_id = system_registry.get(&id).unwrap().stored_system_metadata().resource_id();
@@ -61,7 +73,11 @@ impl KernelSystem for FinishNonBlockingProcessor {
                 let mut system = memory.resolve::<Unique<StoredSystem>>(None, Some(&resource_id), None, None).unwrap().unwrap();
 
                 system.insert_system(finished);
-                next_events.insert(id.into_id());
+
+                let event_id: EventId = id.into_id().into();
+                event!(Level::TRACE, event_id=?event_id, "New Event");
+
+                next_events.insert(event_id);
             }
         })
     }
