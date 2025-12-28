@@ -45,7 +45,6 @@ fn enters_function_body() {
     }
 }
 
-#[tracing::instrument]
 fn has_input(mut number: Unique<i32>) -> Option<SystemResult> {
     **number += 1;
 

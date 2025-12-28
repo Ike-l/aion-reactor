@@ -1,10 +1,24 @@
-mod background_processor;
-mod blocker_manager;
-mod delay_manager;
-mod event_manager;
-mod executable_manager;
-mod processor;
-mod read_only_processor;
+mod processors;
+
+use tracing_subscriber::fmt;
+use std::sync::Once;
+
+static INIT: Once = Once::new();
+
+fn init_tracing() {
+    INIT.call_once(|| {
+        fmt()
+            .with_ansi(false)
+            // .compact()
+            // .pretty()
+            // .with_env_filter(EnvFilter::new("info,aion_reactor=debug"))
+            .with_max_level(tracing::Level::TRACE)
+            .with_span_events(fmt::format::FmtSpan::ENTER | fmt::format::FmtSpan::EXIT)
+            .with_target(false)
+            .with_test_writer()           
+            .init();
+    });
+}
 
 // use std::{sync::Arc, time::Duration};
 // use aion_utilities::builders::{resources::ResourceBuilder, systems::SystemBuilder};

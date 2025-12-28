@@ -22,9 +22,12 @@ impl FinishedGraphTracker {
         })
     }
 
-    pub fn complete(&self, graph_index: usize) {
+    // returns the previous value (& false if graph_index doesnt exist)
+    pub fn complete(&self, graph_index: usize) -> bool {
         if let Some(graph_status) = self.graphs.get(graph_index) {
-            graph_status.store(true, Ordering::Release);
+            return graph_status.fetch_or(true, Ordering::Release)
         }
+
+        false
     }
 }

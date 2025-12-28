@@ -3,7 +3,7 @@ use std::{collections::{HashMap, HashSet}, sync::{Arc, RwLock, atomic::Ordering}
 use crate::prelude::{CurrentBlockers, CurrentEvents, DummyWaker, ExecutionGraph, FinishedGraphTracker, Memory, Shared, StateMachine, StoredSystem, System, SystemId, SystemMetadata, SystemRegistry, SystemResult, SystemStatus, Unique, Unwinder};
 
 use pollster::FutureExt;
-use tracing::{Level, event, span};
+use tracing::{Instrument, Level, event, span};
 
 pub mod system_event_registry;
 pub mod tasks;
@@ -92,6 +92,8 @@ impl Processor {
                     "Passed Resource Stage"
                 ) 
             )
+            // Reason for commented out: Maybe Access is given later? 
+            // Reason for uncommented out: If Access *isnt* given, then will block the whole process- maybe intended behaviour?
             // Access Stage
             .filter(|(id, system_metadata)| {
                 let resource_id = system_metadata.stored_system_metadata().resource_id();
@@ -109,6 +111,9 @@ impl Processor {
                     system_id = ?id, 
                     "Passed Access Stage"
                 ) 
+            )
+            .inspect(|(id, _)|
+                event!(Level::TRACE, system_id = ?id, "Passed All Checks")
             )
             .collect()
     }
@@ -185,7 +190,6 @@ impl Processor {
         
         let span = span!(Level::DEBUG, "Execute");
         let _enter = span.enter();
-        let outer_span = span.clone();
 
         for current_thread in 0..threads {
             let start_graph = current_thread * chunk_size;
@@ -203,15 +207,10 @@ impl Processor {
             
             let results_tx = results_tx.clone();
 
-            let outer_span = outer_span.clone();
+            let thread_span = span!(Level::TRACE, "Thread", thread_id=current_thread);
 
             threadpool.execute(move || {
                 async_runtime.block_on(async {
-                    let _enter = outer_span.enter();
-
-                    let span = span!(Level::TRACE, "Thread", thread_id=current_thread);
-                    let _enter = span.enter();
-
                     let waker = Waker::from(Arc::new(DummyWaker));
                     let mut context = Context::from_waker(&waker);
                     let mut tasks: Vec<(usize, SystemId, std::pin::Pin<Box<dyn Future<Output = Option<SystemResult>> + Send>>)> = Vec::new();
@@ -390,9 +389,10 @@ impl Processor {
 
                                 current_graph.write().unwrap().finished().store(true, Ordering::Release);
 
-                                event!(Level::DEBUG, current_graph_index=current_graph_index, "Finished Current Graph");
-
-                                finished_graphs.complete(current_graph_index);
+                                // if false before then do event
+                                if !finished_graphs.complete(current_graph_index) {
+                                    event!(Level::DEBUG, current_graph_index=current_graph_index, "Finished Current Graph");
+                                }
                             }
 
                             let mut not_done = Vec::new();
@@ -438,7 +438,7 @@ impl Processor {
                     }
 
                     drop(unwinder);
-                });
+                }.instrument(thread_span));
             });
         }
         
@@ -663,14 +663,13 @@ impl Processor {
     pub async fn execute_non_blocking(
         memory: &Arc<Memory>,
         systems: HashMap<&SystemId, &SystemMetadata>,
+        async_runtime: &Arc<tokio::runtime::Runtime>,
     ) -> (Vec<(SystemId, tokio::task::JoinHandle<System>)>, Vec<(SystemId, std::thread::JoinHandle<System>)>) {
         let mut new_async_join_handles = Vec::new();
         let mut new_sync_join_handles = Vec::new();
 
         let span = span!(Level::DEBUG, "Execute NonBlocking");
         let _enter = span.enter();
-
-        let outer_span = span.clone();
 
         for (system_id, system_metadata) in systems {
                 let program_id = system_metadata.stored_system_metadata().program_id();
@@ -701,7 +700,6 @@ impl Processor {
                 
                 let source = system_id.clone();
 
-                let outer_span = outer_span.clone();
                 let memory_clone = Arc::clone(&memory);
                 let program_id = program_id.clone();
                 let source = source.clone();
@@ -710,21 +708,23 @@ impl Processor {
                 if let Some(system) = system.take_system() {
                     match system {
                         System::Sync(mut sync_system) => {
-                            event!(
-                                Level::TRACE, 
-                                system_id = ?system_id,
-                                "Non Blocking Sync System Running"
-                            );
-
+                            let thread_span = span!(Level::TRACE, "Sync Thread", system_id=?system_id);
+                            
                             let join_handle = std::thread::spawn(move || {
-                                let _enter = outer_span.enter();
+                                let _enter = thread_span.enter();
+
+                                event!(
+                                    Level::TRACE, 
+                                    status="Executing",
+                                    "NonBlocking Sync System",
+                                );
 
                                 sync_system.run(&memory_clone, program_id.as_ref(), Some(&source), key.as_ref());
                                 
                                 event!(
                                     Level::TRACE, 
-                                    system_id = ?source,
-                                    "Non Blocking Sync System Finished"
+                                    status="Executed",
+                                    "NonBlocking Sync System"
                                 );
 
                                 System::Sync(sync_system)
@@ -733,25 +733,25 @@ impl Processor {
                             new_sync_join_handles.push((system_id.clone(), join_handle));
                         }
                         System::Async(mut async_system) => {
-                            event!(
-                                Level::TRACE, 
-                                system_id = ?system_id,
-                                "Non Blocking Async System Running"
-                            );
+                            let thread_span = span!(Level::TRACE, "Async Thread", system_id=?system_id);
 
-                            let join_handle = tokio::spawn(async move {
-                                let _enter = outer_span.enter();
+                            let join_handle = async_runtime.spawn(async move {
+                                event!(
+                                    Level::TRACE, 
+                                    status="Executing",
+                                    "NonBlocking Async System"
+                                );
 
                                 async_system.run(memory_clone, program_id, Some(source.clone()), key).await;
                                 
                                 event!(
                                     Level::TRACE, 
-                                    system_id = ?source,
-                                    "Non Blocking Sync System Finished"
+                                    status="Executed",
+                                    "NonBlocking Async System"
                                 );
 
                                 System::Async(async_system)
-                            });
+                            }.instrument(thread_span));
 
                             new_async_join_handles.push((system_id.clone(), join_handle));
                         }

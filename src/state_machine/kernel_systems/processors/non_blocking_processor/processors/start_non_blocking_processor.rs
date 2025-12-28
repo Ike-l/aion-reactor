@@ -13,11 +13,6 @@ impl StartNonBlockingProcessor {
     }
 }
 
-fn foo() {
-    todo!("TODO: test non blocking async :/");
-    unreachable!();
-}
-
 impl KernelSystem for StartNonBlockingProcessor {
     fn system_id(&self) -> SystemId {
         SystemId::from("Starting NonBlocking Processor")    
@@ -28,6 +23,8 @@ impl KernelSystem for StartNonBlockingProcessor {
         
         assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<AsyncJoinHandles>(), Some(kernel_program_key)), Some(true)));
         assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<SyncJoinHandles>(), Some(kernel_program_key)), Some(true)));
+        
+        assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<Arc<tokio::runtime::Runtime>>(), Some(kernel_program_key)), Some(true)));
         
         assert!(memory.insert(None, None, None, BackgroundProcessorSystemRegistry::default()).unwrap().is_ok());
         
@@ -43,12 +40,20 @@ impl KernelSystem for StartNonBlockingProcessor {
 
             event!(Level::DEBUG, "Executing");
 
+            let runtime = memory.resolve::<Shared<Arc<tokio::runtime::Runtime>>>(
+                Some(&kernel_program_id), 
+                None, 
+                None, 
+                Some(&kernel_program_key)
+            ).unwrap().unwrap();
+
             let (
                 new_async_join_handles, 
                 new_sync_join_handles
             ) = Processor::execute_non_blocking(
                 &memory,
-                systems
+                systems,
+                &runtime
             ).await;
 
             let mut async_join_handles = memory.resolve::<Unique<AsyncJoinHandles>>(Some(&kernel_program_id), None, None, Some(&kernel_program_key)).unwrap().unwrap();
