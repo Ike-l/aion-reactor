@@ -1,9 +1,9 @@
 use crate::prelude::SystemId;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct Blocker(SystemId);
+pub struct BlockerId(SystemId);
 
-impl<T> From<T> for Blocker 
+impl<T> From<T> for BlockerId 
 where T: Into<SystemId>
 {
     fn from(value: T) -> Self {
@@ -11,7 +11,7 @@ where T: Into<SystemId>
     }
 }
 
-impl Blocker {
+impl BlockerId {
     pub fn get_blocks(&self) -> &SystemId {
         &self.0
     }

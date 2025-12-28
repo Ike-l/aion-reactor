@@ -11,7 +11,7 @@ pub mod prelude {
             entity::EntityId, world::World
         },
         ids::{
-            Id, system_id::SystemId, program_id::ProgramId, event_id::EventId
+            Id, system_id::SystemId, program_id::ProgramId, event_id::EventId, blocker_id::BlockerId
         },
         injection::{
             AccessDropper, DeAccessResolver, 
@@ -58,7 +58,7 @@ pub mod prelude {
                 KernelSystem, StoredKernelSystem, 
                 managers::{
                     blocker_manager::{
-                        blocker::Blocker, blocker_manager::BlockerManager, current_blockers::CurrentBlockers, next_blockers::NextBlockers,
+                        blocker_manager::BlockerManager, current_blockers::CurrentBlockers, next_blockers::NextBlockers,
                     },
                     delay_manager::{
                         delay::{

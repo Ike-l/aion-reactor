@@ -1,9 +1,9 @@
 use std::{collections::HashSet, ops::Range};
 
-use crate::prelude::{Blocker, NextBlockers};
+use crate::prelude::{BlockerId, NextBlockers};
 
 #[derive(Debug, Default, Clone)]
-pub struct CurrentBlockers(HashSet<Blocker>);
+pub struct CurrentBlockers(HashSet<BlockerId>);
 
 impl CurrentBlockers {
     pub fn tick(&mut self, new_blockers: &mut NextBlockers) {
@@ -12,11 +12,11 @@ impl CurrentBlockers {
         self.0.extend(new_blockers.drain());
     }
 
-    pub fn read(&self) -> impl Iterator<Item = &Blocker> {
+    pub fn read(&self) -> impl Iterator<Item = &BlockerId> {
         self.0.iter()
     }
 
-    pub fn blocks(&self, blocker: &Blocker) -> bool {
+    pub fn blocks(&self, blocker: &BlockerId) -> bool {
         self.0.contains(blocker)
     }
 
@@ -25,7 +25,7 @@ impl CurrentBlockers {
     }
 
     /// no guarantees about the ordering
-    pub fn get_range(&self, amount: Range<usize>) -> impl Iterator<Item = &Blocker> {
+    pub fn get_range(&self, amount: Range<usize>) -> impl Iterator<Item = &BlockerId> {
         self.0.iter().take(amount.end)
     }
 }

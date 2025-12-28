@@ -1,11 +1,11 @@
-use crate::prelude::{Blocker, EventId, NextBlockers, NextEvents, SystemId};
+use crate::prelude::{BlockerId, EventId, NextBlockers, NextEvents, SystemId};
 
 
 #[derive(Debug)]
 pub enum SystemEvent {
     NoEvent,
     WithEvent(EventId),
-    WithBlocker(Blocker)
+    WithBlocker(BlockerId)
 }
 
 impl SystemEvent {

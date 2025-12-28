@@ -1,20 +1,20 @@
 use std::collections::HashSet;
 
-use crate::prelude::Blocker;
+use crate::prelude::BlockerId;
 
 #[derive(Debug, Default)]
-pub struct NextBlockers(HashSet<Blocker>);
+pub struct NextBlockers(HashSet<BlockerId>);
 
 impl NextBlockers {
-    pub fn insert(&mut self, blocker: Blocker) -> bool {
+    pub fn insert(&mut self, blocker: BlockerId) -> bool {
         self.0.insert(blocker)
     }
 
-    pub fn remove(&mut self, blocker: &Blocker) -> bool {
+    pub fn remove(&mut self, blocker: &BlockerId) -> bool {
         self.0.remove(blocker)
     }
 
-    pub fn drain(&mut self) -> impl Iterator<Item = Blocker> {
+    pub fn drain(&mut self) -> impl Iterator<Item = BlockerId> {
         self.0.drain()
     }
 
