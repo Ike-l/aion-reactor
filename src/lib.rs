@@ -86,7 +86,7 @@ pub mod prelude {
                     },
                 },
                 processors::{
-                    system_event_registry::SystemEventRegistry, Processor, tasks::DummyWaker, unwinder::Unwinder,
+                    system_event_registry::SystemEventRegistry, Processor, tasks::DummyWaker, unwinder::Unwinder, finished_graphs::FinishedGraphTracker,
                     non_blocking_processor::{
                         processors::{
                             finish_non_blocking_processor::FinishNonBlockingProcessor,

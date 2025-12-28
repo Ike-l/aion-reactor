@@ -1,6 +1,6 @@
 use std::{pin::Pin, sync::Arc};
 
-use tracing::{Level, event};
+use tracing::{Level, event, span};
 
 use crate::prelude::{ExecutionGraph, KernelSystem, Memory, NextBlockers, NextEvents, Processor, ProcessorSystemRegistry, ProgramId, ProgramKey, ResourceId, Shared, StateMachine, StoredSystem, SystemEventRegistry, SystemId, SystemMetadata, SystemResult, Unique};
 
@@ -41,6 +41,8 @@ impl KernelSystem for BlockingProcessor {
             event!(Level::DEBUG, executing_systems_count=systems.len(), "Executing Systems");
 
             {
+                let span = span!(Level::TRACE, "System Derived Events");
+                let _enter = span.enter();
                 let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
                 for &id in systems.keys() {
                     let event_id = id.clone().into_id();

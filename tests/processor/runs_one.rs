@@ -2,8 +2,6 @@ use aion_reactor::{injection::injection_primitives::{shared::Shared, unique::Uni
 use aion_utilities::builders::{resolver::ResolverBuilder, resources::ResourceBuilder, systems::SystemBuilder};
 
 use lazy_static::lazy_static;
-use tracing::Level;
-use tracing_subscriber::fmt::format::FmtSpan;
 
 use std::sync::Mutex;
 
@@ -27,6 +25,11 @@ fn enters_function_body() {
         .build_blocking(&state_machine)
         .unwrap();
     
+    {
+        let guard = OUTPUT.lock().unwrap();
+        assert_eq!(*guard, false);
+    }
+
     let _r = state_machine.transition();
 
     {
@@ -53,16 +56,6 @@ fn has_input(mut number: Unique<i32>) -> Option<SystemResult> {
 
 #[test]
 fn state_changes() {
-    tracing_subscriber::fmt()
-        .with_max_level(Level::TRACE)
-        // .compact()
-        // .pretty()
-        // .with_env_filter(EnvFilter::new("info,aion_reactor=debug"))
-        .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT)
-        .with_target(false)
-        .with_test_writer()
-        .init();
-
     let state_machine = StateMachine::new();
     state_machine.load_default(2);
 

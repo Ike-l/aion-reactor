@@ -1,6 +1,6 @@
-use std::{collections::{HashMap, HashSet}, sync::{Arc, RwLock, atomic::{AtomicUsize, Ordering}}, task::{Context, Poll, Waker}};
+use std::{collections::{HashMap, HashSet}, sync::{Arc, RwLock, atomic::Ordering}, task::{Context, Poll, Waker}};
 
-use crate::prelude::{CurrentBlockers, CurrentEvents, DummyWaker, ExecutionGraph, Memory, Shared, StateMachine, StoredSystem, System, SystemId, SystemMetadata, SystemRegistry, SystemResult, SystemStatus, Unique, Unwinder};
+use crate::prelude::{CurrentBlockers, CurrentEvents, DummyWaker, ExecutionGraph, FinishedGraphTracker, Memory, Shared, StateMachine, StoredSystem, System, SystemId, SystemMetadata, SystemRegistry, SystemResult, SystemStatus, Unique, Unwinder};
 
 use pollster::FutureExt;
 use tracing::{Level, event, span};
@@ -8,6 +8,7 @@ use tracing::{Level, event, span};
 pub mod system_event_registry;
 pub mod tasks;
 pub mod unwinder;
+pub mod finished_graphs;
 
 pub mod non_blocking_processor;
 pub mod blocking_processor;
@@ -172,7 +173,7 @@ impl Processor {
         
         let graph_count = execution_graphs.len();
         let chunk_size = graph_count / threads;
-        let finished_graphs = Arc::new(AtomicUsize::new(graph_count));
+        let finished_graphs = Arc::new(FinishedGraphTracker::new(graph_count));
         
         let system_map = Arc::new(system_registry.read()
             .map(|(system_id, system_metadata)| (system_id.clone(), system_metadata.stored_system_metadata().clone()))
@@ -213,7 +214,7 @@ impl Processor {
 
                     let waker = Waker::from(Arc::new(DummyWaker));
                     let mut context = Context::from_waker(&waker);
-                    let mut tasks = Vec::new();
+                    let mut tasks: Vec<(usize, SystemId, std::pin::Pin<Box<dyn Future<Output = Option<SystemResult>> + Send>>)> = Vec::new();
 
                     let mut current_graph_index = start_graph;
                     while finished_graphs.load(Ordering::Acquire) > 0 {
@@ -391,20 +392,14 @@ impl Processor {
 
                                 event!(Level::DEBUG, current_graph_index=current_graph_index, "Finished Current Graph");
 
-                                let _ = finished_graphs.fetch_update(Ordering::SeqCst, Ordering::Relaxed, |finished| {
-                                    if finished == 0 {
-                                        None
-                                    } else {
-                                        Some(finished - 1)
-                                    }
-                                });
+                                finished_graphs.complete(current_graph_index);
                             }
 
                             let mut not_done = Vec::new();
                             for (graph_number, system_id, mut fut) in tasks.drain(..) {
                                 match fut.as_mut().poll(&mut context) {
                                     Poll::Pending => {
-                                        event!(Level::TRACE, system_id=?system_id, "Async System Pending");
+                                        // event!(Level::TRACE, system_id=?system_id, "Async System Pending");
 
                                         not_done.push((graph_number, system_id, fut));
                                     },
