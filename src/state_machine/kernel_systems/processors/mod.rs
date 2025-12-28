@@ -213,7 +213,7 @@ impl Processor {
                 async_runtime.block_on(async {
                     let waker = Waker::from(Arc::new(DummyWaker));
                     let mut context = Context::from_waker(&waker);
-                    let mut tasks: Vec<(usize, SystemId, std::pin::Pin<Box<dyn Future<Output = Option<SystemResult>> + Send>>)> = Vec::new();
+                    let mut tasks = Vec::new();
 
                     let mut current_graph_index = start_graph;
                     while finished_graphs.load(Ordering::Acquire) > 0 {
@@ -289,11 +289,17 @@ impl Processor {
                                                     
                                                     match inner {
                                                         System::Sync(sync_system) => {
+                                                            let system_span = span!(
+                                                                Level::TRACE, 
+                                                                "Sync",
+                                                                system_id = ?system_id, 
+                                                            );
+                                                            let _enter = system_span.enter();
+
                                                             event!(
                                                                 Level::TRACE, 
-                                                                system_id = ?system_id,
                                                                 status = ?status,
-                                                                "Sync System Running"
+                                                                "System"
                                                             );
 
                                                             let result = sync_system.run(
@@ -313,17 +319,22 @@ impl Processor {
                                                             
                                                             event!(
                                                                 Level::TRACE, 
-                                                                system_id = ?system_id,
                                                                 status = ?status,
-                                                                "Sync System Finished"
+                                                                "System"
                                                             );
                                                         },
                                                         System::Async(async_system) => {
+                                                            let system_span = span!(
+                                                                Level::TRACE, 
+                                                                "Async",
+                                                                system_id = ?system_id, 
+                                                            );
+                                                            let _enter = system_span.enter();
+
                                                             event!(
                                                                 Level::TRACE, 
-                                                                system_id = ?system_id,
                                                                 status = ?status,
-                                                                "Async System Running"
+                                                                "System"
                                                             );
 
                                                             let mut task = async_system.run(
@@ -340,9 +351,8 @@ impl Processor {
 
                                                                     event!(
                                                                         Level::TRACE, 
-                                                                        system_id = ?system_id,
                                                                         status = ?status,
-                                                                        "Async System Pending"
+                                                                        "System"
                                                                     );
 
                                                                     tasks.push((
@@ -361,9 +371,8 @@ impl Processor {
                                                                     
                                                                     event!(
                                                                         Level::TRACE, 
-                                                                        system_id = ?system_id,
                                                                         status = ?status,
-                                                                        "Async System Finished"
+                                                                        "System"
                                                                     );
                                                                 }
                                                             }
@@ -551,10 +560,16 @@ impl Processor {
                                     continue;
                                 }
 
+                                let system_span = span!(
+                                    Level::TRACE, 
+                                    "Sync",
+                                    system_id = ?system_id, 
+                                );
+                                let _enter = system_span.enter();
+
                                 event!(
                                     Level::TRACE, 
-                                    system_id = ?system_id,
-                                    "Sync System Running"
+                                    "System Running"
                                 );
 
                                 let result = sync_system.run(
@@ -570,8 +585,7 @@ impl Processor {
 
                                 event!(
                                     Level::TRACE, 
-                                    system_id = ?system_id,
-                                    "Sync System Finished"
+                                    "System Finished"
                                 );
                             },
                             System::Async(async_system) => {
@@ -584,10 +598,16 @@ impl Processor {
                                     continue;
                                 }
 
+                                let system_span = span!(
+                                    Level::TRACE, 
+                                    "Async",
+                                    system_id = ?system_id, 
+                                );
+                                let _enter = system_span.enter();
+
                                 event!(
                                     Level::TRACE, 
-                                    system_id = ?system_id,
-                                    "Async System Running"
+                                    "System Running"
                                 );
 
                                 // todo better async handling
@@ -605,7 +625,7 @@ impl Processor {
                                 event!(
                                     Level::TRACE, 
                                     system_id = ?system_id,
-                                    "Async System Finished"
+                                    "System Finished"
                                 );
                             },
                         }

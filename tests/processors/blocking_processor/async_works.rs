@@ -1,6 +1,7 @@
 use aion_reactor::prelude::{Criteria, StateMachine, System, SystemResult};
 use aion_utilities::builders::systems::SystemBuilder;
 use lazy_static::lazy_static;
+use tracing::{Level, event};
 
 use std::sync::Mutex;
 
@@ -10,13 +11,17 @@ lazy_static! {
     static ref OUTPUT: Mutex<u32> = Mutex::new(1);
 }
 
+// #[instrument]
 async fn no_input() -> Option<SystemResult> {
     tokio::time::sleep(std::time::Duration::from_secs_f32(0.2)).await;
+    event!(Level::INFO, "Passed First Stage");
     {
         let mut guard = OUTPUT.lock().unwrap();
         *guard += 1;
     }
+    event!(Level::INFO, "Passed Second Stage");
     tokio::time::sleep(std::time::Duration::from_secs_f32(0.2)).await;
+    event!(Level::INFO, "Passed Third Stage");
     None
 }
 
