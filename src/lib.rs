@@ -16,7 +16,7 @@ pub mod prelude {
         injection::{
             AccessDropper, DeAccessResolver, 
             injection_advanced::{
-                global::Global, resulting::Resulting
+                global::Global, resulting::Resulting, system_id::GetSystemId, program_memory::ProgramMemory,
             },
             injection_primitives::{
                 cloned::Cloned, shared::Shared, unique::Unique

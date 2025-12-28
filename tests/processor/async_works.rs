@@ -1,7 +1,7 @@
-use aion_reactor::{injection::injection_advanced::system_id::GetSystemId, prelude::{Criteria, StateMachine, System, SystemResult}};
+use aion_reactor::prelude::{Criteria, StateMachine, System, SystemResult};
 use aion_utilities::builders::systems::SystemBuilder;
 use lazy_static::lazy_static;
-use tracing::{Level, event};
+use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 
 use std::sync::Mutex;
@@ -10,9 +10,7 @@ lazy_static! {
     static ref OUTPUT: Mutex<u32> = Mutex::new(1);
 }
 
-async fn no_input(system_id: GetSystemId) -> Option<SystemResult> {
-    event!(Level::INFO, system_id=?system_id, "System Id");
-
+async fn no_input() -> Option<SystemResult> {
     tokio::time::sleep(std::time::Duration::from_secs_f32(0.2)).await;
     {
         let mut guard = OUTPUT.lock().unwrap();
@@ -36,6 +34,8 @@ fn enters_function_body() {
     
     let state_machine = StateMachine::new();
     state_machine.load_default(4);
+
+    state_machine.insert(None, None, None, 1);
 
     let _ = SystemBuilder::new("Foo", System::new_async(no_input))
         .replace_criteria(Criteria::new(|_| true))
