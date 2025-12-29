@@ -53,7 +53,7 @@ pub mod prelude {
             },
         },
         state_machine::{
-            StateMachine, kernel_registry::KernelSystemRegistry, kernel_builder::KernelBuilder,
+            StateMachine, kernel_registry::KernelSystemRegistry, kernel_builder::KernelBuilder, tick_accumulator::TickAccumulator,
             kernel_systems::{
                 KernelSystem, StoredKernelSystem, 
                 managers::{

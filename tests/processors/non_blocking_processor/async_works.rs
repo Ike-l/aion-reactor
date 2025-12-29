@@ -44,7 +44,10 @@ fn enters_function_body() {
         .build_non_blocking(&state_machine)
         .unwrap();
     
+    // let tick_accumulator = state_machine.resolve::<Shared<TickAccumulator>>(None, None, None, None).unwrap().unwrap();
+    // event!(Level::INFO, tick_accumulator=?tick_accumulator, "Has Tick Accumulator");
     let _r = state_machine.tick();
+    // drop(tick_accumulator);
 
     std::thread::sleep(std::time::Duration::from_secs_f32(0.2));
 

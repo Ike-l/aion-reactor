@@ -1,20 +1,19 @@
-use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+use std::sync::Arc;
 
-use tracing::{Level, event, span};
+use tracing::{Level, event, field, span};
 
-use crate::prelude::{Injection, InsertError, KernelSystemRegistry, Memory, MemoryDomain, ProgramId, ProgramKey, ResolveError, Resource, ResourceId, StoredKernelSystem, SystemId, Unique};
+use crate::prelude::{Injection, InsertError, KernelSystemRegistry, Memory, MemoryDomain, ProgramId, ProgramKey, ResolveError, Resource, ResourceId, Shared, StoredKernelSystem, SystemId, TickAccumulator, Unique};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
 pub mod kernel_builder;
+pub mod tick_accumulator;
 
 #[derive(Debug)]
 pub struct StateMachine {
     memory: Arc<Memory>,
     program_id: ProgramId,
     kernel_key: ProgramKey,
-    
-    current_tick: AtomicUsize,
 }
 
 
@@ -27,18 +26,19 @@ impl StateMachine {
 
         assert!(memory.insert_program(id.clone(), Arc::new(MemoryDomain::new()), Some(key)), "Kernel must have access to `_KernelMemory`");
 
-        memory.insert(
+        assert!(memory.insert(
             Some(&id), 
             None, 
             Some(&key),
             KernelSystemRegistry::default()
-        );
+        ).unwrap().is_ok());
+
+        assert!(memory.insert(None, None, None, TickAccumulator::default()).unwrap().is_ok());
 
         Self {
             memory,
             program_id: id,
             kernel_key: key,
-            current_tick: AtomicUsize::new(0),
         }
     }
 
@@ -77,10 +77,20 @@ impl StateMachine {
 
     // could make it async but then Processor run time weird stuff so idk
     pub fn tick(&self) {
-        let current_tick = self.current_tick.fetch_add(1, Ordering::Acquire);
-
-        let span = span!(Level::INFO, "Tick", current_tick=current_tick);
+        let span = span!(Level::INFO, "Tick", current_tick=field::Empty);
         let _enter = span.enter();
+
+        let current_tick = {
+            let tick_accumulator = self.memory.resolve::<Shared<TickAccumulator>>(None, None, None, None).unwrap();
+            if let Ok(current_tick) = tick_accumulator {
+                Some(current_tick.inner().clone())
+            } else {
+                event!(Level::ERROR, "Could not get Shared Access to TickAccumulator");
+                None
+            }
+        };
+
+        span.record("current_tick", format!("{:?}", current_tick));
 
         event!(Level::INFO, "Start Tick");
 
@@ -103,6 +113,13 @@ impl StateMachine {
 
                 event!(Level::DEBUG, "Finished");
             }
+        }
+
+        let tick_accumulator = self.memory.resolve::<Unique<TickAccumulator>>(None, None, None, None).unwrap();
+        if let Ok(mut current_tick) = tick_accumulator {
+            *current_tick.inner_mut() += 1;
+        } else {
+            event!(Level::ERROR, "Could not increment TickAccumulator")
         }
     }
 }
