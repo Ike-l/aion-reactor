@@ -2,10 +2,11 @@ use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
 
 use tracing::{Level, event, span};
 
-use crate::prelude::{BlockerManager, BlockingProcessor, DelayManager, EventManager, ExecutableManager, FinishNonBlockingProcessor, Injection, InsertError, KernelSystem, KernelSystemRegistry, Memory, MemoryDomain, ProgramId, ProgramKey, ReadOnlyProcessor, ResolveError, Resource, ResourceId, StartNonBlockingProcessor, StoredKernelSystem, SystemId, Unique};
+use crate::prelude::{Injection, InsertError, KernelSystemRegistry, Memory, MemoryDomain, ProgramId, ProgramKey, ResolveError, Resource, ResourceId, StoredKernelSystem, SystemId, Unique};
 
 pub mod kernel_systems;
 pub mod kernel_registry;
+pub mod kernel_builder;
 
 #[derive(Debug)]
 pub struct StateMachine {
@@ -41,16 +42,13 @@ impl StateMachine {
         }
     }
 
-    fn insert_system<T: KernelSystem + 'static>(
-        &self, 
+    fn insert_stored_system(
+        &self,
         system_id: SystemId,
-        mut kernel_system: T, 
+        kernel_system: StoredKernelSystem,
         ordering_index: usize
     ) {
-        kernel_system.init(&self.memory, &self.program_id, &self.kernel_key);
-
         let mut kernel_system_registry = self.memory.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
-        
         let resource_id = ResourceId::from_labelled_heap(system_id.into_id());
 
         assert!(
@@ -58,63 +56,11 @@ impl StateMachine {
                 Some(&self.program_id), 
                 Some(resource_id.clone()), 
                 Some(&self.kernel_key), 
-                Box::new(kernel_system) as StoredKernelSystem
+                kernel_system
             ).unwrap().unwrap().is_none()
         );
 
         kernel_system_registry.insert(ordering_index, resource_id);
-    }
-
-    pub fn load_default(&self, processor_threads: usize) {
-        let span = span!(Level::DEBUG, "Loading Default Systems");
-        let _enter = span.enter();
-
-        event!(Level::DEBUG, "Started");
-
-        let rt = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-
-        let threadpool = threadpool::ThreadPool::new(processor_threads);
-
-        assert!(self.memory.insert(
-            Some(&self.program_id), 
-            None, 
-            Some(&self.kernel_key), 
-            Arc::new(rt)
-        ).unwrap().is_ok());
-
-        assert!(self.memory.insert(
-            Some(&self.program_id), 
-            None, 
-            Some(&self.kernel_key), 
-            threadpool
-        ).unwrap().is_ok());
-
-        let system_id = FinishNonBlockingProcessor.system_id();
-        self.insert_system(system_id, FinishNonBlockingProcessor, 0);
-
-        let system_id = EventManager.system_id();
-        self.insert_system(system_id, EventManager, 1);
-
-        let system_id = ExecutableManager.system_id();
-        self.insert_system(system_id, ExecutableManager, 2);
-
-        let system_id = DelayManager.system_id();
-        self.insert_system(system_id, DelayManager, 3);
-
-        let system_id = BlockerManager.system_id();
-        self.insert_system(system_id, BlockerManager, 4);
-
-        let system_id = BlockingProcessor.system_id();
-        self.insert_system(system_id, BlockingProcessor, 5);
-
-        let system_id = ReadOnlyProcessor.system_id();
-        self.insert_system(system_id, ReadOnlyProcessor, 6);
-
-        let system_id = StartNonBlockingProcessor.system_id();
-        self.insert_system(system_id, StartNonBlockingProcessor, 7);
     }
 
     pub fn resolve<T: Injection>(&self, program_id: Option<&ProgramId>, resource_id: Option<&ResourceId>, source: Option<&SystemId>, key: Option<&ProgramKey>) -> Option<Result<T::Item<'_>, ResolveError>> {
@@ -130,21 +76,32 @@ impl StateMachine {
     }
 
     // could make it async but then Processor run time weird stuff so idk
-    pub fn transition(&self) {
+    pub fn tick(&self) {
         let current_tick = self.current_tick.fetch_add(1, Ordering::Acquire);
-        let span = span!(Level::INFO, "Transition", current_tick=current_tick);
+
+        let span = span!(Level::INFO, "Tick", current_tick=current_tick);
         let _enter = span.enter();
-        event!(Level::INFO, "Start Transition");
+
+        event!(Level::INFO, "Start Tick");
+
         let mut kernel_systems = self.memory.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
         for kernel_systems in kernel_systems.iter() {
+            // could parallelise later?
             for kernel_system in kernel_systems {
                 let mut kernel_system = self.memory.resolve::<Unique<StoredKernelSystem>>(Some(&self.program_id), Some(&kernel_system), None, Some(&self.kernel_key)).unwrap().unwrap();
-                let span = span!(Level::DEBUG, "Kernel System", kernel_system = ?kernel_system.system_id().into_id());
+                let span = span!(Level::DEBUG, "Kernel System Tick", kernel_system = ?kernel_system.system_id().into_id());
                 let _enter = span.enter();
 
-                event!(Level::DEBUG, status="Ticking");
-                pollster::block_on(kernel_system.tick(&self.memory, self.program_id.clone(), self.kernel_key.clone()));
-                event!(Level::DEBUG, status="Ticked");
+                event!(Level::DEBUG, "Started");
+                
+                // make async? but if i do its quite misleading cause it does blocking work
+                pollster::block_on(kernel_system.tick(
+                    &self.memory, 
+                    self.program_id.clone(), 
+                    self.kernel_key.clone()
+                ));
+
+                event!(Level::DEBUG, "Finished");
             }
         }
     }

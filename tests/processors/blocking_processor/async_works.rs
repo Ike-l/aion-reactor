@@ -1,4 +1,4 @@
-use aion_reactor::prelude::{Criteria, StateMachine, System, SystemResult};
+use aion_reactor::prelude::{Criteria, KernelBuilder, StateMachine, System, SystemResult};
 use aion_utilities::builders::systems::SystemBuilder;
 use lazy_static::lazy_static;
 use tracing::{Level, event};
@@ -30,7 +30,7 @@ fn enters_function_body() {
     init_tracing();
     
     let state_machine = StateMachine::new();
-    state_machine.load_default(4);
+    KernelBuilder::full(4).init(&state_machine);
 
     state_machine.insert(None, None, None, 1);
 
@@ -54,14 +54,14 @@ fn enters_function_body() {
         assert_eq!(*guard, 1);
     }
 
-    let _r = state_machine.transition();
+    let _r = state_machine.tick();
 
     {
         let guard = OUTPUT.lock().unwrap();
         assert_eq!(*guard, 4);
     }
 
-    let _r = state_machine.transition();
+    let _r = state_machine.tick();
 
     {
         let guard = OUTPUT.lock().unwrap();

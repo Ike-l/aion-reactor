@@ -1,16 +1,16 @@
 use std::{any::Any, thread::JoinHandle};
 
-use crate::prelude::{System, SystemId};
+use crate::prelude::{System, SystemId, SystemResult};
 
 #[derive(Default)]
-pub struct SyncJoinHandles(Vec<(SystemId, JoinHandle<System>)>);
+pub struct SyncJoinHandles(Vec<(SystemId, JoinHandle<(System, Option<SystemResult>)>)>);
 
 impl SyncJoinHandles {
-    pub fn push(&mut self, id: SystemId, join_handle: JoinHandle<System>) {
+    pub fn push(&mut self, id: SystemId, join_handle: JoinHandle<(System, Option<SystemResult>)>) {
         self.0.push((id, join_handle));
     }
 
-    pub fn get_finished(&mut self) -> Vec<(SystemId, Result<System, Box<dyn Any + Send + 'static>>)> {
+    pub fn get_finished(&mut self) -> Vec<(SystemId, Result<(System, Option<SystemResult>), Box<dyn Any + Send>>)> {
         let mut not_finished = Vec::new();
         let mut finished = Vec::new();
         for (id, handle) in self.0.drain(..) {

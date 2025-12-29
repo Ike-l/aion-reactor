@@ -12,14 +12,16 @@ impl KernelSystem for DelayManager {
     }
 
     fn init(&mut self, memory: &Memory, _kernel_program_id: &ProgramId, _kernel_program_key: &ProgramKey) {
-        event!(Level::DEBUG, status="Initialising", kernel_system_id = ?self.system_id());
-        
-        assert!(matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<CurrentEvents>(), None), Some(true)));
-        
+        event!(Level::DEBUG, "Inserting DelayRegistry");
         assert!(memory.insert(None, None, None, DelayRegistry::default()).unwrap().is_ok());
+        
+        event!(Level::DEBUG, "Inserting DelayBuffer");
         assert!(memory.insert(None, None, None, DelayBuffer::default()).unwrap().is_ok());
         
-        event!(Level::DEBUG, status="Initialised", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, "Checking CurrentEvents");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<CurrentEvents>(), None), Some(true)) {
+            event!(Level::WARN, "CurrentEvents Not Found");
+        }
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, _kernel_program_id: ProgramId, _kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {

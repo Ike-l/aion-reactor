@@ -1,4 +1,4 @@
-use aion_reactor::prelude::{Criteria, StateMachine, System, SystemResult};
+use aion_reactor::prelude::{Criteria, KernelBuilder, StateMachine, System, SystemResult};
 use aion_utilities::builders::systems::SystemBuilder;
 use lazy_static::lazy_static;
 
@@ -22,7 +22,7 @@ fn enters_function_body() {
     init_tracing();
     
     let state_machine = StateMachine::new();
-    state_machine.load_default(1);
+    KernelBuilder::full(1).init(&state_machine);
 
     let _ = SystemBuilder::new("Foo", System::new_sync(no_input))
         .replace_criteria(Criteria::new(|_| true))
@@ -34,15 +34,15 @@ fn enters_function_body() {
         assert_eq!(*guard, false);
     }
 
-    let _r = state_machine.transition();
+    let _r = state_machine.tick();
 
     std::thread::sleep(std::time::Duration::from_secs_f32(0.2));
 
-    let _r = state_machine.transition();
+    let _r = state_machine.tick();
 
     std::thread::sleep(std::time::Duration::from_secs_f32(0.1));
 
-    let _r = state_machine.transition();
+    let _r = state_machine.tick();
 
     std::thread::sleep(std::time::Duration::from_secs_f32(0.2));
     // {

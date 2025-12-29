@@ -3,9 +3,8 @@ use std::{collections::{HashMap, HashSet}, sync::{Arc, RwLock, atomic::Ordering}
 use crate::prelude::{CurrentBlockers, CurrentEvents, DummyWaker, ExecutionGraph, FinishedGraphTracker, Memory, Shared, StateMachine, StoredSystem, System, SystemId, SystemMetadata, SystemRegistry, SystemResult, SystemStatus, Unique, Unwinder};
 
 use pollster::FutureExt;
-use tracing::{Instrument, Level, event, span};
+use tracing::{Instrument, Level, event, field, span};
 
-pub mod system_event_registry;
 pub mod tasks;
 pub mod unwinder;
 pub mod finished_graphs;
@@ -292,14 +291,16 @@ impl Processor {
                                                             let system_span = span!(
                                                                 Level::TRACE, 
                                                                 "Sync",
+                                                                status = field::Empty,
                                                                 system_id = ?system_id, 
                                                             );
                                                             let _enter = system_span.enter();
 
+                                                            
+                                                            system_span.record("status", format!("{:?}", status));
                                                             event!(
                                                                 Level::TRACE, 
-                                                                status = ?status,
-                                                                "System"
+                                                                "Start"
                                                             );
 
                                                             let result = sync_system.run(
@@ -317,24 +318,26 @@ impl Processor {
 
                                                             *status = SystemStatus::Executed;
                                                             
+                                                            system_span.record("status", format!("{:?}", status));
                                                             event!(
                                                                 Level::TRACE, 
-                                                                status = ?status,
-                                                                "System"
+                                                                "End"
                                                             );
                                                         },
                                                         System::Async(async_system) => {
                                                             let system_span = span!(
                                                                 Level::TRACE, 
                                                                 "Async",
+                                                                status = field::Empty,
                                                                 system_id = ?system_id, 
                                                             );
                                                             let _enter = system_span.enter();
 
+                                                            
+                                                            system_span.record("status", format!("{:?}", status));
                                                             event!(
                                                                 Level::TRACE, 
-                                                                status = ?status,
-                                                                "System"
+                                                                "Start"
                                                             );
 
                                                             let mut task = async_system.run(
@@ -342,17 +345,17 @@ impl Processor {
                                                                 system_metadata.program_id().clone(),
                                                                 Some(system_id.clone()),
                                                                 system_metadata.key().clone()
-                                                            );
+                                                            ).in_current_span();
 
-                                                            match task.as_mut().poll(&mut context) {
+                                                            match task.inner_mut().as_mut().poll(&mut context) {
                                                                 Poll::Pending => {
                                                                     current_graph.write().unwrap().mark_as_pending(&system_id);
                                                                     *status = SystemStatus::Pending;
 
+                                                                    system_span.record("status", format!("{:?}", status));
                                                                     event!(
                                                                         Level::TRACE, 
-                                                                        status = ?status,
-                                                                        "System"
+                                                                        "Pending"
                                                                     );
 
                                                                     tasks.push((
@@ -369,10 +372,10 @@ impl Processor {
                                                                     current_graph.write().unwrap().mark_as_complete(&system_id);
                                                                     *status = SystemStatus::Executed;
                                                                     
+                                                                    system_span.record("status", format!("{:?}", status));
                                                                     event!(
                                                                         Level::TRACE, 
-                                                                        status = ?status,
-                                                                        "System"
+                                                                        "Ready"
                                                                     );
                                                                 }
                                                             }
@@ -406,7 +409,7 @@ impl Processor {
 
                             let mut not_done = Vec::new();
                             for (graph_number, system_id, mut fut) in tasks.drain(..) {
-                                match fut.as_mut().poll(&mut context) {
+                                match fut.inner_mut().as_mut().poll(&mut context) {
                                     Poll::Pending => {
                                         // event!(Level::TRACE, system_id=?system_id, "Async System Pending");
 
@@ -425,16 +428,15 @@ impl Processor {
                                             system_metadata.key().as_ref()
                                         ).unwrap().unwrap();
 
-                                        // referenced 1
                                         *stored_system.status().lock().unwrap() = SystemStatus::Executed;
                                         execution_graphs.get(graph_number).unwrap().write().unwrap().mark_as_complete(&system_id);
                                         
+                                        fut.span().record("status", format!("{:?}", SystemStatus::Executed));
+
                                         event!(
+                                            parent: fut.span(),
                                             Level::TRACE, 
-                                            system_id = ?system_id,
-                                            // referenced 1
-                                            status = ?SystemStatus::Executed,
-                                            "Async System Finished",
+                                            "Ready",
                                         );
                                     }
                                 }
@@ -684,7 +686,7 @@ impl Processor {
         memory: &Arc<Memory>,
         systems: HashMap<&SystemId, &SystemMetadata>,
         async_runtime: &Arc<tokio::runtime::Runtime>,
-    ) -> (Vec<(SystemId, tokio::task::JoinHandle<System>)>, Vec<(SystemId, std::thread::JoinHandle<System>)>) {
+    ) -> (Vec<(SystemId, tokio::task::JoinHandle<(System, Option<SystemResult>)>)>, Vec<(SystemId, std::thread::JoinHandle<(System, Option<SystemResult>)>)>) {
         let mut new_async_join_handles = Vec::new();
         let mut new_sync_join_handles = Vec::new();
 
@@ -735,19 +737,17 @@ impl Processor {
 
                                 event!(
                                     Level::TRACE, 
-                                    status="Executing",
-                                    "NonBlocking Sync System",
+                                    "Start"
                                 );
 
-                                sync_system.run(&memory_clone, program_id.as_ref(), Some(&source), key.as_ref());
+                                let result = sync_system.run(&memory_clone, program_id.as_ref(), Some(&source), key.as_ref());
                                 
                                 event!(
                                     Level::TRACE, 
-                                    status="Executed",
-                                    "NonBlocking Sync System"
+                                    "End"
                                 );
 
-                                System::Sync(sync_system)
+                                (System::Sync(sync_system), result)
                             });
 
                             new_sync_join_handles.push((system_id.clone(), join_handle));
@@ -758,19 +758,17 @@ impl Processor {
                             let join_handle = async_runtime.spawn(async move {
                                 event!(
                                     Level::TRACE, 
-                                    status="Executing",
-                                    "NonBlocking Async System"
+                                    "Start"
                                 );
 
-                                async_system.run(memory_clone, program_id, Some(source.clone()), key).await;
+                                let result = async_system.run(memory_clone, program_id, Some(source.clone()), key).await;
                                 
                                 event!(
                                     Level::TRACE, 
-                                    status="Executed",
-                                    "NonBlocking Async System"
+                                    "End"
                                 );
 
-                                System::Async(async_system)
+                                (System::Async(async_system), result)
                             }.instrument(thread_span));
 
                             new_async_join_handles.push((system_id.clone(), join_handle));

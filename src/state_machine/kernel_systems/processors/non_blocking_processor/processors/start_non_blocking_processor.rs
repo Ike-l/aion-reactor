@@ -19,16 +19,25 @@ impl KernelSystem for StartNonBlockingProcessor {
     }
 
     fn init(&mut self, memory: &Memory, kernel_program_id: &ProgramId, kernel_program_key: &ProgramKey) {
-        event!(Level::DEBUG, status="Initialising", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, "Checking Arc<tokio::runtime::Runtime>");
+        if !matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<Arc<tokio::runtime::Runtime>>(), Some(kernel_program_key)), Some(true)) {
+            event!(Level::WARN, "Arc<tokio::runtime::Runtime> Not Found")
+        }
         
-        assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<AsyncJoinHandles>(), Some(kernel_program_key)), Some(true)));
-        assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<SyncJoinHandles>(), Some(kernel_program_key)), Some(true)));
+        event!(Level::DEBUG, "Checking AsyncJoinHandles");
+        if !matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<AsyncJoinHandles>(), Some(kernel_program_key)), Some(true)) {
+            event!(Level::WARN, "AsyncJoinHandles Not Found")
+        }
         
-        assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<Arc<tokio::runtime::Runtime>>(), Some(kernel_program_key)), Some(true)));
+        event!(Level::DEBUG, "Checking SyncJoinHandles");
+        if !matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<SyncJoinHandles>(), Some(kernel_program_key)), Some(true)) {
+            event!(Level::WARN, "SyncJoinHandles Not Found")
+        }
         
-        assert!(memory.insert(None, None, None, BackgroundProcessorSystemRegistry::default()).unwrap().is_ok());
-        
-        event!(Level::DEBUG, status="Initialised", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, "Checking BackgroundProcessorSystemRegistry");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<BackgroundProcessorSystemRegistry>(), None), Some(true)) {
+            event!(Level::WARN, "BackgroundProcessorSystemRegistry Not Found")
+        }
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, kernel_program_id: ProgramId, kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {

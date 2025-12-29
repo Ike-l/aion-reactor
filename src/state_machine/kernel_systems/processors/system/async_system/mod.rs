@@ -6,6 +6,10 @@ use crate::prelude::{FunctionSystem, Injection, ProgramKey, Memory, ProgramId, R
 
 pub type StoredAsyncSystem = Box<dyn AsyncSystem>;
 
+
+use tracing::instrument::Instrument;
+
+
 pub trait AsyncSystem: Send + Sync {
     fn run<'a>(
         &'a mut self,
@@ -43,6 +47,7 @@ macro_rules! impl_async_system {
                 source: Option<SystemId>,
                 key: Option<ProgramKey>
             ) -> Pin<Box<dyn Future<Output = Option<SystemResult>> + 'a + Send>> {
+                let span = tracing::span!(tracing::Level::DEBUG, "Running");
                 Box::pin(async move {
                     $(
                         let $params = memory.resolve::<$params>(
@@ -54,7 +59,7 @@ macro_rules! impl_async_system {
                     )*
 
                     (self.f)($($params),*).await
-                })
+                }.instrument(span))
             }
         
             fn ok_resources(

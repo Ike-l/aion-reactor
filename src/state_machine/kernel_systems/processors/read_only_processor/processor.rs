@@ -1,8 +1,8 @@
 use std::{pin::Pin, sync::Arc};
 
-use tracing::{Level, event};
+use tracing::{Level, event, span};
 
-use crate::prelude::{KernelSystem, Memory, NextBlockers, NextEvents, Processor, ProgramId, ProgramKey, ReadOnlySystemRegistry, ResourceId, Shared, StateMachine, StoredSystem, SystemEventRegistry, SystemId, SystemMetadata, SystemResult, Unique};
+use crate::prelude::{KernelSystem, Memory, NextBlockers, NextEvents, Processor, ProgramId, ProgramKey, ReadOnlySystemRegistry, ResourceId, Shared, StateMachine, StoredSystem, SystemEventRegistry, SystemId, SystemMetadata, Unique};
 
 pub struct ReadOnlyProcessor;
 
@@ -24,14 +24,33 @@ impl KernelSystem for ReadOnlyProcessor {
     }
 
     fn init(&mut self, memory: &Memory, kernel_program_id: &ProgramId, kernel_program_key: &ProgramKey) {
-        event!(Level::DEBUG, status="Initialising", kernel_system_id = ?self.system_id());
-        assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<Arc<tokio::runtime::Runtime>>(), Some(kernel_program_key)), Some(true)));
-        assert!(matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<threadpool::ThreadPool>(), Some(kernel_program_key)), Some(true)));
+        event!(Level::DEBUG, "Inserting ReadOnlySystemRegistry");
+        assert!(memory.insert(None, None, None, ReadOnlySystemRegistry::default()).unwrap().is_ok());  
+ 
+        event!(Level::DEBUG, "Checking NextEvents");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<NextEvents>(), None), Some(true)) {
+            event!(Level::WARN, "NextEvents Not Found")
+        }
+
+        event!(Level::DEBUG, "Checking NextBlockers");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<NextBlockers>(), None), Some(true)) {
+            event!(Level::WARN, "NextBlockers Not Found")
+        }
+
+        event!(Level::DEBUG, "Checking SystemEventRegistry");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<SystemEventRegistry>(), None), Some(true)) {
+            event!(Level::WARN, "SystemEventRegistry Not Found")
+        }
+
+        event!(Level::DEBUG, "Checking Arc<tokio::runtime::Runtime>");
+        if !matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<Arc<tokio::runtime::Runtime>>(), Some(kernel_program_key)), Some(true)) {
+            event!(Level::WARN, "Arc<tokio::runtime::Runtime> Not Found")
+        }
         
-        assert!(memory.insert(None, None, None, ReadOnlySystemRegistry::default()).unwrap().is_ok());
-        assert!(memory.insert(None, None, None, SystemEventRegistry::default()).unwrap().is_ok());
-        
-        event!(Level::DEBUG, status="Initialised", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, "Checking threadpool::ThreadPool");
+        if !matches!(memory.contains_resource(Some(kernel_program_id), &ResourceId::from_raw_heap::<threadpool::ThreadPool>(), Some(kernel_program_key)), Some(true)) {
+            event!(Level::WARN, "threadpool::ThreadPool Not Found")
+        }
     }
     
     fn tick(&mut self, memory: &Arc<Memory>, kernel_program_id: ProgramId, kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
@@ -72,28 +91,18 @@ impl KernelSystem for ReadOnlyProcessor {
             
             let system_event_registry = memory.resolve::<Shared<SystemEventRegistry>>(None, None, None, None).unwrap().unwrap();
 
+            let results_span = span!(Level::DEBUG, "Results");
+            let _enter = results_span.enter();
+
             for (system_id, result) in results {
                 event!(Level::TRACE, system_id=?system_id, result=?result, "System Returned Result");
-                match result {
-                    SystemResult::Event(system_event) => {
-                        system_event.act(&system_id, &mut next_events, &mut next_blockers);
-                    }
-                    SystemResult::Events(system_events) => {
-                        for system_event in system_events {
-                            system_event.act(&system_id, &mut next_events, &mut next_blockers);
-                        }
-                    },
-                    SystemResult::Error(error) => event!(Level::ERROR, system_result_error=%error),
-                    SystemResult::Conditional(bool) => {
-                        if bool {
-                            if let Some(events) = system_event_registry.get(&system_id) {
-                                next_events.extend(events.clone().into_iter());
-                            } else {
-                                event!(Level::WARN, "No Events in SystemEventRegistry");
-                            }
-                        }
-                    }
-                }
+                result.act(
+                    &system_id,
+                    &mut next_events,
+                    &mut next_blockers,
+                    &system_event_registry,
+                    results_span.clone()
+                );
             }
         })
     }

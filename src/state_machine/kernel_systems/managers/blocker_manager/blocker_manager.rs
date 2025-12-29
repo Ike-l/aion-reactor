@@ -12,12 +12,11 @@ impl KernelSystem for BlockerManager {
     }
 
     fn init(&mut self, memory: &Memory, _kernel_program_id: &ProgramId, _kernel_program_key: &ProgramKey) {
-        event!(Level::DEBUG, status="Initialising", kernel_system_id = ?self.system_id());
-        
+        event!(Level::DEBUG, "Inserting NextBlockers");
         assert!(memory.insert(None, None, None, NextBlockers::default()).unwrap().is_ok());
-        assert!(memory.insert(None, None, None, CurrentBlockers::default()).unwrap().is_ok());
         
-        event!(Level::DEBUG, status="Initialised", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, "Inserting CurrentBlockers");
+        assert!(memory.insert(None, None, None, CurrentBlockers::default()).unwrap().is_ok());
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, _kernel_program_id: ProgramId, _kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + Send>> {

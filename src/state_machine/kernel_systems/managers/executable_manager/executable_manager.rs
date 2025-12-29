@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use tracing::{Level, event};
 
-use crate::prelude::{BufferedExecutable, CurrentEvents, EntityId, EventId, Executable, ExecutableBuffer, ExecutableLabel, ExecutableMessage, ExecutableQueue, ExecutableRegistry, KernelSystem, Memory, ParseResult, ProgramId, ProgramKey, QueuedExecutable, Shared, StateMachine, SystemId, Unique, World};
+use crate::prelude::{BufferedExecutable, CurrentEvents, EntityId, EventId, Executable, ExecutableBuffer, ExecutableLabel, ExecutableMessage, ExecutableQueue, ExecutableRegistry, KernelSystem, Memory, ParseResult, ProgramId, ProgramKey, QueuedExecutable, ResourceId, Shared, StateMachine, SystemId, Unique, World};
 
 pub struct ExecutableManager;
 
@@ -26,14 +26,26 @@ impl KernelSystem for ExecutableManager {
     }
 
     fn init(&mut self, memory: &Memory, _kernel_program_id: &ProgramId, _kernel_program_key: &ProgramKey) {
-        // matches!(memory.contains_resource(None, &ResourceId::raw_heap::<World>(), None), Some(true));
-        event!(Level::DEBUG, status="Initialising", kernel_system_id = ?self.system_id());
-        
+        event!(Level::DEBUG, "Inserting ExecutableQueue");
         assert!(memory.insert(None, None, None, ExecutableQueue::default()).unwrap().is_ok());
-        assert!(memory.insert(None, None, None, ExecutableBuffer::default()).unwrap().is_ok());
-        assert!(memory.insert(None, None, None, ExecutableRegistry::default()).unwrap().is_ok());
         
-        event!(Level::DEBUG, status="Initialised", kernel_system_id = ?self.system_id());
+        event!(Level::DEBUG, "Inserting ExecutableBuffer");
+        assert!(memory.insert(None, None, None, ExecutableBuffer::default()).unwrap().is_ok());
+        
+        event!(Level::DEBUG, "Inserting ExecutableRegistry");
+        assert!(memory.insert(None, None, None, ExecutableRegistry::default()).unwrap().is_ok());
+
+        event!(Level::DEBUG, "Checking CurrentEvents");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<CurrentEvents>(), None), Some(true)) {
+            event!(Level::WARN, "CurrentEvents Not Found");   
+        }
+
+        event!(Level::DEBUG, "Checking World");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<World>(), None), Some(true)) {
+            // Only warn because path may never trigger a panic
+            // (also the reason the checks are after inserts is because they may be recoverable in the future)
+            event!(Level::WARN, "World Not Found");   
+        }
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, _kernel_program_id: ProgramId, _kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {

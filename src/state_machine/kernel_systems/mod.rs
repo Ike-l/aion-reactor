@@ -5,6 +5,10 @@ use crate::prelude::{Memory, ProgramId, ProgramKey, SystemId};
 pub mod processors;
 pub mod managers;
 
+// Could have init resources
+// and check_resources -> bool;
+// so 2 phase initialisation
+
 pub trait KernelSystem {
     fn system_id(&self) -> SystemId;
 

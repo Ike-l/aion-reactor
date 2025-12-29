@@ -1,14 +1,14 @@
-use crate::prelude::{System, SystemId};
+use crate::prelude::{System, SystemId, SystemResult};
 
 #[derive(Default)]
-pub struct AsyncJoinHandles(Vec<(SystemId, tokio::task::JoinHandle<System>)>);
+pub struct AsyncJoinHandles(Vec<(SystemId, tokio::task::JoinHandle<(System, Option<SystemResult>)>)>);
 
 impl AsyncJoinHandles {
-    pub fn push(&mut self, id: SystemId, join_handle: tokio::task::JoinHandle<System>) {
+    pub fn push(&mut self, id: SystemId, join_handle: tokio::task::JoinHandle<(System, Option<SystemResult>)>) {
         self.0.push((id, join_handle));
     }
 
-    pub async fn get_finished(&mut self) -> Vec<(SystemId, Result<System, tokio::task::JoinError>)> {
+    pub async fn get_finished(&mut self) -> Vec<(SystemId, Result<(System, Option<SystemResult>), tokio::task::JoinError>)> {
         let mut not_finished = Vec::new();
         let mut finished = Vec::new();
         for (id, handle) in self.0.drain(..) {

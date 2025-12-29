@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use tracing::{Level, event};
 
-use crate::prelude::{CurrentEvents, EventMapper, KernelSystem, Memory, NextEvents, ProgramId, ProgramKey, Shared, SystemId, Unique};
+use crate::prelude::{CurrentEvents, EventMapper, KernelSystem, Memory, NextEvents, ProgramId, ProgramKey, Shared, SystemEventRegistry, SystemId, Unique};
 
 pub struct EventManager;
 
@@ -12,13 +12,17 @@ impl KernelSystem for EventManager {
     }
 
     fn init(&mut self, memory: &Memory, _kernel_program_id: &ProgramId, _kernel_program_key: &ProgramKey) {
-        event!(Level::DEBUG, status="Initialising", kernel_system_id = ?self.system_id());
-        
-        assert!(memory.insert(None, None, None, EventMapper::default()).unwrap().is_ok());
+        event!(Level::DEBUG, "Inserting NextEvents");
         assert!(memory.insert(None, None, None, NextEvents::default()).unwrap().is_ok());
+
+        event!(Level::DEBUG, "Inserting CurrentEvents");
         assert!(memory.insert(None, None, None, CurrentEvents::default()).unwrap().is_ok());
-        
-        event!(Level::DEBUG, status="Initialised", kernel_system_id = ?self.system_id());
+
+        event!(Level::DEBUG, "Inserting EventMapper");
+        assert!(memory.insert(None, None, None, EventMapper::default()).unwrap().is_ok());
+
+        event!(Level::DEBUG, "Inserting SystemEventRegistry");
+        assert!(memory.insert(None, None, None, SystemEventRegistry::default()).unwrap().is_ok());
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, _kernel_program_id: ProgramId, _kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {

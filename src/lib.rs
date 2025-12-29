@@ -53,7 +53,7 @@ pub mod prelude {
             },
         },
         state_machine::{
-            StateMachine, kernel_registry::KernelSystemRegistry,
+            StateMachine, kernel_registry::KernelSystemRegistry, kernel_builder::KernelBuilder,
             kernel_systems::{
                 KernelSystem, StoredKernelSystem, 
                 managers::{
@@ -67,7 +67,7 @@ pub mod prelude {
                         delay_buffer::DelayBuffer, delay_manager::DelayManager, delay_registry::DelayRegistry
                     },
                     event_manager::{
-                        event_manager::EventManager, event_mapper::EventMapper, next_events::NextEvents, current_events::CurrentEvents
+                        event_manager::EventManager, event_mapper::EventMapper, next_events::NextEvents, current_events::CurrentEvents, system_event_registry::SystemEventRegistry,
                     },
                     executable_manager::{
                         executable_buffer::{
@@ -86,7 +86,7 @@ pub mod prelude {
                     },
                 },
                 processors::{
-                    system_event_registry::SystemEventRegistry, Processor, tasks::DummyWaker, unwinder::Unwinder, finished_graphs::FinishedGraphTracker,
+                    Processor, tasks::DummyWaker, unwinder::Unwinder, finished_graphs::FinishedGraphTracker,
                     non_blocking_processor::{
                         processors::{
                             finish_non_blocking_processor::FinishNonBlockingProcessor,
