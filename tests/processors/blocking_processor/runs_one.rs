@@ -55,7 +55,9 @@ fn has_input(mut number: Unique<i32>) -> Option<SystemResult> {
     **number += 1;
 
     // Some(SystemResult::Error(anyhow::anyhow!("has input has errored!")))
-    Some(SystemResult::Conditional(true))
+    // Some(SystemResult::Conditional(true))
+    None
+    // SystemResult::
     // Some(SystemResult::Event(SystemEvent::NoEvent))
 }
 

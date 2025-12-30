@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use tracing::{Level, event};
 
-use crate::prelude::{CurrentEvents, DelayBuffer, DelayRegistry, KernelSystem, Memory, ProgramId, ProgramKey, ResourceId, Shared, SystemId, Unique};
+use crate::prelude::{CurrentEvents, DelayBuffer, DelayRegistry, KernelSystem, Memory, NextEvents, ProgramId, ProgramKey, ResourceId, Shared, SystemId, Unique};
 
 pub struct DelayManager;
 
@@ -16,11 +16,16 @@ impl KernelSystem for DelayManager {
         assert!(memory.insert(None, None, None, DelayRegistry::default()).unwrap().is_ok());
         
         event!(Level::DEBUG, "Inserting DelayBuffer");
-        assert!(memory.insert(None, None, None, DelayBuffer::default()).unwrap().is_ok());
-        
+        assert!(memory.insert(None, None, None, DelayBuffer::default()).unwrap().is_ok());   
+
+        event!(Level::DEBUG, "Checking NextEvents");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<NextEvents>(), None), Some(true)) {
+            event!(Level::WARN, "NextEvents Not Found");   
+        }
+
         event!(Level::DEBUG, "Checking CurrentEvents");
         if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<CurrentEvents>(), None), Some(true)) {
-            event!(Level::WARN, "CurrentEvents Not Found");
+            event!(Level::WARN, "CurrentEvents Not Found");   
         }
     }
 
@@ -29,14 +34,14 @@ impl KernelSystem for DelayManager {
         Box::pin(async move {
             let mut buffer = memory.resolve::<Unique<DelayBuffer>>(None, None, None, None).unwrap().unwrap();
             let registry = memory.resolve::<Shared<DelayRegistry>>(None, None, None, None).unwrap().unwrap();
-            let mut current_events = memory.resolve::<Unique<CurrentEvents>>(None, None, None, None).unwrap().unwrap();
+            let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
+            let current_events= memory.resolve::<Shared<CurrentEvents>>(None, None, None, None).unwrap().unwrap();
             
-            let old_event_count = current_events.len();
+            event!(Level::DEBUG, old_next_event_count = next_events.len());
 
-            buffer.tick(&registry, &mut current_events);
-
-            event!(Level::DEBUG, new_events = current_events.len() - old_event_count);
-            event!(Level::DEBUG, some_current_events = ?current_events.get_range(0..5).collect::<Vec<_>>());
+            buffer.tick(&registry, &current_events, &mut next_events);
+            event!(Level::DEBUG, new_next_event_count = next_events.len());
+            event!(Level::TRACE, next_events = ?next_events);
         })
     }
 }

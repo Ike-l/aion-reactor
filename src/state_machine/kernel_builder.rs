@@ -22,10 +22,10 @@ fn load_default(kernel_builder: KernelBuilder) -> KernelBuilder {
 
     kernel_builder
         .with_system(FinishNonBlockingProcessor)
-        .with_system(EventManager)
         .with_system(ExecutableManager)
         .with_system(DelayManager)
         .with_system(BlockerManager)
+        .with_system(EventManager)
         .with_system(BlockingProcessor)
         .with_system(ReadOnlyProcessor)
         .with_system(StartNonBlockingProcessor)

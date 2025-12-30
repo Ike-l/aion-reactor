@@ -3,8 +3,8 @@ use crate::prelude::EventId;
 pub mod registered_delay;
 
 pub struct Delay {
-    pub then_inserts: EventId,
-    pub delayed_by: Option<EventId>
+    ends_with: EventId,
+    delayed_by: Option<EventId>
 }
 
 impl Delay {

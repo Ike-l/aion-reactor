@@ -1,15 +1,15 @@
 use std::{collections::HashSet, ops::Range};
 
-use crate::prelude::{EventId, NextEvents};
+use crate::prelude::EventId;
 
 #[derive(Debug, Default, Clone)]
 pub struct CurrentEvents(HashSet<EventId>);
 
 impl CurrentEvents {
-    pub fn tick(&mut self, new_events: &mut NextEvents) {
+    pub fn tick(&mut self, new_events: impl Iterator<Item = EventId>) {
         self.0.clear();
 
-        self.0.extend(new_events.drain());
+        self.0.extend(new_events);
     }
 
     pub fn read(&self) -> impl Iterator<Item = &EventId> {

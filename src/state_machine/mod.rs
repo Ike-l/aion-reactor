@@ -80,19 +80,11 @@ impl StateMachine {
         let span = span!(Level::INFO, "Tick", current_tick=field::Empty);
         let _enter = span.enter();
 
-        let current_tick = {
-            let tick_accumulator = self.memory.resolve::<Shared<TickAccumulator>>(None, None, None, None).unwrap();
-            if let Ok(current_tick) = tick_accumulator {
-                Some(current_tick.inner().clone())
-            } else {
-                event!(Level::ERROR, "Could not get Shared Access to TickAccumulator");
-                None
-            }
-        };
+        let current_tick = self.memory.resolve::<Shared<TickAccumulator>>(None, None, None, None).unwrap().unwrap().load();
 
         span.record("current_tick", format!("{:?}", current_tick));
 
-        event!(Level::INFO, "Start Tick");
+        event!(Level::INFO, "Started");
 
         let mut kernel_systems = self.memory.resolve::<Unique<KernelSystemRegistry>>(Some(&self.program_id), None, None, Some(&self.kernel_key)).unwrap().unwrap();
         for kernel_systems in kernel_systems.iter() {
@@ -115,12 +107,9 @@ impl StateMachine {
             }
         }
 
-        let tick_accumulator = self.memory.resolve::<Unique<TickAccumulator>>(None, None, None, None).unwrap();
-        if let Ok(mut current_tick) = tick_accumulator {
-            *current_tick.inner_mut() += 1;
-        } else {
-            event!(Level::ERROR, "Could not increment TickAccumulator")
-        }
+        self.memory.resolve::<Shared<TickAccumulator>>(None, None, None, None).unwrap().unwrap().increment(1);
+
+        event!(Level::INFO, "Finished");
     }
 }
 

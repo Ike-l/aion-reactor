@@ -1,12 +1,17 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Invariant: Will never decrease
+// (unless wrap 😛)
 #[derive(Debug, Default)]
-pub struct TickAccumulator(usize);
+pub struct TickAccumulator(AtomicU64);
 
 impl TickAccumulator {
-    pub fn inner_mut(&mut self) -> &mut usize {
-        &mut self.0
+    /// returns old value
+    pub fn increment(&self, increment_by: u64) -> u64 {
+        self.0.fetch_add(increment_by, Ordering::AcqRel)
     }
 
-    pub fn inner(&self) -> &usize {
-        &self.0
+    pub fn load(&self) -> u64 {
+        self.0.load(Ordering::Acquire)
     }
 }

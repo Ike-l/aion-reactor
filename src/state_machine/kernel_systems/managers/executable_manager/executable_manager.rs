@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use tracing::{Level, event};
 
-use crate::prelude::{BufferedExecutable, CurrentEvents, EntityId, EventId, Executable, ExecutableBuffer, ExecutableLabel, ExecutableMessage, ExecutableQueue, ExecutableRegistry, KernelSystem, Memory, ParseResult, ProgramId, ProgramKey, QueuedExecutable, ResourceId, Shared, StateMachine, SystemId, Unique, World};
+use crate::prelude::{EventId, Executable, ExecutableBuffer, ExecutableMessage, ExecutableQueue, ExecutableRegistry, KernelSystem, Memory, NextEvents, ProgramId, ProgramKey, QueuedExecutable, ResourceId, Shared, StateMachine, SystemId, Unique, World};
 
 pub struct ExecutableManager;
 
@@ -35,9 +35,9 @@ impl KernelSystem for ExecutableManager {
         event!(Level::DEBUG, "Inserting ExecutableRegistry");
         assert!(memory.insert(None, None, None, ExecutableRegistry::default()).unwrap().is_ok());
 
-        event!(Level::DEBUG, "Checking CurrentEvents");
-        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<CurrentEvents>(), None), Some(true)) {
-            event!(Level::WARN, "CurrentEvents Not Found");   
+        event!(Level::DEBUG, "Checking NextEvents");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<NextEvents>(), None), Some(true)) {
+            event!(Level::WARN, "NextEvents Not Found");   
         }
 
         event!(Level::DEBUG, "Checking World");
@@ -53,68 +53,18 @@ impl KernelSystem for ExecutableManager {
 
         Box::pin(async move {
             let mut executable_queue = memory.resolve::<Unique<ExecutableQueue>>(None, None, None, None).unwrap().unwrap();
-            let mut current_events = memory.resolve::<Unique<CurrentEvents>>(None, None, None, None).unwrap().unwrap();
+            let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
             let executable_registry = memory.resolve::<Shared<ExecutableRegistry>>(None, None, None, None).unwrap().unwrap();
 
-            let mut new_executable_queue = ExecutableQueue::default();
-            
-            event!(Level::DEBUG, executable_queue_count = executable_queue.len());
-            event!(Level::DEBUG, some_executables_queued = ?executable_queue.get_range(0..5).collect::<Vec<_>>());
+            event!(Level::DEBUG, old_executable_queue_count = executable_queue.len());
+            event!(Level::DEBUG, old_next_event_count = next_events.len());
 
-            for queued_executable in executable_queue.drain() {
-                let (executable, remaining) = executable_registry.parse_mapping(&queued_executable.label);
+            executable_queue.tick(&memory, &executable_registry, &mut next_events);
+            event!(Level::DEBUG, new_executable_queue_count = executable_queue.len());
+            event!(Level::TRACE, executables_queued = ?executable_queue);
 
-                match &executable {
-                    Err(ParseResult::NotFound(key)) => event!(Level::WARN, key=key, "Executable Not Found (Skipping)"),
-                    _ => ()
-                };
-
-                let new_source_message = if let Ok(executable) = executable {
-                    let event = executable.trigger;
-                    event!(Level::TRACE, event=?event, "New Event");
-                    
-                    // NextEvent ? (if put executable before EventManager)
-                    current_events.insert(event);
-
-                    let label = ExecutableLabel::new(executable.label);
-
-                    let target_message = match &queued_executable.message {
-                        ExecutableMessage::ResourceId(source_id) => {
-                            // TODO use an event to change the resource id
-                            let target_id = source_id.clone();
-                            ExecutableMessage::ResourceId(target_id)
-                        },
-                        ExecutableMessage::ECS(_) => {
-                            let mut world = memory.resolve::<Unique<World>>(None, None, None, None).unwrap().unwrap();
-                            let world = world.get_mut_hecs().expect("hecs::World in World");
-
-                            let target_id = EntityId::new_hecs(world.reserve_entity());
-                            ExecutableMessage::ECS(target_id)
-                        },
-                    };  
-
-                    let source = queued_executable.message;
-                    let target = target_message.clone();
-
-                    let mut buffer = memory.resolve::<Unique<ExecutableBuffer>>(None, None, None, None).unwrap().unwrap();
-                    let buffered_executable = BufferedExecutable::new(label, source, target);
-
-                    event!(Level::TRACE, buffered_executable=?buffered_executable, "New Buffered Executable");
-
-                    buffer.push(buffered_executable);
-
-                    target_message
-                } else {
-                    queued_executable.message
-                };
-                
-                if let Some(remaining) = remaining {
-                    event!(Level::TRACE, remaining=remaining, new_source_message=?new_source_message, "Queuing Executable");
-                    new_executable_queue.queue(QueuedExecutable::new(remaining.to_string(), new_source_message));
-                }
-            }
-
-            executable_queue.extend(new_executable_queue.drain());
+            event!(Level::DEBUG, new_current_event_count = next_events.len());
+            event!(Level::TRACE, next_events = ?next_events);
         })
     }
 }

@@ -25,9 +25,11 @@ impl KernelSystem for BlockerManager {
             let mut next_blockers = memory.resolve::<Unique<NextBlockers>>(None, None, None, None).unwrap().unwrap();
             let mut current_blockers = memory.resolve::<Unique<CurrentBlockers>>(None, None, None, None).unwrap().unwrap();
 
-            current_blockers.tick(&mut next_blockers);
+            event!(Level::DEBUG, old_current_blockers_count = current_blockers.len());
+
+            current_blockers.tick(next_blockers.drain());
             event!(Level::DEBUG, new_current_blockers_count = current_blockers.len());
-            event!(Level::DEBUG, some_current_blockers = ?current_blockers.get_range(0..5).collect::<Vec<_>>());
+            event!(Level::TRACE, current_blockers = ?current_blockers);
         })
     }
 }

@@ -1,8 +1,8 @@
 use std::{pin::Pin, sync::Arc};
 
-use tracing::{Level, event};
+use tracing::{Level, event, span};
 
-use crate::prelude::{AsyncJoinHandles, BackgroundProcessorSystemRegistry, KernelSystem, Memory, Processor, ProgramId, ProgramKey, ResourceId, Shared, StateMachine, StoredSystem, SyncJoinHandles, SystemId, SystemMetadata, Unique};
+use crate::prelude::{AsyncJoinHandles, BackgroundProcessorSystemRegistry, KernelSystem, Memory, NextEvents, Processor, ProgramId, ProgramKey, ResourceId, Shared, StateMachine, StoredSystem, SyncJoinHandles, SystemId, SystemMetadata, Unique};
 
 pub struct StartNonBlockingProcessor;
 
@@ -38,6 +38,11 @@ impl KernelSystem for StartNonBlockingProcessor {
         if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<BackgroundProcessorSystemRegistry>(), None), Some(true)) {
             event!(Level::WARN, "BackgroundProcessorSystemRegistry Not Found")
         }
+
+        event!(Level::DEBUG, "Checking NextEvents");
+        if !matches!(memory.contains_resource(None, &ResourceId::from_raw_heap::<NextEvents>(), None), Some(true)) {
+            event!(Level::WARN, "NextEvents Not Found")
+        }
     }
 
     fn tick(&mut self, memory: &Arc<Memory>, kernel_program_id: ProgramId, kernel_program_key: ProgramKey) -> Pin<Box<dyn Future<Output = ()> + '_ + Send>> {
@@ -46,6 +51,17 @@ impl KernelSystem for StartNonBlockingProcessor {
             let system_registry = memory.resolve::<Shared<BackgroundProcessorSystemRegistry>>(None, None, None, None).unwrap().unwrap();
             
             let systems = Processor::get_systems(&memory, system_registry.ref_generic());
+
+            {
+                let span = span!(Level::TRACE, "System Derived Events");
+                let _enter = span.enter();
+                let mut next_events = memory.resolve::<Unique<NextEvents>>(None, None, None, None).unwrap().unwrap();
+                for &id in systems.keys() {
+                    let event_id = id.clone().into_id();
+                    event!(Level::TRACE, event=?event_id, "New Event");
+                    next_events.insert(event_id);
+                }
+            }
 
             event!(Level::DEBUG, "Executing");
 

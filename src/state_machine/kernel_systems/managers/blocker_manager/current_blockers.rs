@@ -1,15 +1,15 @@
 use std::{collections::HashSet, ops::Range};
 
-use crate::prelude::{BlockerId, NextBlockers};
+use crate::prelude::BlockerId;
 
 #[derive(Debug, Default, Clone)]
 pub struct CurrentBlockers(HashSet<BlockerId>);
 
 impl CurrentBlockers {
-    pub fn tick(&mut self, new_blockers: &mut NextBlockers) {
+    pub fn tick(&mut self, new_blockers: impl Iterator<Item = BlockerId>) {
         self.0.clear();
 
-        self.0.extend(new_blockers.drain());
+        self.0.extend(new_blockers);
     }
 
     pub fn read(&self) -> impl Iterator<Item = &BlockerId> {

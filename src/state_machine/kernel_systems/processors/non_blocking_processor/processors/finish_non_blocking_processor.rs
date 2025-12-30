@@ -2,7 +2,7 @@ use std::{pin::Pin, sync::Arc};
 
 use tracing::{Level, event, span};
 
-use crate::prelude::{AsyncJoinHandles, BackgroundProcessorSystemRegistry, EventId, KernelSystem, Memory, NextBlockers, NextEvents, ProgramId, ProgramKey, ResourceId, Shared, StartNonBlockingProcessor, StateMachine, StoredSystem, SyncJoinHandles, SystemEventRegistry, SystemId, SystemMetadata, Unique};
+use crate::prelude::{AsyncJoinHandles, BackgroundProcessorSystemRegistry, KernelSystem, Memory, NextBlockers, NextEvents, ProgramId, ProgramKey, ResourceId, Shared, StartNonBlockingProcessor, StateMachine, StoredSystem, SyncJoinHandles, SystemEventRegistry, SystemId, SystemMetadata, Unique};
 
 #[derive(Default)]
 pub struct FinishNonBlockingProcessor;
@@ -81,10 +81,6 @@ impl KernelSystem for FinishNonBlockingProcessor {
                 let mut system = memory.resolve::<Unique<StoredSystem>>(None, Some(&resource_id), None, None).unwrap().unwrap();
 
                 system.insert_system(finished);
-                
-                let event_id: EventId = system_id.clone().into_id().into();
-                event!(Level::TRACE, event_id=?event_id, "System Derived Event");
-                next_events.insert(event_id);
 
                 if let Some(result) = result {
                     event!(Level::TRACE, result=?result, "System Returned Result");
@@ -120,10 +116,6 @@ impl KernelSystem for FinishNonBlockingProcessor {
                 let mut system = memory.resolve::<Unique<StoredSystem>>(None, Some(&resource_id), None, None).unwrap().unwrap();
                 
                 system.insert_system(finished);
-                
-                let event_id: EventId = system_id.clone().into_id().into();
-                event!(Level::TRACE, event_id=?event_id, "System Derived Event");
-                next_events.insert(event_id);
 
                 if let Some(result) = result {
                     event!(Level::TRACE, result=?result, "System Returned Result");

@@ -26,6 +26,9 @@ pub enum SystemResult {
     Event(SystemEvent),
 
     Error(anyhow::Error),
+    #[deprecated(note = "Use SystemResult::Events")]
+    // true => inserts events via a registry
+    // false => removes the current system as an event (SystemEvent::NoEvent)
     Conditional(bool)
 }
 
@@ -48,6 +51,7 @@ impl SystemResult {
                 }
             },
             SystemResult::Error(error) => event!(parent: parent_span, Level::ERROR, system_result_error=%error),
+            #[allow(deprecated)]
             SystemResult::Conditional(bool) => {
                 if bool {
                     if let Some(events) = system_event_registry.get(&system_id) {
@@ -55,6 +59,8 @@ impl SystemResult {
                     } else {
                         event!(parent: parent_span, Level::WARN, "No Events in SystemEventRegistry");
                     }
+                } else {
+                    SystemEvent::NoEvent.act(system_id, next_events, next_blockers);
                 }
             }
         }
