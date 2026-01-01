@@ -47,6 +47,18 @@ impl<
             HostAccessPermission::AccessMap(self.access_map.permits_access(&access_id, access))
         }
     }
+
+    pub fn record_access(
+        &self,
+        access_id: AccessId,
+        access: Access,
+        reserver_id: Option<&ReserverId>
+    ) {
+        if let Some(reserver_id) = reserver_id {
+            self.reservation_map.record_access(reserver_id, &access_id, &access);
+        }
+        self.access_map.record_access(access_id, access);
+    }
 }
 
 impl<

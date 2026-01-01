@@ -19,11 +19,11 @@ pub fn setup() -> OwnedRegistry<ResourceId, ReserverId, Access, ResourceId, KeyI
 }
 
 #[test]
-fn get() {
+fn foo() {
     let registry = setup();
 
     let resource_id = ResourceId::Labelled("foo".to_string());
-    let access = Access::Unique;
+    let access = Access::Shared(1);
 
     registry.replace(
         resource_id.clone(),
@@ -32,11 +32,13 @@ fn get() {
     );
 
     let resource = registry.access(
-        &resource_id, 
-        &access, 
+        resource_id, 
+        access, 
         None, 
         None
     );
 
-    assert_eq!(resource, OwnedRegistryAccessResult::Found(AccessResult::Unique(&mut 0)));
+    assert_eq!(resource, OwnedRegistryAccessResult::Found(AccessResult::Shared(&1)));
+    assert_eq!(resource, OwnedRegistryAccessResult::Found(AccessResult::Shared(&1)));
+    assert_eq!(resource, OwnedRegistryAccessResult::Found(AccessResult::Shared(&1)));
 }

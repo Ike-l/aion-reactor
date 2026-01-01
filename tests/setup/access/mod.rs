@@ -22,11 +22,18 @@ impl Accessor for Access {
         }      
     }
 
+    fn split_access(&mut self, other: &Self) {
+        match (self, other) {
+            (Access::Shared(n), Access::Shared(m)) => *n -= m,
+            _ => panic!("Cannot merge")
+        }
+    }
+
     fn can_insert(&self) -> bool {
         false
     }
 
-    fn merge(&mut self, other: Self) {
+    fn merge_access(&mut self, other: Self) {
         match (self, other) {
             (Access::Shared(n), Access::Shared(m)) => *n += m,
             _ => panic!("Cannot merge")

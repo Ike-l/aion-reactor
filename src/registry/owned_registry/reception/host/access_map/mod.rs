@@ -12,12 +12,13 @@ pub trait Accessor {
     fn can_access(&self, other: &Self) -> bool;
     fn can_insert(&self) -> bool;
 
-    fn merge(&mut self, other: Self);
+    fn merge_access(&mut self, other: Self);
+    fn split_access(&mut self, other: &Self);
 
     fn access<'a>(&self, resource: &'a Self::StoredResource) -> Self::AccessResult<'a, Self::Resource>;
 }
 
-pub trait AccessKey: Hash + PartialEq + Eq {}
+pub trait AccessKey: Hash + PartialEq + Eq + Clone {}
 
 pub struct AccessMap<AccessId, Access> {
     accesses: parking_lot::RwLock<HashMap<AccessId, Access>>
@@ -33,6 +34,28 @@ impl<AccessId: AccessKey, Access: Accessor> AccessMap<AccessId, Access> {
             (Some(new_access), Some(current_access)) => AccessPermission::Access(current_access.can_access(new_access)),
             (None, Some(current_access)) => AccessPermission::Insert(current_access.can_insert()),
             (_, None) => AccessPermission::UnknownAccessId,
+        }
+    }
+
+    pub fn remove_access(
+        &self,
+        access_id: &AccessId,
+        access: &Access
+    ) {
+        if let Some(current_access) = self.accesses.write().get_mut(access_id) {
+            current_access.split_access(access)
+        }
+    }
+
+    pub fn record_access(
+        &self, 
+        access_id: AccessId,
+        new_access: Access
+    ) {
+        if let Some(current_access) = self.accesses.write().get_mut(&access_id) {
+            current_access.merge_access(new_access);
+        } else {
+            self.accesses.write().insert(access_id, new_access);
         }
     }
 }

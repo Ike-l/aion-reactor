@@ -43,6 +43,15 @@ impl<
             },
         }
     }
+
+    pub fn record_access(
+        &self,
+        access_id: AccessId,
+        access: Access,
+        reserver_id: Option<&ReserverId>,
+    ) {
+        self.host.record_access(access_id, access, reserver_id)
+    }
 }
 
 impl<

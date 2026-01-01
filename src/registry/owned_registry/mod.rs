@@ -16,6 +16,7 @@ pub struct OwnedRegistry<
     KeyId,
     Resource,
 > {
+    // can make tokio and everything async?
     sync: parking_lot::Mutex<()>,
     registry: ManagedRegistry<ResourceId, Resource>,
     reception: Reception<AccessId, ReserverId, Access, ResourceId, KeyId>
@@ -30,23 +31,23 @@ impl<
 > OwnedRegistry<ResourceId, ReserverId, Access, ResourceId, KeyId, Resource> {
     pub fn access(
         &self, 
-        resource_id: &ResourceId,
-        access: &Access,
+        resource_id: ResourceId,
+        access: Access,
         reserver_id: Option<&ReserverId>,
         key: Option<&KeyId>,
     ) -> OwnedRegistryAccessResult<Access::AccessResult<'_, Access::Resource>> { 
         let _sync = self.sync.lock();
-        match self.reception.permits_access(resource_id, Some(access), reserver_id, key) {
+        match self.reception.permits_access(&resource_id, Some(&access), reserver_id, key) {
             ReceptionAccessPermission::NoEntry => OwnedRegistryAccessResult::NoEntry,
             ReceptionAccessPermission::Host(HostAccessPermission::ReservationConflict) => OwnedRegistryAccessResult::ReservationConflict,
             ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Insert(_))) => unreachable!("Access is Some"),
             ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Access(false))) => OwnedRegistryAccessResult::AccessConflict,
             ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Access(true))) | 
             ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::UnknownAccessId)) => {
-                match unsafe { self.registry.access(resource_id, access) } {
+                match unsafe { self.registry.access(&resource_id, &access) } {
                     ManagedRegistryAccessResult::ResourceNotFound => OwnedRegistryAccessResult::ResourceNotFound,
                     ManagedRegistryAccessResult::Found(result) => {
-                        // self.reception.record_access();
+                        self.reception.record_access(resource_id, access, reserver_id);
                         OwnedRegistryAccessResult::Found(result)
                     }
                 }

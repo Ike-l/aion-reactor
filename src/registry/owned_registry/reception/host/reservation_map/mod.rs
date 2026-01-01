@@ -40,6 +40,17 @@ impl<
                 }
             }))
     }
+
+    pub fn record_access(
+        &self,
+        reserver_id: &ReserverId,
+        access_id: &AccessId,
+        access: &Access
+    ) {   
+        if let Some(reserver) = self.reservations.get(reserver_id) {
+            reserver.remove_access(access_id, access)
+        }
+    }
 }
 
 impl<
