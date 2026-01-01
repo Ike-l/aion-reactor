@@ -1,69 +1,81 @@
-pub mod registry;
+pub mod managed_registry;
 pub mod reception;
-pub mod registry_result;
+pub mod registry_results;
 
 pub use reception::{
     Reception, 
-    Receptionist
 };
 
-pub use registry::{
-    AdministratedRegistry,
-    Administrator
-};
+use crate::registry::owned_registry::{managed_registry::{ManagedRegistry, operated_registry::ResourceKey, registry_results::ManagedRegistryAccessResult}, reception::{gate::Key, host::{Accessor, access_map::{AccessKey, access_map_permission::AccessPermission}, host_permission::{HostAccessPermission}, reservation_map::ReserverKey}, reception_permission::{ReceptionAccessPermission}}, registry_results::{OwnedRegistryAccessResult, OwnedRegistryReplaceResult}};
 
-use crate::registry::owned_registry::{reception::{Hoster, host::{Accessor, Reserver, access_map::{access_map_permission::AccessMapPermission}, host_permission::HostPermission}, reception_permission::ReceptionPermission}, registry::{RegistryManager, managed_registry::RegistryOperator}, registry_result::RegistryResult};
-
-pub trait Owner {
-    type Receptionist: Receptionist;
-    type Administrator: Administrator;
-
-    fn resource_id_as_access_id( 
-        resource_id: &<<<Self::Administrator as Administrator>::RegistryManager as RegistryManager>::RegistryOperator as RegistryOperator>::ResourceId
-    ) -> <<<Self::Receptionist as Receptionist>::Hoster as Hoster>::Accessor as Accessor>::AccessId;
+pub struct OwnedRegistry<
+    AccessId, 
+    ReserverId,
+    Access,
+    ResourceId,
+    KeyId,
+    Resource,
+> {
+    sync: parking_lot::Mutex<()>,
+    registry: ManagedRegistry<ResourceId, Resource>,
+    reception: Reception<AccessId, ReserverId, Access, ResourceId, KeyId>
 }
 
-pub struct OwnedRegistry<O: Owner> {
-    registry: AdministratedRegistry<O::Administrator>,
-    reception: Reception<O::Receptionist>
-}
-
-impl<O: Owner> OwnedRegistry<O> {
-    pub fn get<T: 'static>(
+impl<
+    ReserverId: ReserverKey,
+    Access: Accessor<StoredResource = Resource>,
+    ResourceId: ResourceKey + AccessKey + Clone,
+    KeyId: Key,
+    Resource,
+> OwnedRegistry<ResourceId, ReserverId, Access, ResourceId, KeyId, Resource> {
+    pub fn access(
         &self, 
-        resource_id: <<<<O as Owner>::Administrator as Administrator>::RegistryManager as RegistryManager>::RegistryOperator as RegistryOperator>::ResourceId,
-        reserver_id: Option<&<<<<O as Owner>::Receptionist as Receptionist>::Hoster as Hoster>::Reserver as Reserver>::ReserverId>,
-        access: <<<<O as Owner>::Receptionist as Receptionist>::Hoster as Hoster>::Accessor as Accessor>::Access,
-    ) -> RegistryResult<'_, T> { 
-        let access_id = O::resource_id_as_access_id(&resource_id);
-
-        match self.reception.permits_access(reserver_id, &access_id, &access) {
-            ReceptionPermission::Host(host_permission) => {
-                match host_permission {
-                    HostPermission::AccessMap(access_map_permission) => {
-                        match access_map_permission {
-                            AccessMapPermission::Coexistence(can_coexist) => {
-                                if can_coexist {
-                                    self.registry.get(&resource_id, &access)
-                                } else {
-                                    RegistryResult::AccessMapConflict
-                                }
-                            },
-                            AccessMapPermission::UnknownAccessId => {
-                                self.registry.get(&resource_id, &access)
-                            },
-                        }
-                    },
-                    HostPermission::ReservationConflict => {
-                        RegistryResult::ReservationConflict
-                    },
+        resource_id: &ResourceId,
+        access: &Access,
+        reserver_id: Option<&ReserverId>,
+        key: Option<&KeyId>,
+    ) -> OwnedRegistryAccessResult<Access::AccessResult<'_, Access::Resource>> { 
+        let _sync = self.sync.lock();
+        match self.reception.permits_access(resource_id, Some(access), reserver_id, key) {
+            ReceptionAccessPermission::NoEntry => OwnedRegistryAccessResult::NoEntry,
+            ReceptionAccessPermission::Host(HostAccessPermission::ReservationConflict) => OwnedRegistryAccessResult::ReservationConflict,
+            ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Insert(_))) => unreachable!("Access is Some"),
+            ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Access(false))) => OwnedRegistryAccessResult::AccessConflict,
+            ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Access(true))) | 
+            ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::UnknownAccessId)) => {
+                match unsafe { self.registry.access(resource_id, access) } {
+                    ManagedRegistryAccessResult::ResourceNotFound => OwnedRegistryAccessResult::ResourceNotFound,
+                    ManagedRegistryAccessResult::Found(result) => {
+                        // self.reception.record_access();
+                        OwnedRegistryAccessResult::Found(result)
+                    }
                 }
-            },
-            ReceptionPermission::NoEntry => {
-                return RegistryResult::NoEntry
-            },
-        } 
+            }
+        }
     }
+
+    pub fn replace(
+        &self,
+        resource_id: ResourceId,
+        key: Option<&KeyId>,
+        resource: Resource,
+    ) -> OwnedRegistryReplaceResult<Resource> {
+        let _sync = self.sync.lock();
+        match self.reception.permits_access(&resource_id, None, None, key) {
+            ReceptionAccessPermission::NoEntry => OwnedRegistryReplaceResult::NoEntry,
+
+            ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Access(_))) | 
+            ReceptionAccessPermission::Host(HostAccessPermission::ReservationConflict) => unreachable!("Access is None"),
+
+            ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Insert(false))) => OwnedRegistryReplaceResult::Denied,
+
+            ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Insert(true))) |
+            ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::UnknownAccessId)) => {
+                OwnedRegistryReplaceResult::Ok(unsafe { self.registry.replace(resource_id, resource) })
+            }
+        }
+    }
+
 
     // remove has to check *all* accesses, not just conflicts
     // remove has to check reservations the same
@@ -71,11 +83,19 @@ impl<O: Owner> OwnedRegistry<O> {
     // can reservations be made on a resource that doesnt exist? No!
 }
 
-impl<O: Owner> Default for OwnedRegistry<O> {
+impl<
+    AccessId,
+    ReserverId,
+    Access,
+    ResourceId,
+    Key,
+    Resource,
+> Default for OwnedRegistry<AccessId, ReserverId, Access, ResourceId, Key, Resource> {
     fn default() -> Self {
         Self {
+            sync: parking_lot::Mutex::default(),
             reception: Reception::default(),
-            registry: AdministratedRegistry::default()
+            registry: ManagedRegistry::default()
         }
     }
 }

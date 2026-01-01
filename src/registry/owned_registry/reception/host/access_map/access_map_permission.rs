@@ -1,4 +1,5 @@
-pub enum AccessMapPermission {
-    Coexistence(bool),
+pub enum AccessPermission {
+    Access(bool),
+    Insert(bool),
     UnknownAccessId,
 }

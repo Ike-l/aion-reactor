@@ -1,32 +1,39 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
-use crate::registry::owned_registry::reception::host::{AccessMap, Accessor, access_map::access_map_permission::AccessMapPermission, reservation_map::reservation_map_permission::ReservationMapPermission};
+use crate::registry::owned_registry::reception::host::{AccessMap, Accessor, access_map::{AccessKey, access_map_permission::AccessPermission}, reservation_map::reservation_map_permission::ReservationMapPermission};
 
 pub mod reservation_map_permission;
 
-pub trait Reserver {
-    type ReserverId: PartialEq;
+pub trait ReserverKey: Hash + PartialEq + Eq {}
+
+pub struct ReservationMap<
+    ReserverId, 
+    AccessId, 
+    Access, 
+> {
+    reservations: HashMap<ReserverId, AccessMap<AccessId, Access>>
 }
 
-pub struct ReservationMap<R: Reserver, A: Accessor> {
-    reservations: HashMap<R::ReserverId, AccessMap<A>>
-}
-
-impl<R: Reserver, A: Accessor> ReservationMap<R, A> {
+impl<
+    ReserverId: ReserverKey, 
+    AccessId: AccessKey, 
+    Access: Accessor, 
+> ReservationMap<ReserverId, AccessId, Access> {
     pub fn permits_access(
         &self,
-        reserver_id: &Option<&R::ReserverId>,
-        access_id: &<A as Accessor>::AccessId,
-        access: &<A as Accessor>::Access,
+        reserver_id: &Option<&ReserverId>,
+        access_id: &AccessId,
+        access: &Access,
     ) -> ReservationMapPermission {
         ReservationMapPermission::ReservationConflict(self.reservations
             .iter()
             .any(|(reserver, reservation_map)| {
                 let is_reservers_reservations = reserver_id.is_some_and(|reserver_id| reserver_id == reserver);
                 if !is_reservers_reservations {
-                    match reservation_map.permits_access(access_id, access) {
-                        AccessMapPermission::Coexistence(can_coexit) => !can_coexit,
-                        AccessMapPermission::UnknownAccessId => false,
+                    match reservation_map.permits_access(access_id, Some(access)) {
+                        AccessPermission::Access(can_coexit) => !can_coexit,
+                        AccessPermission::UnknownAccessId => false,
+                        AccessPermission::Insert(_) => unreachable!("Access is Some"),
                     }
                 } else {
                     false
@@ -35,7 +42,11 @@ impl<R: Reserver, A: Accessor> ReservationMap<R, A> {
     }
 }
 
-impl<R: Reserver, A: Accessor> Default for ReservationMap<R, A> {
+impl<
+    ReserverId, 
+    AccessId, 
+    Access, 
+> Default for ReservationMap<ReserverId, AccessId, Access> {
     fn default() -> Self {
         Self {
             reservations: HashMap::new()

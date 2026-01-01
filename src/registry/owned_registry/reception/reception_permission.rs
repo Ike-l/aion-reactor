@@ -1,6 +1,6 @@
-use crate::registry::owned_registry::reception::host::host_permission::HostPermission;
+use crate::registry::owned_registry::reception::host::host_permission::{HostAccessPermission};
 
-pub enum ReceptionPermission {
+pub enum ReceptionAccessPermission {
     NoEntry,
-    Host(HostPermission)
+    Host(HostAccessPermission)
 }

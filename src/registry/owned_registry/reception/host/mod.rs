@@ -4,7 +4,6 @@ pub mod host_permission;
 
 pub use reservation_map::{
     ReservationMap,
-    Reserver
 };
 
 pub use access_map::{
@@ -12,38 +11,49 @@ pub use access_map::{
     Accessor
 };
 
-use crate::registry::owned_registry::reception::host::{host_permission::HostPermission, reservation_map::reservation_map_permission::ReservationMapPermission};
+use crate::registry::owned_registry::reception::host::{access_map::{AccessKey}, host_permission::{HostAccessPermission}, reservation_map::{ReserverKey, reservation_map_permission::ReservationMapPermission}};
 
-pub trait Hoster {
-    type Accessor: Accessor;
-    type Reserver: Reserver;
+pub struct Host<
+    ReserverId,
+    AccessId,
+    Access, 
+> {
+    reservation_map: ReservationMap<ReserverId, AccessId, Access>,
+    access_map: AccessMap<AccessId, Access>,
 }
 
-pub struct Host<H: Hoster> {
-    reservation_map: ReservationMap<H::Reserver, H::Accessor>,
-    access_map: AccessMap<H::Accessor>,
-}
-
-impl<H: Hoster> Host<H> {
+impl<
+    ReserverId: ReserverKey,
+    AccessId: AccessKey,
+    Access: Accessor, 
+> Host<ReserverId, AccessId, Access> {
     pub fn permits_access(
         &self,
-        reserver_id: Option<&<<H as Hoster>::Reserver as Reserver>::ReserverId>,
-        access_id: &<<H as Hoster>::Accessor as Accessor>::AccessId,
-        access: <<H as Hoster>::Accessor as Accessor>::Access,
-    ) -> HostPermission {
-        match self.reservation_map.permits_access(&reserver_id, &access_id, &access) {
-            ReservationMapPermission::ReservationConflict(conflicts) => {
-                if conflicts {
-                    HostPermission::ReservationConflict
-                } else {
-                    HostPermission::AccessMap(self.access_map.permits_access(&access_id, &access))
-                }
-            },
+        reserver_id: Option<&ReserverId>,
+        access_id: &AccessId,
+        access: Option<&Access>,
+    ) -> HostAccessPermission {
+        if let Some(new_access) = access {
+            match self.reservation_map.permits_access(&reserver_id, &access_id, new_access) {
+                ReservationMapPermission::ReservationConflict(conflicts) => {
+                    if conflicts {
+                        HostAccessPermission::ReservationConflict
+                    } else {
+                        HostAccessPermission::AccessMap(self.access_map.permits_access(&access_id, access))
+                    }
+                },
+            }
+        } else {
+            HostAccessPermission::AccessMap(self.access_map.permits_access(&access_id, access))
         }
     }
 }
 
-impl<H: Hoster> Default for Host<H> {
+impl<
+    ReserverId,
+    AccessId,
+    Access, 
+> Default for Host<ReserverId, AccessId, Access> {
     fn default() -> Self {
         Self { 
             reservation_map: ReservationMap::default(), 

@@ -1,6 +1,6 @@
-use crate::registry::owned_registry::reception::host::access_map::access_map_permission::AccessMapPermission;
+use crate::registry::owned_registry::reception::host::access_map::access_map_permission::AccessPermission;
 
-pub enum HostPermission {
+pub enum HostAccessPermission {
     ReservationConflict,
-    AccessMap(AccessMapPermission)
+    AccessMap(AccessPermission)
 }
