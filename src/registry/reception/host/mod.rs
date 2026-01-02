@@ -2,16 +2,7 @@ pub mod reservation_map;
 pub mod access_map;
 pub mod host_permission;
 
-pub use reservation_map::{
-    ReservationMap,
-};
-
-pub use access_map::{
-    AccessMap,
-    Accessor
-};
-
-use crate::registry::owned_registry::reception::host::{access_map::{AccessKey}, host_permission::{HostAccessPermission}, reservation_map::{ReserverKey, reservation_map_permission::ReservationMapPermission}};
+use crate::prelude::{AccessKey, AccessMap, Accessor, HostAccessPermission, ReservationMap, ReservationMapPermission, ReserverKey};
 
 pub struct Host<
     ReserverId,

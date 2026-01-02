@@ -1,16 +1,8 @@
+use crate::prelude::{AccessKey, Accessor, Gate, GateAccessPermission, Host, Key, ReceptionAccessPermission, ReserverKey, ResourceKey};
+
 pub mod host;
 pub mod gate;
 pub mod reception_permission;
-
-pub use gate::{
-    Gate,
-};
-
-pub use host::{
-    Host, 
-};
-
-use crate::registry::owned_registry::{reception::{gate::{Key, gate_permission::GateAccessPermission}, host::{Accessor, access_map::AccessKey, reservation_map::ReserverKey}, reception_permission::{ReceptionAccessPermission}}, managed_registry::operated_registry::ResourceKey};
 
 pub struct Reception<
     AccessId, 

@@ -1,24 +1,10 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
-use crate::registry::owned_registry::reception::host::access_map::access_map_permission::{AccessPermission};
+use crate::prelude::{AccessKey, AccessPermission, Accessor};
 
 pub mod access_map_permission;
-
-pub trait Accessor {
-    type StoredResource;
-    type Resource: 'static;
-    type AccessResult<'a, T> where T: 'a;
-
-    fn can_access(&self, other: &Self) -> bool;
-    fn can_insert(&self) -> bool;
-
-    fn merge_access(&mut self, other: Self);
-    fn split_access(&mut self, other: &Self);
-
-    fn access<'a>(&self, resource: &'a Self::StoredResource) -> Self::AccessResult<'a, Self::Resource>;
-}
-
-pub trait AccessKey: Hash + PartialEq + Eq + Clone {}
+pub mod accessor;
+pub mod access_key;
 
 pub struct AccessMap<AccessId, Access> {
     accesses: parking_lot::RwLock<HashMap<AccessId, Access>>
@@ -32,7 +18,7 @@ impl<AccessId: AccessKey, Access: Accessor> AccessMap<AccessId, Access> {
     ) -> AccessPermission {
         match (access, self.accesses.read().get(access_id)) {
             (Some(new_access), Some(current_access)) => AccessPermission::Access(current_access.can_access(new_access)),
-            (None, Some(current_access)) => AccessPermission::Insert(current_access.can_insert()),
+            (None, Some(current_access)) => AccessPermission::Insert(current_access.can_replace_resource()),
             (_, None) => AccessPermission::UnknownAccessId,
         }
     }

@@ -1,4 +1,5 @@
-use aion_reactor::registry::owned_registry::reception::gate::Key;
+use aion_reactor::prelude::Key;
+
 
 #[derive(Hash, PartialEq, Eq)]
 pub struct KeyId;

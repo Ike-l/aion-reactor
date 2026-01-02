@@ -1,6 +1,6 @@
 use std::any::TypeId;
 
-use aion_reactor::registry::owned_registry::{reception::host::access_map::AccessKey, managed_registry::operated_registry::ResourceKey};
+use aion_reactor::prelude::{AccessKey, ResourceKey};
 
 #[derive(Hash, PartialEq, Eq, Clone)]
 pub enum ResourceId {

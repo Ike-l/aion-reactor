@@ -1,10 +1,10 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
-use crate::registry::owned_registry::reception::host::{AccessMap, Accessor, access_map::{AccessKey, access_map_permission::AccessPermission}, reservation_map::reservation_map_permission::ReservationMapPermission};
+use crate::prelude::{AccessKey, AccessMap, AccessPermission, Accessor, ReservationMapPermission, ReserverKey};
 
 pub mod reservation_map_permission;
+pub mod reserver_key;
 
-pub trait ReserverKey: Hash + PartialEq + Eq {}
 
 pub struct ReservationMap<
     ReserverId, 

@@ -1,4 +1,4 @@
-use aion_reactor::registry::owned_registry::reception::host::reservation_map::ReserverKey;
+use aion_reactor::prelude::ReserverKey;
 
 #[derive(Hash, PartialEq, Eq)]
 pub struct ReserverId;

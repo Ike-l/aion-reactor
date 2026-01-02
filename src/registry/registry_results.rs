@@ -7,8 +7,9 @@ pub enum OwnedRegistryAccessResult<AccessResult> {
     ResourceNotFound,
 }
 
-pub enum OwnedRegistryReplaceResult<Resource> {
+#[derive(Debug, PartialEq)]
+pub enum OwnedRegistryReplaceResult<StoredResource> {
     NoEntry,
     Denied,
-    Ok(Option<Resource>)
+    Ok(Option<StoredResource>)
 }

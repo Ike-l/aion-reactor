@@ -1,10 +1,9 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
-use crate::registry::owned_registry::{reception::gate::gate_permission::GateAccessPermission, managed_registry::operated_registry::ResourceKey};
+use crate::prelude::{GateAccessPermission, Key, ResourceKey};
 
 pub mod gate_permission;
-
-pub trait Key: Hash + PartialEq + Eq {}
+pub mod key;
 
 pub struct Gate<ResourceId, KeyId> {
     keys: HashMap<ResourceId, KeyId>

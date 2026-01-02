@@ -1,1 +1,2 @@
-pub struct Resource(pub i32);
+#[derive(Debug, PartialEq)]
+pub struct StoredResource(pub i32);
