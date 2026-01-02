@@ -25,12 +25,24 @@ impl<
         }
     }
 
-    pub fn replace(
+    pub fn accessed_replace<Access: Accessor<StoredResource = StoredResource>>(
         &mut self,
         resource_id: ResourceId,
-        resource: StoredResource
-    ) -> Option<StoredResource> {
-        self.registry.insert(resource_id, resource)
+        access: &Access,
+        resource: Option<StoredResource>
+    ) -> OperatedRegistryAccessResult<Access::AccessResult<'_, Access::StoredResource>> {
+        let old_resource = match resource {
+            Some(new_resource) => {
+                access.insert(&new_resource);
+                self.registry.insert(resource_id, new_resource)
+            },
+            None => self.registry.remove(&resource_id)
+        };
+
+        match old_resource {
+            Some(old_resource) => OperatedRegistryAccessResult::Found(access.remove(old_resource)),
+            None => OperatedRegistryAccessResult::ResourceNotFound,
+        }
     }
 }
 

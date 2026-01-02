@@ -1,5 +1,5 @@
 #[derive(Debug, PartialEq)]
-pub enum OwnedRegistryAccessResult<AccessResult> {
+pub enum RegistryAccessResult<AccessResult> {
     Found(AccessResult),
     NoEntry,
     AccessConflict,
@@ -7,9 +7,19 @@ pub enum OwnedRegistryAccessResult<AccessResult> {
     ResourceNotFound,
 }
 
-#[derive(Debug, PartialEq)]
-pub enum OwnedRegistryReplaceResult<StoredResource> {
+pub enum RegistryAccessPermission {
+    Ok,
     NoEntry,
-    Denied,
-    Ok(Option<StoredResource>)
+    ReservationConflict,
+    AccessConflict
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RegistryReplacementResult<AccessResult> {
+    NoEntry,
+    ResourceNotFound,
+    IncompatibleAccess,
+    AccessConflict,
+    ReservationConflict,
+    Found(AccessResult)
 }

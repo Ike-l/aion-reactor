@@ -38,13 +38,17 @@ impl<
         }
     }
 
-    pub unsafe fn replace(
+    pub unsafe fn accessed_replace<Access: Accessor<StoredResource = StoredResource>>(
         &self,
         resource_id: ResourceId,
-        resource: StoredResource
-    ) -> Option<StoredResource> {
+        resource: Option<StoredResource>,
+        access: &Access,
+    ) -> ManagedRegistryAccessResult<<Access as Accessor>::AccessResult<'_, StoredResource>> {
         unsafe {
-            self.get_inner_mut().replace(resource_id, resource)
+            match self.get_inner_mut().accessed_replace(resource_id, access, resource) {
+                OperatedRegistryAccessResult::Found(access_result) => ManagedRegistryAccessResult::Found(access_result),
+                OperatedRegistryAccessResult::ResourceNotFound => ManagedRegistryAccessResult::ResourceNotFound,
+            }
         }
     }
 }

@@ -18,7 +18,7 @@ impl<AccessId: AccessKey, Access: Accessor> AccessMap<AccessId, Access> {
     ) -> AccessPermission {
         match (access, self.accesses.read().get(access_id)) {
             (Some(new_access), Some(current_access)) => AccessPermission::Access(current_access.can_access(new_access)),
-            (None, Some(current_access)) => AccessPermission::Insert(current_access.can_replace_resource()),
+            (None, Some(current_access)) => AccessPermission::Insert(current_access.can_remove_resource()),
             (_, None) => AccessPermission::UnknownAccessId,
         }
     }

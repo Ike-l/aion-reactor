@@ -4,7 +4,7 @@ pub mod prelude {
     pub use super::registry::{
         Registry,
         registry_results::{
-            OwnedRegistryAccessResult, OwnedRegistryReplaceResult
+            RegistryAccessResult, RegistryAccessPermission, RegistryReplacementResult
         },
         managed_registry::{
             ManagedRegistry, registry_results::ManagedRegistryAccessResult,
