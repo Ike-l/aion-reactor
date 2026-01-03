@@ -2,7 +2,7 @@ pub mod reservation_map;
 pub mod access_map;
 pub mod host_permission;
 
-use tracing::{Instrument, Level, span};
+use tracing::{Level, span};
 
 use crate::prelude::{AccessKey, AccessMap, Accessor, HostAccessPermission, ReservationMap, ReservationMapPermission, ReserverKey};
 

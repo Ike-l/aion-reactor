@@ -1,4 +1,4 @@
-use tracing::{Instrument, Level, span};
+use tracing::{Level, span};
 
 use crate::prelude::{AccessKey, AccessPermission, Accessor, HostAccessPermission, Key, ManagedRegistry, ManagedRegistryAccessResult, Reception, ReceptionAccessPermission, RegistryAccessPermission, RegistryAccessResult, RegistryReplacementResult, ReserverKey, ResourceKey};
 
@@ -118,12 +118,14 @@ impl<
     ResourceId,
     Key,
     StoredResource,
-> Default for Registry<AccessId, ReserverId, Access, ResourceId, Key, StoredResource> {
-    fn default() -> Self {
+> Registry<AccessId, ReserverId, Access, ResourceId, Key, StoredResource> {
+    /// capacity so that when get fixed size (so stack allocated) registry will be backward compatible
+    /// currently capacity doesnt mean much since resources are wrapping in Box so resizing is fine
+    pub fn with_capacity(capacity: usize) -> Self {
         Self {
             sync: parking_lot::Mutex::default(),
             reception: Reception::default(),
-            registry: ManagedRegistry::default()
+            registry: ManagedRegistry::with_capacity(capacity)
         }
     }
 }

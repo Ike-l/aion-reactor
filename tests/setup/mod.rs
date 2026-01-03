@@ -16,7 +16,7 @@ use crate::init_tracing;
 
 pub fn setup() -> Registry<ResourceId, ReserverId, Access, ResourceId, KeyId, Box<StoredResource>> {
     init_tracing();
-    Registry::default()
+    Registry::with_capacity(0)
 }
 
 // #[test]

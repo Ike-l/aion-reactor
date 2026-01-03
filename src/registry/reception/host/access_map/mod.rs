@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tracing::{Instrument, Level, event, field, span};
+use tracing::{Level, event, field, span};
 
 use crate::prelude::{AccessKey, AccessPermission, Accessor};
 
