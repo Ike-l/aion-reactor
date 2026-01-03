@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+// use hashbrown::HashMap;
 
 use tracing::{Level, span};
 
@@ -23,7 +24,6 @@ impl<
         let span = span!(Level::DEBUG, "Operated Registry Access");
         let _enter = span.enter();
 
-        todo!("Log everything?");
         if let Some(resource) = self.registry.get(resource_id) {
             OperatedRegistryAccessResult::Found(access.access(resource))
         } else {
@@ -42,10 +42,25 @@ impl<
 
         let old_resource = match resource {
             Some(new_resource) => {
+                if !access.can_insert() || (self.registry.contains_key(&resource_id) && !access.can_remove()) {
+                    return OperatedRegistryAccessResult::AccessFailure;
+                }
+
                 access.insert(&new_resource);
+                // todo! if this insert would reallocate && there are concurrent accesses, FAIL
+                // strategies:
+                // use smart pointers around all resources
+                // use fixed size hashmap
+                // attempt to resize whenever it can, so sometimes will fail but hopefully rare
                 self.registry.insert(resource_id, new_resource)
             },
-            None => self.registry.remove(&resource_id)
+            None => {
+                if self.registry.contains_key(&resource_id) && !access.can_remove() {
+                    return OperatedRegistryAccessResult::AccessFailure;
+                }
+
+                self.registry.remove(&resource_id)
+            }
         };
 
         match old_resource {

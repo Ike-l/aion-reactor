@@ -39,6 +39,7 @@ impl<
             match self.get_inner().access(resource_id, access) {
                 OperatedRegistryAccessResult::Found(access_result) => ManagedRegistryAccessResult::Found(access_result),
                 OperatedRegistryAccessResult::ResourceNotFound => ManagedRegistryAccessResult::ResourceNotFound,
+                OperatedRegistryAccessResult::AccessFailure => ManagedRegistryAccessResult::AccessFailure,
             }
         }
     }
@@ -56,6 +57,7 @@ impl<
             match self.get_inner_mut().accessed_replace(resource_id, access, resource) {
                 OperatedRegistryAccessResult::Found(access_result) => ManagedRegistryAccessResult::Found(access_result),
                 OperatedRegistryAccessResult::ResourceNotFound => ManagedRegistryAccessResult::ResourceNotFound,
+                OperatedRegistryAccessResult::AccessFailure => ManagedRegistryAccessResult::AccessFailure,
             }
         }
     }

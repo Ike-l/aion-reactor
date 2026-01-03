@@ -45,11 +45,13 @@ fn insert_something() {
 
     let result = registry.accessed_replacement(
         resource_id.clone(), 
-        Access::Unique, 
+        Access::Replace, 
         reserver_id.as_ref(), 
         key.as_ref(), 
         Some(stored_resource)
     );
+
+    // check other Access
 
     event!(Level::DEBUG, result =? result, "Replacement");
 

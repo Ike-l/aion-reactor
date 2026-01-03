@@ -7,6 +7,10 @@ pub trait Accessor: Debug {
 
     fn can_access(&self, other: &Self) -> bool;
 
+    // in future can provide a resource id to make it more dynamic
+    fn can_insert(&self) -> bool;
+    fn can_remove(&self) -> bool;
+
     fn merge_access(&mut self, other: Self);
     fn split_access(&mut self, other: &Self);
 

@@ -57,6 +57,16 @@ impl Accessor for Access {
         r
     }
 
+    fn can_insert(&self) -> bool { 
+        event!(Level::DEBUG, "Can Insert");
+        *self == Self::Replace 
+    }
+
+    fn can_remove(&self) -> bool { 
+        event!(Level::DEBUG, "Can Remove");
+        *self == Self::Replace 
+    }
+
     fn split_access(&mut self, other: &Self) {
         event!(Level::DEBUG, "Splitting Access");
         match (self, other) {

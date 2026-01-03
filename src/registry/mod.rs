@@ -65,6 +65,7 @@ impl<
                 unsafe { 
                     match self.registry.access(&resource_id, &access) {
                         ManagedRegistryAccessResult::ResourceNotFound => RegistryAccessResult::ResourceNotFound,
+                        ManagedRegistryAccessResult::AccessFailure => RegistryAccessResult::AccessFailure,
                         ManagedRegistryAccessResult::Found(result) => {
                             self.reception.record_access(resource_id, access, reserver_id);
                             RegistryAccessResult::Found(result)
@@ -94,6 +95,7 @@ impl<
             RegistryAccessPermission::Ok => {
                 match unsafe { self.registry.accessed_replacement(resource_id.clone(), resource, &access) } {
                     ManagedRegistryAccessResult::ResourceNotFound => RegistryReplacementResult::ResourceNotFound,
+                    ManagedRegistryAccessResult::AccessFailure => RegistryReplacementResult::AccessFailure,
                     ManagedRegistryAccessResult::Found(access_result) => {
                         self.reception.record_access(resource_id, access, reserver_id);
                         RegistryReplacementResult::Found(access_result)

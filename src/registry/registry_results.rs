@@ -5,6 +5,7 @@ pub enum RegistryAccessResult<AccessResult> {
     AccessConflict,
     ReservationConflict,
     ResourceNotFound,
+    AccessFailure,
 }
 
 pub enum RegistryAccessPermission {
@@ -16,10 +17,11 @@ pub enum RegistryAccessPermission {
 
 #[derive(Debug, PartialEq)]
 pub enum RegistryReplacementResult<AccessResult> {
+    Found(AccessResult),
     NoEntry,
     ResourceNotFound,
     IncompatibleAccess,
     AccessConflict,
     ReservationConflict,
-    Found(AccessResult)
+    AccessFailure,
 }
