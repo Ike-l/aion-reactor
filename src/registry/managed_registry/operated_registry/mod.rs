@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-// use hashbrown::HashMap;
 
 use tracing::{Level, span};
 
@@ -9,7 +8,10 @@ pub mod registry_results;
 pub mod resource_key;
 
 pub struct OperatedRegistry<ResourceId, StoredResource> {
-    registry: HashMap<ResourceId, StoredResource>
+    // box prevents dangling pointers from reallocation
+    // does mean can never be stack allocated though
+    // stack allocated would require fixed size hashmap?
+    registry: HashMap<ResourceId, Box<StoredResource>>
 }
 
 impl<
@@ -49,10 +51,10 @@ impl<
                 access.insert(&new_resource);
                 // todo! if this insert would reallocate && there are concurrent accesses, FAIL
                 // strategies:
-                // use smart pointers around all resources
+                // use smart pointers around all resources (current implementation)
                 // use fixed size hashmap
                 // attempt to resize whenever it can, so sometimes will fail but hopefully rare
-                self.registry.insert(resource_id, new_resource)
+                self.registry.insert(resource_id, Box::new(new_resource))
             },
             None => {
                 if self.registry.contains_key(&resource_id) && !access.can_remove() {
@@ -64,7 +66,7 @@ impl<
         };
 
         match old_resource {
-            Some(old_resource) => OperatedRegistryAccessResult::Found(access.remove(old_resource)),
+            Some(old_resource) => OperatedRegistryAccessResult::Found(access.remove(*old_resource)),
             None => OperatedRegistryAccessResult::ResourceNotFound,
         }
     }
