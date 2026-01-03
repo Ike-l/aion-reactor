@@ -8,16 +8,17 @@ pub mod registry_results;
 pub mod resource_key;
 
 pub struct OperatedRegistry<ResourceId, StoredResource> {
-    // box prevents dangling pointers from reallocation
-    // does mean can never be stack allocated though
-    // stack allocated would require fixed size hashmap?
-    registry: HashMap<ResourceId, Box<StoredResource>>
+    registry: HashMap<ResourceId, StoredResource>
 }
 
+// temp solution
+// box prevents dangling pointers from reallocation
+// does mean always heap allocated :/
+// stack allocated would require fixed size hashmap or some other reallocation aware struct
 impl<
     ResourceId: ResourceKey, 
     StoredResource
-> OperatedRegistry<ResourceId, StoredResource> {
+> OperatedRegistry<ResourceId, Box<StoredResource>> {
     pub fn access<Access: Accessor<StoredResource = StoredResource>>(
         &self, 
         resource_id: &ResourceId,

@@ -14,7 +14,7 @@ pub use resource::StoredResource;
 
 use crate::init_tracing;
 
-pub fn setup() -> Registry<ResourceId, ReserverId, Access, ResourceId, KeyId, StoredResource> {
+pub fn setup() -> Registry<ResourceId, ReserverId, Access, ResourceId, KeyId, Box<StoredResource>> {
     init_tracing();
     Registry::default()
 }

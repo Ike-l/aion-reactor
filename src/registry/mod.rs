@@ -26,7 +26,7 @@ impl<
     ResourceId: ResourceKey + AccessKey + Clone,
     KeyId: Key,
     StoredResource,
-> Registry<ResourceId, ReserverId, Access, ResourceId, KeyId, StoredResource> {
+> Registry<ResourceId, ReserverId, Access, ResourceId, KeyId, Box<StoredResource>> {
     fn permits_access(
         &self,
         resource_id: &ResourceId,

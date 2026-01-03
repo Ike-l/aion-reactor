@@ -14,16 +14,16 @@ pub struct ManagedRegistry<ResourceId, StoredResource> {
 impl<
     ResourceId: ResourceKey, 
     StoredResource
-> ManagedRegistry<ResourceId, StoredResource> {
+> ManagedRegistry<ResourceId, Box<StoredResource>> {
     /// Safety:
     /// Ensure no mutable concurrent accesses
-    unsafe fn get_inner(&self) -> &OperatedRegistry<ResourceId, StoredResource> {
+    unsafe fn get_inner(&self) -> &OperatedRegistry<ResourceId, Box<StoredResource>> {
         unsafe { & *self.registry.get() }
     }
 
     /// Safety:
     /// Ensure no concurrent accesses
-    unsafe fn get_inner_mut(&self) -> &mut OperatedRegistry<ResourceId, StoredResource> {
+    unsafe fn get_inner_mut(&self) -> &mut OperatedRegistry<ResourceId, Box<StoredResource>> {
         unsafe { &mut *self.registry.get() }
     }
 
