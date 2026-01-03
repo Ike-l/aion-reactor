@@ -1,4 +1,5 @@
 use aion_reactor::prelude::Accessor;
+use tracing::{Level, event};
 
 use crate::setup::{StoredResource, access::{access_result::AccessResult, borrow_type::BorrowType}};
 
@@ -25,6 +26,10 @@ impl Access {
             Access::Unique => BorrowType::Held,
         }
     }
+
+    pub fn can_remove(&self) -> bool {
+        self.borrow_type() == BorrowType::Instant
+    }
 }
 
 impl Accessor for Access {
@@ -34,7 +39,8 @@ impl Accessor for Access {
     type AccessResult<'a, T> = AccessResult<'a, T> where T: 'a;
 
     fn can_access(&self, other: &Self) -> bool {
-        match (self.borrow_type(), other.borrow_type()) {
+        event!(Level::DEBUG, "Can Access");
+        let r = match (self.borrow_type(), other.borrow_type()) {
             (BorrowType::Held, BorrowType::Held) => {
                 match (self, other) {
                     (Access::Shared(_), Access::Shared(_)) => true,
@@ -42,27 +48,25 @@ impl Accessor for Access {
                 }
             },
 
-            (BorrowType::Held, BorrowType::Instant) => !other.can_remove_resource(),
+            (BorrowType::Held, BorrowType::Instant) => *other != Access::Replace,
 
             (BorrowType::Instant, _) => true
-        }
+        };
+        // println!("Result: {r:?}");
+
+        r
     }
 
     fn split_access(&mut self, other: &Self) {
+        event!(Level::DEBUG, "Splitting Access");
         match (self, other) {
             (Access::Shared(n), Access::Shared(m)) => *n -= m,     
             _ => ()
         }     
     }
 
-    fn can_remove_resource(&self) -> bool {
-        match self {
-            Access::Replace => true,
-            _ => false
-        }
-    }
-
     fn merge_access(&mut self, other: Self) {
+        event!(Level::DEBUG, "Merging Access");
         if self.borrow_type() == BorrowType::Instant {
             *self = other;
             return
@@ -90,6 +94,7 @@ impl Accessor for Access {
     }
 
     fn access<'a>(&self, resource: &'a Self::StoredResource) -> Self::AccessResult<'a, Self::Resource> {
+        event!(Level::DEBUG, "Accessing Resource: {resource:?}");
         match self {
             Access::Shared(_) => AccessResult::Shared(&resource.0),
             Access::Unique => AccessResult::Unique(&resource.0),
@@ -99,6 +104,11 @@ impl Accessor for Access {
     }
 
     fn remove<'a>(&self, resource: Self::StoredResource) -> Self::AccessResult<'a, Self::StoredResource> {
+        event!(Level::DEBUG, "Removing Resource: {resource:?}");
         AccessResult::Owned(resource)
+    }
+
+    fn insert<'a>(&self, resource: &'a Self::StoredResource) {
+        event!(Level::DEBUG, "Removing Resource: {resource:?}");
     }
 }

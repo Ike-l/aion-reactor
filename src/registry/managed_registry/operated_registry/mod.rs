@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use tracing::{Level, span};
+
 use crate::prelude::{Accessor, OperatedRegistryAccessResult, ResourceKey};
 
 pub mod registry_results;
@@ -18,6 +20,10 @@ impl<
         resource_id: &ResourceId,
         access: &Access
     ) -> OperatedRegistryAccessResult<Access::AccessResult<'_, Access::Resource>> {
+        let span = span!(Level::DEBUG, "Operated Registry Access");
+        let _enter = span.enter();
+
+        todo!("Log everything?");
         if let Some(resource) = self.registry.get(resource_id) {
             OperatedRegistryAccessResult::Found(access.access(resource))
         } else {
@@ -31,6 +37,9 @@ impl<
         access: &Access,
         resource: Option<StoredResource>
     ) -> OperatedRegistryAccessResult<Access::AccessResult<'_, Access::StoredResource>> {
+        let span = span!(Level::DEBUG, "Operated Registry Accessed Replacement");
+        let _enter = span.enter();
+
         let old_resource = match resource {
             Some(new_resource) => {
                 access.insert(&new_resource);

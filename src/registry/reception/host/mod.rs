@@ -2,6 +2,8 @@ pub mod reservation_map;
 pub mod access_map;
 pub mod host_permission;
 
+use tracing::{Instrument, Level, span};
+
 use crate::prelude::{AccessKey, AccessMap, Accessor, HostAccessPermission, ReservationMap, ReservationMapPermission, ReserverKey};
 
 pub struct Host<
@@ -22,20 +24,19 @@ impl<
         &self,
         reserver_id: Option<&ReserverId>,
         access_id: &AccessId,
-        access: Option<&Access>,
+        access: &Access,
     ) -> HostAccessPermission {
-        if let Some(new_access) = access {
-            match self.reservation_map.permits_access(&reserver_id, &access_id, new_access) {
-                ReservationMapPermission::ReservationConflict(conflicts) => {
-                    if conflicts {
-                        HostAccessPermission::ReservationConflict
-                    } else {
-                        HostAccessPermission::AccessMap(self.access_map.permits_access(&access_id, access))
-                    }
-                },
-            }
-        } else {
-            HostAccessPermission::AccessMap(self.access_map.permits_access(&access_id, access))
+        let span = span!(Level::DEBUG, "Host Permits Access");
+        let _enter = span.enter();
+
+        match self.reservation_map.permits_access(&reserver_id, &access_id, access) {
+            ReservationMapPermission::ReservationConflict(conflicts) => {
+                if conflicts {
+                    HostAccessPermission::ReservationConflict
+                } else {
+                    HostAccessPermission::AccessMap(self.access_map.permits_access(&access_id, access))
+                }
+            },
         }
     }
 
@@ -45,6 +46,9 @@ impl<
         access: Access,
         reserver_id: Option<&ReserverId>
     ) {
+        let span = span!(Level::DEBUG, "Host Record Access");
+        let _enter = span.enter();
+
         if let Some(reserver_id) = reserver_id {
             self.reservation_map.record_access(reserver_id, &access_id, &access);
         }

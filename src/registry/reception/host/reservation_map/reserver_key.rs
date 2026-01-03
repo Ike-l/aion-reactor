@@ -1,3 +1,3 @@
-use std::hash::Hash;
+use std::{fmt::Debug, hash::Hash};
 
-pub trait ReserverKey: Hash + PartialEq + Eq {}
+pub trait ReserverKey: Debug + Hash + PartialEq + Eq {}

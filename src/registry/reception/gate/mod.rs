@@ -13,7 +13,11 @@ impl<
     ResourceId: ResourceKey, 
     KeyId: Key
 > Gate<ResourceId, KeyId> {
-    pub fn allows_passage(&self, resource_id: &ResourceId, key: Option<&KeyId>) -> GateAccessPermission {
+    pub fn allows_passage(
+        &self, 
+        resource_id: &ResourceId, 
+        key: Option<&KeyId>
+    ) -> GateAccessPermission {
         match self.keys.get(resource_id) {
             None => GateAccessPermission::Unlocked,
             Some(locked_key) => {

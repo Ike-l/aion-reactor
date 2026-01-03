@@ -12,7 +12,10 @@ pub use resource_id::ResourceId;
 pub use key_id::KeyId;
 pub use resource::StoredResource;
 
+use crate::init_tracing;
+
 pub fn setup() -> Registry<ResourceId, ReserverId, Access, ResourceId, KeyId, StoredResource> {
+    init_tracing();
     Registry::default()
 }
 

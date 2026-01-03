@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use tracing::{Instrument, Level, event, span};
+
 use crate::prelude::{AccessKey, AccessMap, AccessPermission, Accessor, ReservationMapPermission, ReserverKey};
 
 pub mod reservation_map_permission;
@@ -25,15 +27,24 @@ impl<
         access_id: &AccessId,
         access: &Access,
     ) -> ReservationMapPermission {
+        let span = span!(Level::DEBUG, "ReservationMap Permits Access");
+        let _enter = span.enter();
+
         ReservationMapPermission::ReservationConflict(self.reservations
             .iter()
             .any(|(reserver, reservation_map)| {
                 let is_reservers_reservations = reserver_id.is_some_and(|reserver_id| reserver_id == reserver);
                 if !is_reservers_reservations {
-                    match reservation_map.permits_access(access_id, Some(access)) {
-                        AccessPermission::Access(can_coexit) => !can_coexit,
+                    match reservation_map.permits_access(access_id, access) {
+                        AccessPermission::Access(can_coexit) => {
+                            if can_coexit {
+                                false
+                            } else {
+                                event!(Level::WARN, conflicting_reserver =? reserver, "Reservation Conflict");
+                                true
+                            }
+                        },
                         AccessPermission::UnknownAccessId => false,
-                        AccessPermission::Insert(_) => unreachable!("Access is Some"),
                     }
                 } else {
                     false
@@ -47,6 +58,9 @@ impl<
         access_id: &AccessId,
         access: &Access
     ) {   
+        let span = span!(Level::DEBUG, "ReservationMap Record Access");
+        let _enter = span.enter();
+
         if let Some(reserver) = self.reservations.get(reserver_id) {
             reserver.remove_access(access_id, access)
         }

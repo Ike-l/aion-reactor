@@ -1,3 +1,5 @@
+use tracing::{Instrument, Level, span};
+
 use crate::prelude::{AccessKey, AccessPermission, Accessor, HostAccessPermission, Key, ManagedRegistry, ManagedRegistryAccessResult, Reception, ReceptionAccessPermission, RegistryAccessPermission, RegistryAccessResult, RegistryReplacementResult, ReserverKey, ResourceKey};
 
 pub mod managed_registry;
@@ -25,17 +27,19 @@ impl<
     KeyId: Key,
     StoredResource,
 > Registry<ResourceId, ReserverId, Access, ResourceId, KeyId, StoredResource> {
-    pub fn permits_access(
+    fn permits_access(
         &self,
         resource_id: &ResourceId,
         access: &Access,
         reserver_id: Option<&ReserverId>,
         key: Option<&KeyId>,
     ) -> RegistryAccessPermission {
-        match self.reception.permits_access(resource_id, Some(access), reserver_id, key) {
+        let span = span!(Level::DEBUG, "Registry Permits Access");
+        let _enter = span.enter();
+
+        match self.reception.permits_access(resource_id, access, reserver_id, key) {
             ReceptionAccessPermission::NoEntry => RegistryAccessPermission::NoEntry,
             ReceptionAccessPermission::Host(HostAccessPermission::ReservationConflict) => RegistryAccessPermission::ReservationConflict,
-            ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Insert(_))) => unreachable!("Access is Some"),
             ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Access(false))) => RegistryAccessPermission::AccessConflict,
             ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::Access(true))) | 
             ReceptionAccessPermission::Host(HostAccessPermission::AccessMap(AccessPermission::UnknownAccessId)) => RegistryAccessPermission::Ok
@@ -49,6 +53,9 @@ impl<
         reserver_id: Option<&ReserverId>,
         key: Option<&KeyId>,
     ) -> RegistryAccessResult<Access::AccessResult<'_, Access::Resource>> { 
+        let span = span!(Level::DEBUG, "Registry Access");
+        let _enter = span.enter();
+
         let _sync = self.sync.lock();
         match self.permits_access(&resource_id, &access, reserver_id, key) {
             RegistryAccessPermission::NoEntry => RegistryAccessResult::NoEntry,
@@ -76,19 +83,20 @@ impl<
         key: Option<&KeyId>,
         resource: Option<StoredResource>,
     ) -> RegistryReplacementResult<Access::AccessResult<'_, Access::StoredResource>> {
+        let span = span!(Level::DEBUG, "Registry Accessed Replacement");
+        let _enter = span.enter();
+
         let _sync = self.sync.lock();
         match self.permits_access(&resource_id, &access, reserver_id, key) {
             RegistryAccessPermission::NoEntry => RegistryReplacementResult::NoEntry,
             RegistryAccessPermission::AccessConflict => RegistryReplacementResult::AccessConflict,
             RegistryAccessPermission::ReservationConflict => RegistryReplacementResult::ReservationConflict,
             RegistryAccessPermission::Ok => {
-                unsafe { 
-                    match self.registry.accessed_replace(resource_id.clone(), resource, &access) {
-                        ManagedRegistryAccessResult::ResourceNotFound => RegistryReplacementResult::ResourceNotFound,
-                        ManagedRegistryAccessResult::Found(access_result) => {
-                            self.reception.record_access(resource_id, access, reserver_id);
-                            RegistryReplacementResult::Found(access_result)
-                        }
+                match unsafe { self.registry.accessed_replacement(resource_id.clone(), resource, &access) } {
+                    ManagedRegistryAccessResult::ResourceNotFound => RegistryReplacementResult::ResourceNotFound,
+                    ManagedRegistryAccessResult::Found(access_result) => {
+                        self.reception.record_access(resource_id, access, reserver_id);
+                        RegistryReplacementResult::Found(access_result)
                     }
                 }
             }

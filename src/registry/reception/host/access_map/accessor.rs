@@ -1,10 +1,11 @@
-pub trait Accessor {
+use std::fmt::Debug;
+
+pub trait Accessor: Debug {
     type StoredResource;
     type Resource: 'static;
     type AccessResult<'a, T> where T: 'a;
 
     fn can_access(&self, other: &Self) -> bool;
-    fn can_remove_resource(&self) -> bool;
 
     fn merge_access(&mut self, other: Self);
     fn split_access(&mut self, other: &Self);

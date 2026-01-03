@@ -1,3 +1,3 @@
-use std::hash::Hash;
+use std::{fmt::Debug, hash::Hash};
 
-pub trait AccessKey: Hash + PartialEq + Eq + Clone {}
+pub trait AccessKey: Debug + Hash + PartialEq + Eq + Clone {}
