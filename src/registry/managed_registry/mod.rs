@@ -63,7 +63,7 @@ impl<
     }
 }
 
-impl<ResourceId, StoredResource> Default for ManagedRegistry<ResourceId, StoredResource> {
+impl<ResourceId, StoredResource> Default for ManagedRegistry<ResourceId, Box<StoredResource>> {
     fn default() -> Self {
         Self {
             registry: UnsafeCell::new(OperatedRegistry::default())

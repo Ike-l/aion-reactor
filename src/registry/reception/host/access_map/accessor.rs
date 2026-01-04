@@ -11,6 +11,8 @@ pub trait Accessor: Debug {
     fn can_insert(&self) -> bool;
     fn can_remove(&self) -> bool;
 
+    fn is_active(&self) -> bool;
+
     fn merge_access(&mut self, other: Self);
     fn split_access(&mut self, other: &Self);
 

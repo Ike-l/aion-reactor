@@ -1,4 +1,4 @@
-use tracing::{Instrument, Level, span};
+use tracing::{Level, span};
 
 use crate::prelude::{AccessKey, AccessPermission, Accessor, HostAccessPermission, Key, ManagedRegistry, ManagedRegistryAccessResult, Reception, ReceptionAccessPermission, RegistryAccessPermission, RegistryAccessResult, RegistryReplacementResult, ReserverKey, ResourceKey};
 
@@ -9,7 +9,7 @@ pub mod registry_results;
 pub struct Registry<
     AccessId, 
     ReserverId,
-    Access,
+    Access: Accessor,
     ResourceId,
     KeyId,
     StoredResource,
@@ -114,11 +114,39 @@ impl<
 impl<
     AccessId,
     ReserverId,
-    Access,
+    Access: Accessor,
+    ResourceId,
+    KeyId,
+    StoredResource,
+> Registry<AccessId, ReserverId, Access, ResourceId, KeyId, StoredResource> {
+    pub fn is_active(&self) -> bool {
+        self.reception.is_active()
+    }
+}
+
+impl<
+    AccessId,
+    ReserverId,
+    Access: Accessor,
+    ResourceId,
+    KeyId,
+    StoredResource,
+> Drop for Registry<AccessId, ReserverId, Access, ResourceId, KeyId, StoredResource> {
+    fn drop(&mut self) {
+        if self.is_active() {
+            panic!("Tried Dropping Active Registry");
+        }
+    }
+}
+
+impl<
+    AccessId,
+    ReserverId,
+    Access: Accessor,
     ResourceId,
     Key,
     StoredResource,
-> Default for Registry<AccessId, ReserverId, Access, ResourceId, Key, StoredResource> {
+> Default for Registry<AccessId, ReserverId, Access, ResourceId, Key, Box<StoredResource>> {
     fn default() -> Self {
         Self {
             sync: parking_lot::Mutex::default(),

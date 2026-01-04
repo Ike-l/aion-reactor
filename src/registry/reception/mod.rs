@@ -1,4 +1,4 @@
-use tracing::{Instrument, Level, span};
+use tracing::{Level, span};
 
 use crate::prelude::{AccessKey, Accessor, Gate, GateAccessPermission, Host, Key, ReceptionAccessPermission, ReserverKey, ResourceKey};
 
@@ -51,6 +51,18 @@ impl<
         let _enter = span.enter();
         
         self.host.record_access(access_id, access, reserver_id)
+    }
+}
+
+impl<
+    AccessId,
+    ReserverId,
+    Access: Accessor,
+    ResourceId,
+    KeyId,
+> Reception<AccessId, ReserverId, Access, ResourceId, KeyId> {
+    pub fn is_active(&self) -> bool {
+        self.host.is_active()
     }
 }
 

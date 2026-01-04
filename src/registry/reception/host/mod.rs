@@ -2,7 +2,7 @@ pub mod reservation_map;
 pub mod access_map;
 pub mod host_permission;
 
-use tracing::{Instrument, Level, span};
+use tracing::{Level, span};
 
 use crate::prelude::{AccessKey, AccessMap, Accessor, HostAccessPermission, ReservationMap, ReservationMapPermission, ReserverKey};
 
@@ -53,6 +53,16 @@ impl<
             self.reservation_map.record_access(reserver_id, &access_id, &access);
         }
         self.access_map.record_access(access_id, access);
+    }
+}
+
+impl<
+    AccessId,
+    ReserverId,
+    Access: Accessor,
+> Host<ReserverId, AccessId, Access> {
+    pub fn is_active(&self) -> bool {
+        self.access_map.is_active()
     }
 }
 

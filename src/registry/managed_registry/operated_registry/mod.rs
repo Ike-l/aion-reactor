@@ -73,7 +73,7 @@ impl<
     }
 }
 
-impl<ResourceId, StoredResource> Default for OperatedRegistry<ResourceId, StoredResource> {
+impl<ResourceId, StoredResource> Default for OperatedRegistry<ResourceId, Box<StoredResource>> {
     fn default() -> Self {
         Self {
             registry: HashMap::new()

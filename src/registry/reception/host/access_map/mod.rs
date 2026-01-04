@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tracing::{Instrument, Level, event, field, span};
+use tracing::{Level, event, field, span};
 
 use crate::prelude::{AccessKey, AccessPermission, Accessor};
 
@@ -63,6 +63,16 @@ impl<AccessId: AccessKey, Access: Accessor> AccessMap<AccessId, Access> {
         }
     }
 }
+
+impl<
+    AccessId,
+    Access: Accessor,
+> AccessMap<AccessId, Access> {
+    pub fn is_active(&self) -> bool {
+        self.accesses.read().iter().any(|(_, access)| access.is_active())
+    }
+}
+
 
 impl<AccessId, Access> Default for AccessMap<AccessId, Access> {
     fn default() -> Self {

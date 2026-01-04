@@ -67,6 +67,10 @@ impl Accessor for Access {
         *self == Self::Replace 
     }
 
+    fn is_active(&self) -> bool {
+        self.borrow_type() == BorrowType::Held
+    }
+
     fn split_access(&mut self, other: &Self) {
         event!(Level::DEBUG, "Splitting Access");
         match (self, other) {
