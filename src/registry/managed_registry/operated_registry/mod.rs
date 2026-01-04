@@ -73,10 +73,10 @@ impl<
     }
 }
 
-impl<ResourceId, StoredResource> OperatedRegistry<ResourceId, StoredResource> {
-    pub fn with_capacity(capacity: usize) -> Self {
+impl<ResourceId, StoredResource> Default for OperatedRegistry<ResourceId, StoredResource> {
+    fn default() -> Self {
         Self {
-            registry: HashMap::with_capacity(capacity)
+            registry: HashMap::new()
         }
     }
 }

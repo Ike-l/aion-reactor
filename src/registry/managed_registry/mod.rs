@@ -63,10 +63,10 @@ impl<
     }
 }
 
-impl<ResourceId, StoredResource> ManagedRegistry<ResourceId, StoredResource> {
-    pub fn with_capacity(capacity: usize) -> Self {
+impl<ResourceId, StoredResource> Default for ManagedRegistry<ResourceId, StoredResource> {
+    fn default() -> Self {
         Self {
-            registry: UnsafeCell::new(OperatedRegistry::with_capacity(capacity))
+            registry: UnsafeCell::new(OperatedRegistry::default())
         }
     }
 }
