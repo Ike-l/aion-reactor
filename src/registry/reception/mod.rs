@@ -52,6 +52,10 @@ impl<
         
         self.host.record_access(access_id, access, reserver_id)
     }
+
+    pub fn clear_accesses(&self) {
+        self.host.clear_accesses()
+    }
 }
 
 impl<

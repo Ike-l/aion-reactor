@@ -31,6 +31,8 @@ fn insert_nothing() {
     );
 
     assert_eq!(result, RegistryReplacementResult::ResourceNotFound);
+
+    unsafe { registry.clear_accesses() };
 }
 
 #[test]
@@ -62,6 +64,8 @@ fn insert_something() {
     event!(Level::DEBUG, result =? result, "Access");
 
     assert_eq!(result, RegistryAccessResult::Found(AccessResult::Shared(&number)));
+
+    unsafe { registry.clear_accesses() };
 }
 
 // make sure 

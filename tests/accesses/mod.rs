@@ -30,6 +30,8 @@ pub fn dangling() {
 
     println!("access: {access:?}");
 
+    unsafe { registry.clear_accesses() };
+
     // strategies if fail:
     // smart pointers
     // fixed capacity hashmapa

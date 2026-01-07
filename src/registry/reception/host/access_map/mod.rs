@@ -62,6 +62,10 @@ impl<AccessId: AccessKey, Access: Accessor> AccessMap<AccessId, Access> {
             self.accesses.write().insert(access_id, new_access);
         }
     }
+
+    pub fn clear_accesses(&self) {
+        self.accesses.write().clear();
+    }
 }
 
 impl<

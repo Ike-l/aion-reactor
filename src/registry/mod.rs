@@ -105,10 +105,30 @@ impl<
         }
     }
 
-    // remove has to check *all* accesses, not just conflicts
-    // remove has to check reservations the same
+    pub fn deaccess(
 
-    // can reservations be made on a resource that doesnt exist? No!
+    ) {
+        todo!()
+    }
+
+    pub fn reserve(
+
+    ) {
+        todo!()
+    }
+
+    pub fn unreserve(
+
+    ) {
+        todo!()
+    }
+
+    /// Safety:
+    /// Make sure all accesses are actually cleared
+    pub unsafe fn clear_accesses(&self) {
+        self.reception.clear_accesses()
+    }
+    
 }
 
 impl<

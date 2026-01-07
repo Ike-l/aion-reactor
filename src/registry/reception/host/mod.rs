@@ -54,6 +54,10 @@ impl<
         }
         self.access_map.record_access(access_id, access);
     }
+
+    pub fn clear_accesses(&self) {
+        self.access_map.clear_accesses()
+    }
 }
 
 impl<
