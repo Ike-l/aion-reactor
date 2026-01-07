@@ -1,6 +1,6 @@
 use tracing::{Level, span};
 
-use crate::prelude::{AccessKey, AccessPermission, Accessor, HostAccessPermission, Key, ManagedRegistry, ManagedRegistryAccessResult, Reception, ReceptionAccessPermission, RegistryAccessPermission, RegistryAccessResult, RegistryReplacementResult, ReserverKey, ResourceKey};
+use crate::prelude::{AccessKey, AccessPermission, Accessor, HostAccessPermission, Key, ManagedRegistry, ManagedRegistryAccessResult, Reception, ReceptionAccessPermission, RegistryAccessPermission, RegistryAccessResult, RegistryReplacementResult, RegistryReservationResult, ReserverKey, ResourceKey};
 
 pub mod managed_registry;
 pub mod reception;
@@ -112,9 +112,17 @@ impl<
     }
 
     pub fn reserve(
-
-    ) {
-        todo!()
+        &self,
+        reserver_id: ReserverId,
+        resource_id: ResourceId,
+        access: Access,
+        key: Option<&KeyId>
+    ) -> RegistryReservationResult {
+        let _sync = self.sync.lock();
+        match self.registry.contains(&resource_id) {
+            true => RegistryReservationResult::Reception(self.reception.reserve(reserver_id, resource_id, access, key)),
+            false => RegistryReservationResult::NoResource,
+        }
     }
 
     pub fn unreserve(

@@ -4,7 +4,7 @@ pub mod host_permission;
 
 use tracing::{Level, span};
 
-use crate::prelude::{AccessKey, AccessMap, Accessor, HostAccessPermission, ReservationMap, ReservationMapPermission, ReserverKey};
+use crate::prelude::{AccessKey, AccessMap, AccessPermission, Accessor, HostAccessPermission, HostReservationPermission, ReservationMap, ReservationMapPermission, ReserverKey};
 
 pub struct Host<
     ReserverId,
@@ -53,6 +53,27 @@ impl<
             self.reservation_map.record_access(reserver_id, &access_id, &access);
         }
         self.access_map.record_access(access_id, access);
+    }
+
+    pub fn reserve(
+        &self,
+        reserver_id: ReserverId,
+        access_id: AccessId,
+        access: Access
+    ) -> HostReservationPermission {
+        match self.access_map.permits_access(&access_id, &access) {
+            AccessPermission::Access(false) => HostReservationPermission::CurrentAccessConflict,
+            AccessPermission::Access(true) |
+            AccessPermission::UnknownAccessId => {
+                match self.reservation_map.permits_access(&Some(&reserver_id), &access_id, &access) {
+                    ReservationMapPermission::ReservationConflict(true) => HostReservationPermission::ReservationConflict,
+                    ReservationMapPermission::ReservationConflict(false) => {
+                        self.reservation_map.reserve(reserver_id, access_id, access);
+                        HostReservationPermission::Ok
+                    },
+                }
+            }
+        }
     }
 
     pub fn clear_accesses(&self) {

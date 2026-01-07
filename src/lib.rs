@@ -4,7 +4,7 @@ pub mod prelude {
     pub use super::registry::{
         Registry,
         registry_results::{
-            RegistryAccessResult, RegistryAccessPermission, RegistryReplacementResult
+            RegistryAccessResult, RegistryAccessPermission, RegistryReplacementResult, RegistryReservationResult
         },
         managed_registry::{
             ManagedRegistry, registry_results::ManagedRegistryAccessResult,
@@ -13,7 +13,10 @@ pub mod prelude {
             }
         },
         reception::{
-            Reception, reception_permission::ReceptionAccessPermission,
+            Reception, 
+            reception_permission::{
+                ReceptionAccessPermission, ReceptionReservationPermission
+            },
             gate::{
                 Gate, key::Key,
                 gate_permission::{
@@ -23,7 +26,7 @@ pub mod prelude {
             host::{
                 Host,
                 host_permission::{
-                    HostAccessPermission
+                    HostAccessPermission, HostReservationPermission
                 },
                 access_map::{
                     AccessMap, access_key::AccessKey, access_map_permission::AccessPermission, accessor::Accessor

@@ -1,3 +1,5 @@
+use crate::prelude::ReceptionReservationPermission;
+
 #[derive(Debug, PartialEq)]
 pub enum RegistryAccessResult<AccessResult> {
     Found(AccessResult),
@@ -24,4 +26,9 @@ pub enum RegistryReplacementResult<AccessResult> {
     AccessConflict,
     ReservationConflict,
     AccessFailure,
+}
+
+pub enum RegistryReservationResult {
+    Reception(ReceptionReservationPermission),
+    NoResource,
 }

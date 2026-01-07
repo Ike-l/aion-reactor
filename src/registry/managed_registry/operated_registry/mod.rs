@@ -71,6 +71,13 @@ impl<
             None => OperatedRegistryAccessResult::ResourceNotFound,
         }
     }
+
+    pub fn contains(
+        &self,
+        resource_id: &ResourceId
+    ) -> bool {
+        self.registry.contains_key(resource_id)
+    }
 }
 
 impl<ResourceId, StoredResource> Default for OperatedRegistry<ResourceId, Box<StoredResource>> {

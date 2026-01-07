@@ -13,7 +13,7 @@ pub struct ReservationMap<
     AccessId, 
     Access, 
 > {
-    reservations: HashMap<ReserverId, AccessMap<AccessId, Access>>
+    reservations: parking_lot::RwLock<HashMap<ReserverId, AccessMap<AccessId, Access>>>
 }
 
 impl<
@@ -30,7 +30,7 @@ impl<
         let span = span!(Level::DEBUG, "ReservationMap Permits Access");
         let _enter = span.enter();
 
-        ReservationMapPermission::ReservationConflict(self.reservations
+        ReservationMapPermission::ReservationConflict(self.reservations.read()
             .iter()
             .any(|(reserver, reservation_map)| {
                 let is_reservers_reservations = reserver_id.is_some_and(|reserver_id| reserver_id == reserver);
@@ -61,9 +61,18 @@ impl<
         let span = span!(Level::DEBUG, "ReservationMap Record Access");
         let _enter = span.enter();
 
-        if let Some(reserver) = self.reservations.get(reserver_id) {
+        if let Some(reserver) = self.reservations.read().get(reserver_id) {
             reserver.remove_access(access_id, access)
         }
+    }
+
+    pub fn reserve(
+        &self,
+        reserver_id: ReserverId,
+        access_id: AccessId,
+        access: Access
+    ) {
+        self.reservations.write().entry(reserver_id).or_default().record_access(access_id, access);
     }
 }
 
@@ -74,7 +83,7 @@ impl<
 > Default for ReservationMap<ReserverId, AccessId, Access> {
     fn default() -> Self {
         Self {
-            reservations: HashMap::new()
+            reservations: parking_lot::RwLock::new(HashMap::new())
         }
     }
 }

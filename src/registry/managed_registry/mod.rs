@@ -61,6 +61,13 @@ impl<
             }
         }
     }
+
+    pub fn contains(
+        &self,
+        resource_id: &ResourceId
+    ) -> bool {
+        unsafe { self.get_inner().contains(resource_id) }
+    }
 }
 
 impl<ResourceId, StoredResource> Default for ManagedRegistry<ResourceId, Box<StoredResource>> {
