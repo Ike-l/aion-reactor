@@ -4,7 +4,7 @@ pub mod prelude {
     pub use super::registry::{
         Registry,
         registry_results::{
-            RegistryAccessResult, RegistryAccessPermission, RegistryReplacementResult, RegistryReservationResult
+            RegistryAccessResult, RegistryAccessPermission, RegistryReplacementResult, RegistryReservationResult, RegistryUnReserveResult
         },
         managed_registry::{
             ManagedRegistry, registry_results::ManagedRegistryAccessResult,
@@ -15,7 +15,7 @@ pub mod prelude {
         reception::{
             Reception, 
             reception_permission::{
-                ReceptionAccessPermission, ReceptionReservationPermission
+                ReceptionAccessPermission, ReceptionReservationPermission, ReceptionUnReserve
             },
             gate::{
                 Gate, key::Key,
@@ -26,13 +26,20 @@ pub mod prelude {
             host::{
                 Host,
                 host_permission::{
-                    HostAccessPermission, HostReservationPermission
+                    HostAccessPermission, HostReservationPermission, HostUnReserve
                 },
                 access_map::{
-                    AccessMap, access_key::AccessKey, access_map_permission::AccessPermission, accessor::Accessor
+                    AccessMap, access_key::AccessKey, 
+                    accessor::Accessor,
+                    access_map_permission::{
+                        AccessPermission, AccessRemoval
+                    }
                 },
                 reservation_map::{
-                    ReservationMap, reserver_key::ReserverKey, reservation_map_permission::ReservationMapPermission
+                    ReservationMap, reserver_key::ReserverKey, 
+                    reservation_map_permission::{
+                        ReservationMapPermission, ReservationMapUnReserve
+                    }
                 }
             },
         },

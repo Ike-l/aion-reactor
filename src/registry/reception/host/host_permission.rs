@@ -1,4 +1,4 @@
-use crate::prelude::AccessPermission;
+use crate::prelude::{AccessPermission, ReservationMapUnReserve};
 
 pub enum HostAccessPermission {
     ReservationConflict,
@@ -9,4 +9,8 @@ pub enum HostReservationPermission {
     CurrentAccessConflict,
     ReservationConflict,
     Ok
+}
+
+pub enum HostUnReserve {
+    ReservationMap(ReservationMapUnReserve)
 }

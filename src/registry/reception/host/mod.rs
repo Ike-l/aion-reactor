@@ -4,7 +4,7 @@ pub mod host_permission;
 
 use tracing::{Level, span};
 
-use crate::prelude::{AccessKey, AccessMap, AccessPermission, Accessor, HostAccessPermission, HostReservationPermission, ReservationMap, ReservationMapPermission, ReserverKey};
+use crate::prelude::{AccessKey, AccessMap, AccessPermission, Accessor, HostAccessPermission, HostReservationPermission, HostUnReserve, ReservationMap, ReservationMapPermission, ReserverKey};
 
 pub struct Host<
     ReserverId,
@@ -50,9 +50,19 @@ impl<
         let _enter = span.enter();
 
         if let Some(reserver_id) = reserver_id {
-            self.reservation_map.record_access(reserver_id, &access_id, &access);
+            self.reservation_map.unreserve(reserver_id, &access_id, &access);
         }
+
         self.access_map.record_access(access_id, access);
+    }
+
+    pub fn unreserve(
+        &self,
+        reserver_id: &ReserverId,
+        access_id: &AccessId,
+        access: &Access
+    ) -> HostUnReserve {
+        HostUnReserve::ReservationMap(self.reservation_map.unreserve(reserver_id, access_id, access))
     }
 
     pub fn reserve(

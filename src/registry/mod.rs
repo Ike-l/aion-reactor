@@ -1,6 +1,6 @@
 use tracing::{Level, span};
 
-use crate::prelude::{AccessKey, AccessPermission, Accessor, HostAccessPermission, Key, ManagedRegistry, ManagedRegistryAccessResult, Reception, ReceptionAccessPermission, RegistryAccessPermission, RegistryAccessResult, RegistryReplacementResult, RegistryReservationResult, ReserverKey, ResourceKey};
+use crate::prelude::{AccessKey, AccessPermission, AccessRemoval, Accessor, HostAccessPermission, HostUnReserve, Key, ManagedRegistry, ManagedRegistryAccessResult, Reception, ReceptionAccessPermission, ReceptionUnReserve, RegistryAccessPermission, RegistryAccessResult, RegistryReplacementResult, RegistryReservationResult, RegistryUnReserveResult, ReservationMapUnReserve, ReserverKey, ResourceKey};
 
 pub mod managed_registry;
 pub mod reception;
@@ -106,7 +106,7 @@ impl<
     }
 
     pub fn deaccess(
-
+        &self
     ) {
         todo!()
     }
@@ -126,9 +126,19 @@ impl<
     }
 
     pub fn unreserve(
-
-    ) {
-        todo!()
+        &self,
+        reserver_id: &ReserverId,
+        resource_id: &ResourceId,
+        access: &Access,
+        key: Option<&KeyId>,
+    ) -> RegistryUnReserveResult {
+        let _sync = self.sync.lock();
+        match self.reception.unreserve(reserver_id, resource_id, access, key) {
+            ReceptionUnReserve::NoEntry => RegistryUnReserveResult::NoEntry,
+            ReceptionUnReserve::Host(HostUnReserve::ReservationMap(ReservationMapUnReserve::NoReservation)) => RegistryUnReserveResult::NoReservation,
+            ReceptionUnReserve::Host(HostUnReserve::ReservationMap(ReservationMapUnReserve::AccessMap(AccessRemoval::UnknownAccessId))) => RegistryUnReserveResult::UnknownResourceId,
+            ReceptionUnReserve::Host(HostUnReserve::ReservationMap(ReservationMapUnReserve::AccessMap(AccessRemoval::Split))) => RegistryUnReserveResult::Ok,
+        }
     }
 
     /// Safety:

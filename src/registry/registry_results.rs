@@ -32,3 +32,10 @@ pub enum RegistryReservationResult {
     Reception(ReceptionReservationPermission),
     NoResource,
 }
+
+pub enum RegistryUnReserveResult {
+    NoEntry,
+    NoReservation,
+    UnknownResourceId,
+    Ok
+}

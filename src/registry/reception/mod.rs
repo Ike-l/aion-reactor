@@ -1,6 +1,6 @@
 use tracing::{Level, span};
 
-use crate::prelude::{AccessKey, Accessor, Gate, GateAccessPermission, Host, Key, ReceptionAccessPermission, ReceptionReservationPermission, ReserverKey, ResourceKey};
+use crate::prelude::{AccessKey, Accessor, Gate, GateAccessPermission, Host, Key, ReceptionAccessPermission, ReceptionReservationPermission, ReceptionUnReserve, ReserverKey, ResourceKey};
 
 pub mod host;
 pub mod gate;
@@ -53,6 +53,20 @@ impl<
         self.host.record_access(access_id, access, reserver_id)
     }
 
+    pub fn unreserve(
+        &self,
+        reserver_id: &ReserverId,
+        access_id: &AccessId,
+        access: &Access,
+        key: Option<&KeyId>
+    ) -> ReceptionUnReserve {
+        match self.gate.allows_passage(access_id, key) {
+            GateAccessPermission::Denied => ReceptionUnReserve::NoEntry,
+            GateAccessPermission::Allowed |
+            GateAccessPermission::Unlocked => ReceptionUnReserve::Host(self.host.unreserve(reserver_id, access_id, access))
+        }
+    }
+
     pub fn reserve(
         &self,
         reserver_id: ReserverId,
@@ -63,9 +77,7 @@ impl<
         match self.gate.allows_passage(&access_id, key) {
             GateAccessPermission::Denied => ReceptionReservationPermission::NoEntry,
             GateAccessPermission::Allowed |
-            GateAccessPermission::Unlocked => {
-                ReceptionReservationPermission::Host(self.host.reserve(reserver_id, access_id, access))
-            },
+            GateAccessPermission::Unlocked => ReceptionReservationPermission::Host(self.host.reserve(reserver_id, access_id, access)),
         }
     }
 
