@@ -1,4 +1,4 @@
-use crate::prelude::{HostAccessPermission, HostReservationPermission, HostUnReserve};
+use crate::prelude::{HostAccessPermission, HostReservationPermission, HostUnReserveResult};
 
 pub enum ReceptionAccessPermission {
     NoEntry,
@@ -10,7 +10,12 @@ pub enum ReceptionReservationPermission {
     Host(HostReservationPermission)
 }
 
-pub enum ReceptionUnReserve {
+pub enum ReceptionUnReserveResult {
     NoEntry,
-    Host(HostUnReserve)
+    Host(HostUnReserveResult)
+}
+
+pub enum ReceptionDeAccessResult {
+    Ok,
+    UnknownAccessId
 }

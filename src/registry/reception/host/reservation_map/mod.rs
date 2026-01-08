@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use tracing::{Level, event, span};
 
-use crate::prelude::{AccessKey, AccessMap, AccessPermission, Accessor, ReservationMapPermission, ReservationMapUnReserve, ReserverKey};
+use crate::prelude::{AccessKey, AccessMap, AccessPermission, Accessor, ReservationMapPermission, ReservationMapUnReserveResult, ReserverKey};
 
 pub mod reservation_map_permission;
 pub mod reserver_key;
@@ -57,14 +57,14 @@ impl<
         reserver_id: &ReserverId,
         access_id: &AccessId,
         access: &Access
-    ) -> ReservationMapUnReserve {   
+    ) -> ReservationMapUnReserveResult {   
         let span = span!(Level::DEBUG, "ReservationMap Unreserve");
         let _enter = span.enter();
 
         if let Some(reserver) = self.reservations.read().get(reserver_id) {
-            ReservationMapUnReserve::AccessMap(reserver.remove_access(access_id, access))
+            ReservationMapUnReserveResult::AccessMap(reserver.remove_access(access_id, access))
         } else {
-            ReservationMapUnReserve::NoReservation
+            ReservationMapUnReserveResult::NoReservation
         }
     }
 

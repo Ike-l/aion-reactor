@@ -1,6 +1,6 @@
 use tracing::{Level, span};
 
-use crate::prelude::{AccessKey, AccessPermission, AccessRemoval, Accessor, HostAccessPermission, HostUnReserve, Key, ManagedRegistry, ManagedRegistryAccessResult, Reception, ReceptionAccessPermission, ReceptionUnReserve, RegistryAccessPermission, RegistryAccessResult, RegistryReplacementResult, RegistryReservationResult, RegistryUnReserveResult, ReservationMapUnReserve, ReserverKey, ResourceKey};
+use crate::prelude::{AccessKey, AccessPermission, AccessRemovalResult, Accessor, HostAccessPermission, HostUnReserveResult, Key, ManagedRegistry, ManagedRegistryAccessResult, ManagedRegistryReplacementResult, Reception, ReceptionAccessPermission, ReceptionDeAccessResult, ReceptionUnReserveResult, RegistryAccessPermission, RegistryAccessResult, RegistryDeAccessResult, RegistryReplacementResult, RegistryReservationResult, RegistryUnReserveResult, ReservationMapUnReserveResult, ReserverKey, ResourceKey};
 
 pub mod managed_registry;
 pub mod reception;
@@ -94,9 +94,9 @@ impl<
             RegistryAccessPermission::ReservationConflict => RegistryReplacementResult::ReservationConflict,
             RegistryAccessPermission::Ok => {
                 match unsafe { self.registry.accessed_replacement(resource_id.clone(), resource, &access) } {
-                    ManagedRegistryAccessResult::ResourceNotFound => RegistryReplacementResult::ResourceNotFound,
-                    ManagedRegistryAccessResult::AccessFailure => RegistryReplacementResult::AccessFailure,
-                    ManagedRegistryAccessResult::Found(access_result) => {
+                    ManagedRegistryReplacementResult::ResourceNotFound => RegistryReplacementResult::ResourceNotFound,
+                    ManagedRegistryReplacementResult::AccessFailure => RegistryReplacementResult::AccessFailure,
+                    ManagedRegistryReplacementResult::Found(access_result) => {
                         self.reception.record_access(resource_id, access, reserver_id);
                         RegistryReplacementResult::Found(access_result)
                     }
@@ -106,9 +106,15 @@ impl<
     }
 
     pub fn deaccess(
-        &self
-    ) {
-        todo!()
+        &self,
+        resource_id: &ResourceId,
+        access: &Access
+    ) -> RegistryDeAccessResult {
+        let _sync = self.sync.lock();
+        match self.reception.deaccess(resource_id, access) {
+            ReceptionDeAccessResult::Ok => RegistryDeAccessResult::Ok,
+            ReceptionDeAccessResult::UnknownAccessId => RegistryDeAccessResult::UnknownResourceId,
+        }
     }
 
     pub fn reserve(
@@ -134,10 +140,10 @@ impl<
     ) -> RegistryUnReserveResult {
         let _sync = self.sync.lock();
         match self.reception.unreserve(reserver_id, resource_id, access, key) {
-            ReceptionUnReserve::NoEntry => RegistryUnReserveResult::NoEntry,
-            ReceptionUnReserve::Host(HostUnReserve::ReservationMap(ReservationMapUnReserve::NoReservation)) => RegistryUnReserveResult::NoReservation,
-            ReceptionUnReserve::Host(HostUnReserve::ReservationMap(ReservationMapUnReserve::AccessMap(AccessRemoval::UnknownAccessId))) => RegistryUnReserveResult::UnknownResourceId,
-            ReceptionUnReserve::Host(HostUnReserve::ReservationMap(ReservationMapUnReserve::AccessMap(AccessRemoval::Split))) => RegistryUnReserveResult::Ok,
+            ReceptionUnReserveResult::NoEntry => RegistryUnReserveResult::NoEntry,
+            ReceptionUnReserveResult::Host(HostUnReserveResult::ReservationMap(ReservationMapUnReserveResult::NoReservation)) => RegistryUnReserveResult::NoReservation,
+            ReceptionUnReserveResult::Host(HostUnReserveResult::ReservationMap(ReservationMapUnReserveResult::AccessMap(AccessRemovalResult::UnknownAccessId))) => RegistryUnReserveResult::UnknownResourceId,
+            ReceptionUnReserveResult::Host(HostUnReserveResult::ReservationMap(ReservationMapUnReserveResult::AccessMap(AccessRemovalResult::Split))) => RegistryUnReserveResult::Ok,
         }
     }
 

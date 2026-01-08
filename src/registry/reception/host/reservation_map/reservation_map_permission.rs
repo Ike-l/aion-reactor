@@ -1,10 +1,10 @@
-use crate::prelude::AccessRemoval;
+use crate::prelude::AccessRemovalResult;
 
 pub enum ReservationMapPermission {
     ReservationConflict(bool)
 }
 
-pub enum ReservationMapUnReserve {
-    AccessMap(AccessRemoval),
+pub enum ReservationMapUnReserveResult {
+    AccessMap(AccessRemovalResult),
     NoReservation,
 }

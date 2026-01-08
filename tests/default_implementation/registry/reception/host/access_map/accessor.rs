@@ -1,10 +1,13 @@
 use aion_reactor::prelude::Accessor;
 use tracing::{Level, event};
 
-use crate::setup::{StoredResource, access::{access_result::AccessResult, borrow_type::BorrowType}};
+use crate::default_implementation::prelude::{AccessResult, Resource, StoredResource};
 
-pub mod access_result;
-pub mod borrow_type;
+#[derive(Debug, PartialEq)]
+pub enum BorrowType {
+    Held,
+    Instant
+}
 
 #[derive(Debug, PartialEq)]
 pub enum Access {
@@ -15,6 +18,19 @@ pub enum Access {
 }
 
 impl Access {
+    #[cfg(test)]
+    pub fn all() -> impl Iterator<Item = Self> {
+        vec![
+            // Shared == 0
+            Self::Shared(0), 
+            // Shared > 0
+            Self::Shared(1),
+            Self::Unique,
+            Self::Owned,
+            Self::Replace
+        ].into_iter()
+    }
+
     pub fn borrow_type(&self) -> BorrowType {
         match self {
             Access::Shared(0) => BorrowType::Instant,
@@ -34,7 +50,7 @@ impl Access {
 
 impl Accessor for Access {
     type StoredResource = StoredResource;
-    type Resource = i32;
+    type Resource = Resource;
 
     type AccessResult<'a, T> = AccessResult<'a, T> where T: 'a;
 
@@ -110,9 +126,9 @@ impl Accessor for Access {
     fn access<'a>(&self, resource: &'a Self::StoredResource) -> Self::AccessResult<'a, Self::Resource> {
         event!(Level::DEBUG, "Accessing Resource: {resource:?}");
         match self {
-            Access::Shared(_) => AccessResult::Shared(&resource.0),
-            Access::Unique => AccessResult::Unique(&resource.0),
-            Access::Owned => AccessResult::Owned(resource.0.clone()),
+            Access::Shared(_) => AccessResult::Shared(resource.get()),
+            Access::Unique => AccessResult::Unique(resource.get()),
+            Access::Owned => AccessResult::Owned(resource.get().clone()),
             Access::Replace => panic!("Tried Accessing with `Replace`"),
         }
     }

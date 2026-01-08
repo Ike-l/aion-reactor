@@ -3,3 +3,10 @@ pub enum ManagedRegistryAccessResult<AccessResult> {
     ResourceNotFound,
     AccessFailure,
 }
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ManagedRegistryReplacementResult<AccessResult> {
+    Found(AccessResult),
+    ResourceNotFound,
+    AccessFailure
+}

@@ -17,6 +17,7 @@ pub trait Accessor: Debug {
     fn split_access(&mut self, other: &Self);
 
     /// Called when `resource` is being accessed with `self`
+    // Option?
     fn access<'a>(&self, resource: &'a Self::StoredResource) -> Self::AccessResult<'a, Self::Resource>;
 
     /// Called when `resource` is being removed

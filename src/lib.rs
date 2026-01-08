@@ -4,18 +4,25 @@ pub mod prelude {
     pub use super::registry::{
         Registry,
         registry_results::{
-            RegistryAccessResult, RegistryAccessPermission, RegistryReplacementResult, RegistryReservationResult, RegistryUnReserveResult
+            RegistryAccessResult, RegistryAccessPermission, RegistryReplacementResult, RegistryReservationResult, RegistryUnReserveResult, RegistryDeAccessResult
         },
         managed_registry::{
-            ManagedRegistry, registry_results::ManagedRegistryAccessResult,
+            ManagedRegistry, 
+            registry_results::{
+                ManagedRegistryAccessResult, ManagedRegistryReplacementResult 
+            },
             operated_registry::{
-                OperatedRegistry, registry_results::OperatedRegistryAccessResult, resource_key::ResourceKey
+                OperatedRegistry, 
+                registry_results::{
+                    OperatedRegistryAccessResult, OperatedRegistryReplacementResult
+                }, 
+                resource_key::ResourceKey
             }
         },
         reception::{
             Reception, 
             reception_permission::{
-                ReceptionAccessPermission, ReceptionReservationPermission, ReceptionUnReserve
+                ReceptionAccessPermission, ReceptionReservationPermission, ReceptionUnReserveResult, ReceptionDeAccessResult
             },
             gate::{
                 Gate, key::Key,
@@ -26,19 +33,19 @@ pub mod prelude {
             host::{
                 Host,
                 host_permission::{
-                    HostAccessPermission, HostReservationPermission, HostUnReserve
+                    HostAccessPermission, HostReservationPermission, HostUnReserveResult, HostDeAccessResult
                 },
                 access_map::{
                     AccessMap, access_key::AccessKey, 
                     accessor::Accessor,
                     access_map_permission::{
-                        AccessPermission, AccessRemoval
+                        AccessPermission, AccessRemovalResult
                     }
                 },
                 reservation_map::{
                     ReservationMap, reserver_key::ReserverKey, 
                     reservation_map_permission::{
-                        ReservationMapPermission, ReservationMapUnReserve
+                        ReservationMapPermission, ReservationMapUnReserveResult
                     }
                 }
             },

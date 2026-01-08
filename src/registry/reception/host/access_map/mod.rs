@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use tracing::{Level, event, field, span};
 
-use crate::prelude::{AccessKey, AccessPermission, AccessRemoval, Accessor};
+use crate::prelude::{AccessKey, AccessPermission, AccessRemovalResult, Accessor};
 
 pub mod access_map_permission;
 pub mod accessor;
@@ -34,16 +34,16 @@ impl<AccessId: AccessKey, Access: Accessor> AccessMap<AccessId, Access> {
         &self,
         access_id: &AccessId,
         access: &Access
-    ) -> AccessRemoval {
+    ) -> AccessRemovalResult {
         let span = span!(Level::DEBUG, "AccessMap Remove Access", current_access =? field::Empty);
         let _enter = span.enter();
 
         if let Some(current_access) = self.accesses.write().get_mut(access_id) {
             span.record("current_access", format!("{current_access:?}"));
             current_access.split_access(access);
-            AccessRemoval::Split
+            AccessRemovalResult::Split
         } else {
-            AccessRemoval::UnknownAccessId
+            AccessRemovalResult::UnknownAccessId
         }
     }
 

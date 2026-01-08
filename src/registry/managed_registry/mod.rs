@@ -2,7 +2,7 @@ use std::cell::UnsafeCell;
 
 use tracing::{Level, span};
 
-use crate::prelude::{Accessor, ManagedRegistryAccessResult, OperatedRegistry, OperatedRegistryAccessResult, ResourceKey};
+use crate::prelude::{Accessor, ManagedRegistryAccessResult, ManagedRegistryReplacementResult, OperatedRegistry, OperatedRegistryAccessResult, OperatedRegistryReplacementResult, ResourceKey};
 
 pub mod operated_registry;
 pub mod registry_results;
@@ -39,7 +39,6 @@ impl<
             match self.get_inner().access(resource_id, access) {
                 OperatedRegistryAccessResult::Found(access_result) => ManagedRegistryAccessResult::Found(access_result),
                 OperatedRegistryAccessResult::ResourceNotFound => ManagedRegistryAccessResult::ResourceNotFound,
-                OperatedRegistryAccessResult::AccessFailure => ManagedRegistryAccessResult::AccessFailure,
             }
         }
     }
@@ -49,15 +48,15 @@ impl<
         resource_id: ResourceId,
         resource: Option<StoredResource>,
         access: &Access,
-    ) -> ManagedRegistryAccessResult<<Access as Accessor>::AccessResult<'_, StoredResource>> {
+    ) -> ManagedRegistryReplacementResult<<Access as Accessor>::AccessResult<'_, StoredResource>> {
         let span = span!(Level::DEBUG, "Managed Registry Accessed Replacement");
         let _enter = span.enter();
 
         unsafe {
             match self.get_inner_mut().accessed_replace(resource_id, access, resource) {
-                OperatedRegistryAccessResult::Found(access_result) => ManagedRegistryAccessResult::Found(access_result),
-                OperatedRegistryAccessResult::ResourceNotFound => ManagedRegistryAccessResult::ResourceNotFound,
-                OperatedRegistryAccessResult::AccessFailure => ManagedRegistryAccessResult::AccessFailure,
+                OperatedRegistryReplacementResult::Found(access_result) => ManagedRegistryReplacementResult::Found(access_result),
+                OperatedRegistryReplacementResult::ResourceNotFound => ManagedRegistryReplacementResult::ResourceNotFound,
+                OperatedRegistryReplacementResult::AccessFailure => ManagedRegistryReplacementResult::AccessFailure,
             }
         }
     }

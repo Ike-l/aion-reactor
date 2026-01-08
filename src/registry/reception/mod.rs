@@ -1,6 +1,6 @@
 use tracing::{Level, span};
 
-use crate::prelude::{AccessKey, Accessor, Gate, GateAccessPermission, Host, Key, ReceptionAccessPermission, ReceptionReservationPermission, ReceptionUnReserve, ReserverKey, ResourceKey};
+use crate::prelude::{AccessKey, Accessor, Gate, GateAccessPermission, Host, HostDeAccessResult, Key, ReceptionAccessPermission, ReceptionDeAccessResult, ReceptionReservationPermission, ReceptionUnReserveResult, ReserverKey, ResourceKey};
 
 pub mod host;
 pub mod gate;
@@ -53,17 +53,30 @@ impl<
         self.host.record_access(access_id, access, reserver_id)
     }
 
+    pub fn deaccess(
+        &self,
+        access_id: &AccessId,
+        access: &Access
+    ) -> ReceptionDeAccessResult {
+        // do i need to use gate here?
+        match self.host.deaccess(access_id, access) {
+            HostDeAccessResult::Ok => ReceptionDeAccessResult::Ok,
+            HostDeAccessResult::UnknownAccessId => ReceptionDeAccessResult::UnknownAccessId,
+        }
+    }
+
     pub fn unreserve(
         &self,
         reserver_id: &ReserverId,
         access_id: &AccessId,
         access: &Access,
         key: Option<&KeyId>
-    ) -> ReceptionUnReserve {
+    ) -> ReceptionUnReserveResult {
+        // do i need to use gate here?
         match self.gate.allows_passage(access_id, key) {
-            GateAccessPermission::Denied => ReceptionUnReserve::NoEntry,
+            GateAccessPermission::Denied => ReceptionUnReserveResult::NoEntry,
             GateAccessPermission::Allowed |
-            GateAccessPermission::Unlocked => ReceptionUnReserve::Host(self.host.unreserve(reserver_id, access_id, access))
+            GateAccessPermission::Unlocked => ReceptionUnReserveResult::Host(self.host.unreserve(reserver_id, access_id, access))
         }
     }
 

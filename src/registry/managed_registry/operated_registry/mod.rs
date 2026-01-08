@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use tracing::{Level, span};
 
-use crate::prelude::{Accessor, OperatedRegistryAccessResult, ResourceKey};
+use crate::prelude::{Accessor, OperatedRegistryAccessResult, OperatedRegistryReplacementResult, ResourceKey};
 
 pub mod registry_results;
 pub mod resource_key;
@@ -39,14 +39,14 @@ impl<
         resource_id: ResourceId,
         access: &Access,
         resource: Option<StoredResource>
-    ) -> OperatedRegistryAccessResult<Access::AccessResult<'_, Access::StoredResource>> {
+    ) -> OperatedRegistryReplacementResult<Access::AccessResult<'_, Access::StoredResource>> {
         let span = span!(Level::DEBUG, "Operated Registry Accessed Replacement");
         let _enter = span.enter();
 
         let old_resource = match resource {
             Some(new_resource) => {
                 if !access.can_insert() || (self.registry.contains_key(&resource_id) && !access.can_remove()) {
-                    return OperatedRegistryAccessResult::AccessFailure;
+                    return OperatedRegistryReplacementResult::AccessFailure;
                 }
 
                 access.insert(&new_resource);
@@ -59,7 +59,7 @@ impl<
             },
             None => {
                 if self.registry.contains_key(&resource_id) && !access.can_remove() {
-                    return OperatedRegistryAccessResult::AccessFailure;
+                    return OperatedRegistryReplacementResult::AccessFailure;
                 }
 
                 self.registry.remove(&resource_id)
@@ -67,8 +67,8 @@ impl<
         };
 
         match old_resource {
-            Some(old_resource) => OperatedRegistryAccessResult::Found(access.remove(*old_resource)),
-            None => OperatedRegistryAccessResult::ResourceNotFound,
+            Some(old_resource) => OperatedRegistryReplacementResult::Found(access.remove(*old_resource)),
+            None => OperatedRegistryReplacementResult::ResourceNotFound,
         }
     }
 

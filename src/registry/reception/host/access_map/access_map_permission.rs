@@ -4,7 +4,7 @@ pub enum AccessPermission {
     UnknownAccessId,
 }
 
-pub enum AccessRemoval {
+pub enum AccessRemovalResult {
     Split,
     UnknownAccessId
 }

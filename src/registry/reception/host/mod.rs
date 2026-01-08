@@ -4,7 +4,7 @@ pub mod host_permission;
 
 use tracing::{Level, span};
 
-use crate::prelude::{AccessKey, AccessMap, AccessPermission, Accessor, HostAccessPermission, HostReservationPermission, HostUnReserve, ReservationMap, ReservationMapPermission, ReserverKey};
+use crate::prelude::{AccessKey, AccessMap, AccessPermission, AccessRemovalResult, Accessor, HostAccessPermission, HostDeAccessResult, HostReservationPermission, HostUnReserveResult, ReservationMap, ReservationMapPermission, ReserverKey};
 
 pub struct Host<
     ReserverId,
@@ -56,13 +56,24 @@ impl<
         self.access_map.record_access(access_id, access);
     }
 
+    pub fn deaccess(
+        &self,
+        access_id: &AccessId,
+        access: &Access
+    ) -> HostDeAccessResult {
+        match self.access_map.remove_access(access_id, access) {
+            AccessRemovalResult::Split => HostDeAccessResult::Ok,
+            AccessRemovalResult::UnknownAccessId => HostDeAccessResult::UnknownAccessId,
+        }
+    }
+
     pub fn unreserve(
         &self,
         reserver_id: &ReserverId,
         access_id: &AccessId,
         access: &Access
-    ) -> HostUnReserve {
-        HostUnReserve::ReservationMap(self.reservation_map.unreserve(reserver_id, access_id, access))
+    ) -> HostUnReserveResult {
+        HostUnReserveResult::ReservationMap(self.reservation_map.unreserve(reserver_id, access_id, access))
     }
 
     pub fn reserve(
