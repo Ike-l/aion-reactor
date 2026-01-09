@@ -67,7 +67,7 @@ impl<
                         ManagedRegistryAccessResult::ResourceNotFound => RegistryAccessResult::ResourceNotFound,
                         ManagedRegistryAccessResult::AccessFailure => RegistryAccessResult::AccessFailure,
                         ManagedRegistryAccessResult::Found(result) => {
-                            self.reception.record_access(resource_id, access, reserver_id);
+                            self.reception.record_access(resource_id, access, reserver_id, key);
                             RegistryAccessResult::Found(result)
                         }
                     }
@@ -97,7 +97,7 @@ impl<
                     ManagedRegistryReplacementResult::ResourceNotFound => RegistryReplacementResult::ResourceNotFound,
                     ManagedRegistryReplacementResult::AccessFailure => RegistryReplacementResult::AccessFailure,
                     ManagedRegistryReplacementResult::Found(access_result) => {
-                        self.reception.record_access(resource_id, access, reserver_id);
+                        self.reception.record_access(resource_id, access, reserver_id, key);
                         RegistryReplacementResult::Found(access_result)
                     }
                 }
@@ -105,18 +105,21 @@ impl<
         }
     }
 
-    pub fn deaccess(
+    pub unsafe fn deaccess(
         &self,
         resource_id: &ResourceId,
-        access: &Access
+        access: &Access,
+        key: Option<&KeyId>
     ) -> RegistryDeAccessResult {
         let _sync = self.sync.lock();
-        match self.reception.deaccess(resource_id, access) {
+        match self.reception.deaccess(resource_id, access, key) {
             ReceptionDeAccessResult::Ok => RegistryDeAccessResult::Ok,
             ReceptionDeAccessResult::UnknownAccessId => RegistryDeAccessResult::UnknownResourceId,
+            ReceptionDeAccessResult::NoEntry => RegistryDeAccessResult::NoEntry,
         }
     }
 
+    // Reservations must conserve the invariant that a successful reservation *guarantees* access in future
     pub fn reserve(
         &self,
         reserver_id: ReserverId,

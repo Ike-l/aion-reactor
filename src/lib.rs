@@ -22,7 +22,7 @@ pub mod prelude {
         reception::{
             Reception, 
             reception_permission::{
-                ReceptionAccessPermission, ReceptionReservationPermission, ReceptionUnReserveResult, ReceptionDeAccessResult
+                ReceptionAccessPermission, ReceptionReservationPermission, ReceptionUnReserveResult, ReceptionDeAccessResult, ReceptionRecordAccessResult
             },
             gate::{
                 Gate, key::Key,

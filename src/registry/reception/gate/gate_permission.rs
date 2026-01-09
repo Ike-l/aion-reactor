@@ -1,5 +1,5 @@
 pub enum GateAccessPermission {
-    Allowed,
     Denied,
+    Allowed,
     Unlocked,
 }

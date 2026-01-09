@@ -42,5 +42,6 @@ pub enum RegistryUnReserveResult {
 
 pub enum RegistryDeAccessResult {
     Ok,
+    NoEntry,
     UnknownResourceId
 }

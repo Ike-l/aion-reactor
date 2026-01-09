@@ -1,6 +1,6 @@
 use tracing::{Level, span};
 
-use crate::prelude::{AccessKey, Accessor, Gate, GateAccessPermission, Host, HostDeAccessResult, Key, ReceptionAccessPermission, ReceptionDeAccessResult, ReceptionReservationPermission, ReceptionUnReserveResult, ReserverKey, ResourceKey};
+use crate::prelude::{AccessKey, Accessor, Gate, GateAccessPermission, Host, HostDeAccessResult, Key, ReceptionAccessPermission, ReceptionDeAccessResult, ReceptionRecordAccessResult, ReceptionReservationPermission, ReceptionUnReserveResult, ReserverKey, ResourceKey};
 
 pub mod host;
 pub mod gate;
@@ -46,22 +46,35 @@ impl<
         access_id: AccessId,
         access: Access,
         reserver_id: Option<&ReserverId>,
-    ) {
+        key: Option<&KeyId>
+    ) -> ReceptionRecordAccessResult {
         let span = span!(Level::DEBUG, "Reception Record Access");
         let _enter = span.enter();
-        
-        self.host.record_access(access_id, access, reserver_id)
+        match self.gate.allows_passage(&access_id, key) {
+            GateAccessPermission::Denied => ReceptionRecordAccessResult::NoEntry,
+            GateAccessPermission::Allowed |
+            GateAccessPermission::Unlocked => {
+                self.host.record_access(access_id, access, reserver_id);
+                ReceptionRecordAccessResult::Ok
+            },
+        }
     }
 
     pub fn deaccess(
         &self,
         access_id: &AccessId,
-        access: &Access
+        access: &Access,
+        key: Option<&KeyId>
     ) -> ReceptionDeAccessResult {
-        // do i need to use gate here?
-        match self.host.deaccess(access_id, access) {
-            HostDeAccessResult::Ok => ReceptionDeAccessResult::Ok,
-            HostDeAccessResult::UnknownAccessId => ReceptionDeAccessResult::UnknownAccessId,
+        match self.gate.allows_passage(access_id, key) {
+            GateAccessPermission::Denied => ReceptionDeAccessResult::NoEntry,
+            GateAccessPermission::Allowed |
+            GateAccessPermission::Unlocked => {
+                match self.host.deaccess(access_id, access) {
+                    HostDeAccessResult::Ok => ReceptionDeAccessResult::Ok,
+                    HostDeAccessResult::UnknownAccessId => ReceptionDeAccessResult::UnknownAccessId,
+                }
+            },
         }
     }
 
@@ -72,7 +85,6 @@ impl<
         access: &Access,
         key: Option<&KeyId>
     ) -> ReceptionUnReserveResult {
-        // do i need to use gate here?
         match self.gate.allows_passage(access_id, key) {
             GateAccessPermission::Denied => ReceptionUnReserveResult::NoEntry,
             GateAccessPermission::Allowed |

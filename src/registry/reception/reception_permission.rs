@@ -17,5 +17,11 @@ pub enum ReceptionUnReserveResult {
 
 pub enum ReceptionDeAccessResult {
     Ok,
+    NoEntry,
     UnknownAccessId
+}
+
+pub enum ReceptionRecordAccessResult {
+    Ok,
+    NoEntry
 }
