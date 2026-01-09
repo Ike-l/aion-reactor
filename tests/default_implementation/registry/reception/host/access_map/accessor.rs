@@ -43,8 +43,9 @@ impl Access {
         }
     }
 
-    pub fn can_remove(&self) -> bool {
-        self.borrow_type() == BorrowType::Instant
+    fn can_remove(&self) -> bool {
+        *self == Self::Replace
+        // self.borrow_type() == BorrowType::Instant
     }
 }
 
@@ -80,7 +81,7 @@ impl Accessor for Access {
 
     fn can_remove(&self) -> bool { 
         event!(Level::DEBUG, "Can Remove");
-        *self == Self::Replace 
+        self.can_remove()
     }
 
     fn is_active(&self) -> bool {

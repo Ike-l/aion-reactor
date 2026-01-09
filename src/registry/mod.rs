@@ -96,6 +96,7 @@ impl<
                 match unsafe { self.registry.accessed_replacement(resource_id.clone(), resource, &access) } {
                     ManagedRegistryReplacementResult::ResourceNotFound => RegistryReplacementResult::ResourceNotFound,
                     ManagedRegistryReplacementResult::AccessFailure => RegistryReplacementResult::AccessFailure,
+                    ManagedRegistryReplacementResult::NoOp => RegistryReplacementResult::NoOp,
                     ManagedRegistryReplacementResult::Found(access_result) => {
                         self.reception.record_access(resource_id, access, reserver_id, key);
                         RegistryReplacementResult::Found(access_result)

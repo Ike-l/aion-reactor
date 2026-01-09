@@ -43,27 +43,29 @@ impl<
         let span = span!(Level::DEBUG, "Operated Registry Accessed Replacement");
         let _enter = span.enter();
 
-        let old_resource = match resource {
-            Some(new_resource) => {
-                if !access.can_insert() || (self.registry.contains_key(&resource_id) && !access.can_remove()) {
-                    return OperatedRegistryReplacementResult::AccessFailure;
-                }
+        let old_resource = match (resource, self.registry.contains_key(&resource_id), access.can_insert(), access.can_remove()) {
+            // Remove
+            (None, true, _, true) => self.registry.remove(&resource_id),
+            (None, true, _, false) => return OperatedRegistryReplacementResult::AccessFailure,
 
+            // Nothing
+            (None, false, _, _) => return OperatedRegistryReplacementResult::NoOp,
+
+            // Replace
+            (Some(new_resource), true, true, true) => {
                 access.insert(&new_resource);
-                // todo! if this insert would reallocate && there are concurrent accesses, FAIL
-                // strategies:
-                // use smart pointers around all resources (current implementation)
-                // use fixed size hashmap
-                // attempt to resize whenever it can, so sometimes will fail but hopefully rare
                 self.registry.insert(resource_id, Box::new(new_resource))
             },
-            None => {
-                if self.registry.contains_key(&resource_id) && !access.can_remove() {
-                    return OperatedRegistryReplacementResult::AccessFailure;
-                }
 
-                self.registry.remove(&resource_id)
-            }
+            (Some(_), true, false, _) => return OperatedRegistryReplacementResult::AccessFailure,
+            (Some(_), true, _, false) => return OperatedRegistryReplacementResult::AccessFailure,
+
+            // Insert
+            (Some(new_resource), false, true, _) => {
+                access.insert(&new_resource);
+                self.registry.insert(resource_id, Box::new(new_resource))
+            },
+            (Some(_), false, false, _) => return OperatedRegistryReplacementResult::AccessFailure,
         };
 
         match old_resource {

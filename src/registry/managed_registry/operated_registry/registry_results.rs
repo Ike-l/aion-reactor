@@ -7,6 +7,7 @@ pub enum OperatedRegistryAccessResult<AccessResult> {
 #[derive(Debug, PartialEq, Eq)]
 pub enum OperatedRegistryReplacementResult<AccessResult> {
     Found(AccessResult),
+    NoOp,
     ResourceNotFound,
     AccessFailure
 }

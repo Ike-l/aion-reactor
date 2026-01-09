@@ -18,6 +18,7 @@ fn init_tracing() {
             // .with_env_filter(EnvFilter::new("info,aion_reactor=debug"))
             .with_max_level(tracing::Level::TRACE)
             // .with_span_events(fmt::format::FmtSpan::ENTER | fmt::format::FmtSpan::EXIT)
+            // .with_c
             .with_target(false)
             .with_test_writer()           
             .init();

@@ -57,6 +57,7 @@ impl<
                 OperatedRegistryReplacementResult::Found(access_result) => ManagedRegistryReplacementResult::Found(access_result),
                 OperatedRegistryReplacementResult::ResourceNotFound => ManagedRegistryReplacementResult::ResourceNotFound,
                 OperatedRegistryReplacementResult::AccessFailure => ManagedRegistryReplacementResult::AccessFailure,
+                OperatedRegistryReplacementResult::NoOp => ManagedRegistryReplacementResult::NoOp,
             }
         }
     }

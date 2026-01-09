@@ -1,6 +1,7 @@
-use aion_reactor::prelude::{OperatedRegistry, OperatedRegistryAccessResult, OperatedRegistryReplacementResult};
+use aion_reactor::prelude::{Accessor, OperatedRegistry, OperatedRegistryAccessResult, OperatedRegistryReplacementResult};
+use tracing::{Level, span};
 
-use crate::default_implementation::{init_tracing, prelude::{Access, Resource, ResourceId, StoredResource}};
+use crate::default_implementation::{init_tracing, prelude::{Access, AccessResult, Resource, ResourceId, StoredResource}};
 
 pub mod resource_key;
 
@@ -74,13 +75,120 @@ fn found_resource_bad_access() {
     assert!(!matches!(stored_resource, OperatedRegistryAccessResult::Found(_)));
 }
 
-// Replace:
-// ResourceNotFound
-//  insert
-//  insert again does not give
-//  insert different
-// AccessFailure
-//   if removes and cant remove
-//   if inserting and cant insert
-// Found
-//   returns owned
+#[test]
+fn noop_replace() {
+    let mut registry = setup_operated_registry();
+    let resource_id = ResourceId::labelled("foo");
+    
+    for access in Access::all() {
+        let result = registry.accessed_replace(resource_id.clone(), &access, None);
+        assert_eq!(result, OperatedRegistryReplacementResult::NoOp);
+        
+        assert!(!registry.contains(&resource_id));
+    }
+}
+
+#[test]
+fn insert_something_replace() {
+    let resource_id = ResourceId::labelled("foo");
+    let resource = StoredResource::new(Resource::new(1));
+
+    for access in Access::all() {
+        let mut registry = setup_operated_registry();
+        let result = registry.accessed_replace(resource_id.clone(), &access, Some(resource.clone()));
+        if access == Access::Replace {
+            assert_eq!(result, OperatedRegistryReplacementResult::ResourceNotFound);
+
+            assert!(registry.contains(&resource_id));
+        } else {
+            assert_eq!(result, OperatedRegistryReplacementResult::AccessFailure);
+
+            assert!(!registry.contains(&resource_id));
+        }
+    }
+}
+
+#[test]
+fn access_respected_replace() {
+    let resource_id = ResourceId::labelled("foo");
+    let resource = StoredResource::new(Resource::new(1));
+
+    for access in Access::all() {
+        let mut registry = setup_operated_registry();
+
+        let span = span!(Level::DEBUG, "Access", access=?access);
+        let _enter = span.enter();
+        
+        // insert
+        let result = registry.accessed_replace(resource_id.clone(), &access, Some(resource.clone()));
+        if access.can_insert() {
+            assert_eq!(result, OperatedRegistryReplacementResult::ResourceNotFound);
+            
+            assert!(registry.contains(&resource_id));
+        } else {
+            assert_eq!(result, OperatedRegistryReplacementResult::AccessFailure);
+            
+            assert!(!registry.contains(&resource_id));
+        }
+
+        // replace
+        let result = registry.accessed_replace(resource_id.clone(), &access, Some(resource.clone()));
+        if access.can_remove() && access.can_insert() {
+            assert_eq!(result, OperatedRegistryReplacementResult::Found(AccessResult::Owned(resource.clone())));
+            
+            assert!(registry.contains(&resource_id));
+        } else {
+            assert_eq!(result, OperatedRegistryReplacementResult::AccessFailure);
+            
+            assert!(!registry.contains(&resource_id));
+        }
+
+        // remove
+        let result = registry.accessed_replace(resource_id.clone(), &access, None);
+        if access.can_remove() {
+            assert_eq!(result, OperatedRegistryReplacementResult::Found(AccessResult::Owned(resource.clone())));
+            
+            assert!(!registry.contains(&resource_id));
+        } else {
+            assert_eq!(result, OperatedRegistryReplacementResult::NoOp);
+
+            assert!(!registry.contains(&resource_id));
+        }
+    }
+}
+
+
+#[test]
+fn insert_respects_id() {
+    let resource_id = ResourceId::labelled("foo");
+    let other_resource_id = ResourceId::labelled("bar");
+
+    let resource = StoredResource::new(Resource::new(1));
+    let other_resource = StoredResource::new(Resource::new(2));
+
+    let mut registry = setup_operated_registry();
+
+    assert!(!registry.contains(&resource_id));
+    assert!(!registry.contains(&other_resource_id));
+
+    let result = registry.accessed_replace(resource_id.clone(), &Access::Replace, Some(resource.clone()));
+    assert_eq!(result, OperatedRegistryReplacementResult::ResourceNotFound);
+
+    assert!(registry.contains(&resource_id));
+    assert!(!registry.contains(&other_resource_id));
+
+    let result = registry.accessed_replace(resource_id.clone(), &Access::Replace, Some(resource.clone()));
+    assert_eq!(result, OperatedRegistryReplacementResult::Found(AccessResult::Owned(resource)));
+
+    assert!(registry.contains(&resource_id));
+    assert!(!registry.contains(&other_resource_id));
+
+    let result = registry.accessed_replace(other_resource_id.clone(), &Access::Replace, Some(other_resource.clone()));
+    assert_eq!(result, OperatedRegistryReplacementResult::ResourceNotFound);
+
+    assert!(registry.contains(&resource_id));
+    assert!(registry.contains(&other_resource_id));
+
+    let result = registry.accessed_replace(other_resource_id.clone(), &Access::Replace, Some(other_resource.clone()));
+    assert_eq!(result, OperatedRegistryReplacementResult::Found(AccessResult::Owned(other_resource)));
+}

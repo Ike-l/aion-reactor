@@ -25,6 +25,7 @@ pub enum RegistryReplacementResult<AccessResult> {
     IncompatibleAccess,
     AccessConflict,
     ReservationConflict,
+    NoOp,
     AccessFailure,
 }
 
